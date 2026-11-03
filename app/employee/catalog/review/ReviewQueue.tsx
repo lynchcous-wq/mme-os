@@ -66,7 +66,8 @@ export default function ReviewQueue() {
         </div>
         <label style={{display:"grid",gap:6,fontSize:12}}>Return for correction — explain exactly what must change<textarea value={notesById[item.id] ?? ""} onChange={event=>setNotesById(previous=>({...previous,[item.id]:event.target.value}))} minLength={10} maxLength={2000} rows={3} placeholder="Example: Confirm the exact model number and add RAM, storage, and screen condition details." style={{width:"100%",padding:10,border:"1px solid var(--line)",fontSize:12}}/></label>
         <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
-          <button disabled={!!working || !!item.history.some(event=>event.event_type==="approved")} onClick={()=>void act(item.id,"approve")} style={buttonStyle}>{working===item.id+"approve"?"Approving…":"Approve product"}</button>\n          <button disabled={!!working || (notesById[item.id] ?? "").trim().length<10} onClick={()=>void act(item.id,"return")} style={buttonStyle}>{working===item.id+"return"?"Returning…":"Return for correction"}</button>
+          <button disabled={!!working || !!item.history.some(event=>event.event_type==="approved")} onClick={()=>void act(item.id,"approve")} style={buttonStyle}>{working===item.id+"approve"?"Approving…":"Approve product"}</button>
+          <button disabled={!!working || (notesById[item.id] ?? "").trim().length<10} onClick={()=>void act(item.id,"return")} style={buttonStyle}>{working===item.id+"return"?"Returning…":"Return for correction"}</button>
           <button disabled={!!working || !item.history.some(event=>event.event_type==="approved")} onClick={()=>void act(item.id,"publish")} style={{...buttonStyle,background:"#164b3c",color:"#fff"}}>{working===item.id+"publish"?"Publishing…":"Publish product"}</button>
         </div>
       </article>)
