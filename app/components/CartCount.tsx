@@ -5,9 +5,12 @@ const EVENT_NAME = "mme-demo-cart-updated";
 function countItems() {
   try {
     const parsed: unknown = JSON.parse(window.localStorage.getItem(CART_KEY) ?? "[]");
-    return Array.isArray(parsed) ? parsed.reduce((sum, line) =>
-      line && typeof line === "object" && Number.isInteger(line.quantity) && line.quantity > 0
-        ? sum + Math.min(line.quantity, 20) : sum, 0) : 0;
+    return Array.isArray(parsed) ? parsed.reduce<number>((sum, line: unknown) => {
+      if (typeof line !== "object" || line === null || !("quantity" in line)) return sum;
+      const quantity = line.quantity;
+      return typeof quantity === "number" && Number.isInteger(quantity) && quantity > 0
+        ? sum + Math.min(quantity, 20) : sum;
+    }, 0) : 0;
   } catch { return 0; }
 }
 export default function CartCount() {
