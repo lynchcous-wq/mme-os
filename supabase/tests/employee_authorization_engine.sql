@@ -48,6 +48,32 @@ begin
      or position('employment_status' in fn_def) = 0 then
     raise exception 'Authorization must check freeze, active employment, and grant expiry';
   end if;
+
+  if position('g.revoked_at is null' in lower(fn_def)) = 0 then
+    raise exception 'Authorization must reject revoked permission grants';
+  end if;
+
+  if position('g.scope' in lower(fn_def)) = 0
+     or position('product_id' in lower(fn_def)) = 0 then
+    raise exception 'Authorization must enforce product-scoped grants';
+  end if;
+
+  if position('v_ceo_user_id' in fn_def) = 0
+     or position('p_actor_user_id = v_ceo_user_id' in fn_def) = 0 then
+    raise exception 'CEO authority must be derived from the provisioned security setting';
+  end if;
+
+  if position('catalog.approve' in fn_def) = 0
+     or position('catalog.publish' in fn_def) = 0
+     or position('v_product_creator' in fn_def) = 0 then
+    raise exception 'Approval and publication must enforce creator separation of duties';
+  end if;
+
+  if position('catalog_status' in fn_def) = 0
+     or position('approved_by' in fn_def) = 0
+     or position('approved_at' in fn_def) = 0 then
+    raise exception 'Publication authorization must require an approved pending product';
+  end if;
 end;
 $$;
 
