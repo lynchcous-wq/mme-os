@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "tsc --noEmit",
-    "check:migrations": "node scripts/check-migration-versions.mjs"
+    "check:migrations": "node scripts/check-migration-versions.mjs",
+    "check:catalog-api-security": "node scripts/check-catalog-api-security.mjs"
   },
   "dependencies": {
     "next": "^15.2.4",
