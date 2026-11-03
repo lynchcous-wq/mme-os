@@ -26,6 +26,8 @@ jobs:
           node-version: 20
       - name: Install dependencies
         run: npm install --no-audit --no-fund
+      - name: Supabase migration version check
+        run: npm run check:migrations
       - name: TypeScript validation
         run: npm run lint
       - name: Production build
