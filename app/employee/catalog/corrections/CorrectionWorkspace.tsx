@@ -44,7 +44,8 @@ export default function CorrectionWorkspace() {
         condition:form.condition,tracking_mode:form.tracking_mode,specifications,warranty_summary:form.warranty_summary||null,
       })});
       const result=await response.json();if(!response.ok)throw new Error(result.error||"Revision could not be saved.");
-      setMessage("Revision saved as a new version. You can return to the product workspace to submit it again.");
+      setMessage("Revision saved as a new version. Review it below, then resubmit it for approval.");
+      setReadyToSubmit(item.id);
       await load();
     }catch(cause){setError(cause instanceof Error?cause.message:"Revision could not be saved.");}
     finally{setSaving("");}
