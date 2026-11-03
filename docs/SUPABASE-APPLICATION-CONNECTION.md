@@ -37,8 +37,8 @@ Never commit real keys. Rotate any key that has been exposed in an untrusted loc
 
 1. Confirm the intended Supabase project and configure environment variables in a secure deployment environment.
 2. Apply migrations in a dedicated test project first and run the SQL verification scripts.
-3. Test `POST /api/employee/catalog` against a dedicated Supabase test project with CEO, permitted employee, unpermitted employee, suspended employee, terminated employee, and global-freeze scenarios.
-4. Implement server Route Handlers for edit, submit-for-approval, approve, and publish. Every operation must validate `auth.getUser()`, load employee status, and invoke the authorization function using the verified user ID.
+3. Test draft creation, submission, reviewer return, creator-only revision, stale-version conflict, immutable revision snapshots, approval and publication against a dedicated Supabase test project.
+4. Convert product update, revision snapshot, and audit event writes into atomic database RPC transactions; verify stale-version conflicts and rollback behavior.
 5. Enforce permissions and object scope for every write/read action; never rely on hidden UI controls.
 6. Add logout, session revocation, provisioning, customer/employee relationship separation, and audit tests.
 7. Verify termination, suspension, permission revocation, global freeze, self-approval rejection, and unauthorized publication.
