@@ -109,7 +109,7 @@ begin
   end if;
   select * into v_product from public.products where id=p_product_id for update;
   if not found or v_product.catalog_status <> 'changes_requested'
-     or v_product.created_by <> p_actor_user_id then
+     or v_product.created_by is distinct from p_actor_user_id then
     raise exception 'Only the original creator may revise a returned draft' using errcode='42501';
   end if;
   if v_product.version <> p_expected_version then
