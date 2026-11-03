@@ -1,7 +1,26 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
+import { createClient as createSessionClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import CatalogEditor from "./CatalogEditor";
 
-export default function EmployeeCatalogPage() {
+export default async function EmployeeCatalogPage() {
+  const sessionClient = await createSessionClient();
+  const { data: { user }, error: userError } = await sessionClient.auth.getUser();
+  if (userError || !user) redirect("/employee/login");
+
+  try {
+    const admin = createAdminClient();
+    const [{ data: employee, error: employeeError }, { data: settings, error: settingsError }] = await Promise.all([
+      admin.from("employee_relationships").select("employment_status").eq("user_id", user.id).maybeSingle(),
+      admin.from("employee_security_settings").select("employee_access_frozen,ceo_user_id").eq("singleton", true).maybeSingle(),
+    ]);
+    if (employeeError || settingsError || employee?.employment_status !== "active" || !settings || settings.employee_access_frozen || !settings.ceo_user_id) {
+      redirect("/employee/access-denied");
+    }
+  } catch {
+    redirect("/employee/access-denied?reason=configuration");
+  }
   return (
     <main className="simple-page">
       <header className="header">
