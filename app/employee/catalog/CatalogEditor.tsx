@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import type { CSSProperties } from "react";
 
 const categories = ["Televisions","Laptops","Tablets","Cellphones","Smartwatches","Accessories","Audio","Gaming","Smart Home","Services and Subscriptions"];
 const conditions = [
@@ -47,7 +48,7 @@ export default function CatalogEditor() {
     media_url:media.trim() || null, catalog_status:"draft"
   };
 
-  return <div style={{display:"grid",gridTemplateColumns:"minmax(0,1.3fr) minmax(260px,.7fr)",gap:22,alignItems:"start"}}>
+  return <div className="catalog-layout" style={{display:"grid",gridTemplateColumns:"minmax(0,1.3fr) minmax(260px,.7fr)",gap:22,alignItems:"start"}}>
     <form onSubmit={(event)=>{event.preventDefault();const message=validate();setError(message);setPreview(!message);}} style={{background:"white",border:"1px solid var(--line)",padding:22,borderRadius:5,display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
       <label style={field}>Product name *<input required value={name} onChange={e=>setName(e.target.value)} placeholder="e.g. 55-inch 4K Smart TV" style={input}/></label>
       <label style={field}>MME SKU *<input required value={sku} onChange={e=>setSku(e.target.value)} placeholder="MME-TV-0001" style={input}/></label>
@@ -78,12 +79,12 @@ export default function CatalogEditor() {
       {preview && <div style={{marginTop:18,paddingTop:14,borderTop:"1px solid var(--line)"}}><b style={{fontSize:12}}>Validated draft preview</b><pre style={{whiteSpace:"pre-wrap",overflowWrap:"anywhere",fontSize:10,lineHeight:1.6,background:"white",padding:12,borderRadius:3}}>{JSON.stringify(payload,null,2)}</pre></div>}
     </aside>
     <style jsx>{`
-      @media(max-width:760px){div[style*="grid-template-columns: minmax"]{grid-template-columns:1fr!important}}
+      @media(max-width:760px){.catalog-layout{grid-template-columns:1fr!important}}
     `}</style>
   </div>;
 }
 
-const field: React.CSSProperties = {display:"flex",flexDirection:"column",gap:6,fontSize:11,fontWeight:600,color:"#34413b"};
-const input: React.CSSProperties = {width:"100%",minWidth:0,padding:"11px 10px",border:"1px solid #dcded8",borderRadius:3,background:"#fff",font:"12px 'DM Sans',sans-serif",color:"#17211f"};
-const primary: React.CSSProperties = {padding:"11px 14px",border:0,borderRadius:3,background:"#164b3c",color:"white",fontSize:11,fontWeight:700,cursor:"pointer"};
-const secondary: React.CSSProperties = {padding:"10px 13px",border:"1px solid #cdd2cc",borderRadius:3,background:"white",color:"#34413b",fontSize:11,cursor:"pointer"};
+const field: CSSProperties = {display:"flex",flexDirection:"column",gap:6,fontSize:11,fontWeight:600,color:"#34413b"};
+const input: CSSProperties = {width:"100%",minWidth:0,padding:"11px 10px",border:"1px solid #dcded8",borderRadius:3,background:"#fff",font:"12px 'DM Sans',sans-serif",color:"#17211f"};
+const primary: CSSProperties = {padding:"11px 14px",border:0,borderRadius:3,background:"#164b3c",color:"white",fontSize:11,fontWeight:700,cursor:"pointer"};
+const secondary: CSSProperties = {padding:"10px 13px",border:"1px solid #cdd2cc",borderRadius:3,background:"white",color:"#34413b",fontSize:11,cursor:"pointer"};
