@@ -2,6 +2,11 @@
 -- All stock, serial, cost and audit writes occur in one database transaction.
 -- External CEO/role authorization and source-document scanning remain trusted-server duties.
 
+alter table public.mme_auction_import_events drop constraint if exists mme_auction_import_events_event_type_check;
+alter table public.mme_auction_import_events add constraint mme_auction_import_events_event_type_check
+ check(event_type in ('batch_created','rows_staged','validation_completed','line_matched','line_reviewed',
+ 'batch_approved','batch_rejected','batch_cancelled','document_attached','retail_research_updated','batch_received'));
+
 create table public.mme_auction_import_serials (
  id uuid primary key default gen_random_uuid(),
  batch_line_id uuid not null references public.mme_auction_import_lines(id) on delete restrict,
@@ -59,7 +64,13 @@ begin
   or exists(select 1 from jsonb_to_recordset(p_serials) x(serial_number text,imei text)
    group by x.serial_number having count(*)>1)
   or exists(select 1 from jsonb_to_recordset(p_serials) x(serial_number text,imei text)
-   where x.imei is not null group by x.imei having count(*)>1) then
+   where x.imei is not null group by x.imei having count(*)>1)
+  or exists(select 1 from jsonb_to_recordset(p_serials) x(serial_number text,imei text)
+   where exists(select 1 from public.mme_serialized_units u where u.serial_number=x.serial_number)
+      or x.imei is not null and exists(select 1 from public.mme_serialized_units u where u.imei=x.imei))
+  or exists(select 1 from jsonb_to_recordset(p_serials) x(serial_number text,imei text)
+   where exists(select 1 from public.mme_auction_import_serials s
+    where s.batch_line_id<>p_line_id and (s.serial_number=x.serial_number or (x.imei is not null and s.imei=x.imei)))) then
   raise exception 'Invalid or duplicate serial/IMEI in import line' using errcode='22023';
  end if;
  delete from public.mme_auction_import_serials where batch_line_id=p_line_id;
