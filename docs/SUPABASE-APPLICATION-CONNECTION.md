@@ -53,3 +53,12 @@ Never commit real keys. Rotate any key that has been exposed in an untrusted loc
 - A revision clears prior approval/publication metadata and returns the product to draft status; the creator must submit it again.
 - Prior product fields are snapshotted in the append-only `product_catalog_revisions` table and a revision event is appended.
 - Snapshot, product update, and audit writes are currently separate requests. A database transaction/RPC is required before production.
+
+
+## Atomic catalog workflow transactions
+
+Migration `20261103000600_atomic_catalog_workflows.sql` introduces server-only PostgreSQL functions for reviewer return, approval, publication, and employee revision. Each function locks the target product row, validates the transition and server-derived actor, updates product state, and writes its immutable event (and, for revisions, the prior-version snapshot) inside one database transaction. A failure in any step rolls back the entire function call.
+
+The corresponding API handlers now call these transaction functions rather than issuing separate product and audit requests. The service-role key remains server-only; the API derives actor identity from the validated Supabase session. The SQL functions are executable only by `service_role`, not browser roles.
+
+The new structural test checks function existence, SECURITY DEFINER status, service-role-only grants, audit writes, revision snapshot writes, and row locking. It has not been run against a database. A dedicated test project is still required for behavior, rollback, concurrent requests, permission revocation, and migration-order tests.
