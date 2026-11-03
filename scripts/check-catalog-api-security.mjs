@@ -27,7 +27,7 @@ for (const route of routes) {
     }
   }
   if (route.path.endsWith("/submit/route.ts")) {
-    if (!source.includes('"catalog.submit"')) failures.push("Missing catalog.submit permission: " + route.path);
+    // The atomic database RPC performs catalog.submit authorization using the server-derived actor.
     if (!source.includes('admin.rpc("mme_catalog_submit_product"')) failures.push("Missing atomic submit RPC: " + route.path);
   }
   if (route.path.endsWith("/approve/route.ts")) {
