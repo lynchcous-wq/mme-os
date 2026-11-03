@@ -98,3 +98,8 @@ This is defense-in-depth, not tamper-proof storage against the database owner or
 The additive migration `supabase/migrations/20261103000400_identity_security_lock.sql` adds an identity-level `security_status` independent of the customer and employee relationship statuses. A locked identity requires a timestamp and nonblank reason; the acting identity is recorded when the lock is initiated by an MME person. Restoring the identity to active must clear the lock metadata through an audited server-side workflow.
 
 This schema state alone does not revoke existing Supabase sessions or enforce access. Every protected server request must check the identity security state, and a separate server-side workflow must revoke/refresh sessions as appropriate. Do not enable account self-unlock or client-side writes to these fields. CEO/authorized security actions require server-side permission checks and append-only audit evidence.
+
+
+## 11. Auth trigger function privilege boundary
+
+The additive migration `supabase/migrations/20261103000500_auth_trigger_execute_lock.sql` revokes direct EXECUTE privileges on the Auth identity trigger function from `PUBLIC`, `anon`, and `authenticated`. The trigger remains installed by the trusted database migration owner. Confirm trigger behavior and privilege boundaries against the exact target PostgreSQL/Supabase version in the disposable development project before rollout; this migration has not yet been executed.
