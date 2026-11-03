@@ -26,8 +26,9 @@ Never commit real keys. Rotate any key that has been exposed in an untrusted loc
 
 ## Current limitations
 
-- Middleware verifies identity, not employee permission grants. The catalog server page currently checks active employment and global freeze; feature-level authorization must be enforced by server Route Handlers before any write or privileged action.
-- The employee catalog editor remains a local-only preview; no product writes, uploads, or publication API exist.
+- Middleware verifies identity, not employee permission grants. The catalog page and draft-creation API check active employment and the global freeze; the draft API additionally calls the server-only authorization function for `catalog.create`.
+- `POST /api/employee/catalog` creates a draft product record after validating the session, employee relationship, global freeze, category, input shape, and `catalog.create` authorization. It records a `draft_created` event and can attach an HTTPS media URL as metadata. This is metadata linking only; binary uploads/storage integration are not implemented.
+- Draft creation and media/audit writes are separate database requests, not one atomic transaction. If a later step fails, an administrator must reconcile the already-created draft before the employee retries.
 - No logout/session-revocation workflow or account provisioning UI exists yet.
 - CEO identity must be provisioned out-of-band after verification; it is not inferred from email, user metadata, or client input.
 - The service-role client must never be imported into client components.
@@ -36,8 +37,9 @@ Never commit real keys. Rotate any key that has been exposed in an untrusted loc
 
 1. Confirm the intended Supabase project and configure environment variables in a secure deployment environment.
 2. Apply migrations in a dedicated test project first and run the SQL verification scripts.
-3. Implement server Route Handlers that validate `auth.getUser()`, load employee status, and invoke the authorization function using the verified user ID.
-4. Enforce permissions and object scope for every write/read action; never rely on hidden UI controls.
-5. Add logout, session revocation, provisioning, customer/employee relationship separation, and audit tests.
-6. Verify termination, suspension, permission revocation, global freeze, self-approval rejection, and unauthorized publication.
-7. Only then replace the employee catalog preview with authenticated, persisted workflows.
+3. Test `POST /api/employee/catalog` against a dedicated Supabase test project with CEO, permitted employee, unpermitted employee, suspended employee, terminated employee, and global-freeze scenarios.
+4. Implement server Route Handlers for edit, submit-for-approval, approve, and publish. Every operation must validate `auth.getUser()`, load employee status, and invoke the authorization function using the verified user ID.
+5. Enforce permissions and object scope for every write/read action; never rely on hidden UI controls.
+6. Add logout, session revocation, provisioning, customer/employee relationship separation, and audit tests.
+7. Verify termination, suspension, permission revocation, global freeze, self-approval rejection, and unauthorized publication.
+8. Only then enable production catalog workflows and connect approved products to the customer storefront.
