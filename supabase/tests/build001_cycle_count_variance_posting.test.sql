@@ -1,0 +1,11 @@
+begin;
+select plan(7);
+select has_function('public','mme_approve_cycle_count',array['uuid','uuid','text'],'independent cycle count approval exists');
+select has_function('public','mme_post_cycle_count',array['uuid','uuid'],'approved cycle count posting exists');
+select ok(has_function_privilege('service_role','public.mme_approve_cycle_count(uuid,uuid,text)','execute'),'service role can approve count');
+select ok(has_function_privilege('service_role','public.mme_post_cycle_count(uuid,uuid)','execute'),'service role can post count');
+select ok(not has_function_privilege('authenticated','public.mme_approve_cycle_count(uuid,uuid,text)','execute'),'authenticated cannot approve directly');
+select ok(not has_function_privilege('authenticated','public.mme_post_cycle_count(uuid,uuid)','execute'),'authenticated cannot post directly');
+select ok(not has_table_privilege('anon','public.mme_cycle_count_events','select'),'anon cannot read count audit');
+select * from finish();
+rollback;
