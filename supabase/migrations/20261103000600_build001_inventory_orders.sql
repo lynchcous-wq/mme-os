@@ -52,7 +52,9 @@ create table public.mme_orders (
   fulfillment_method text not null check (fulfillment_method in ('pickup','shipping')),
   fulfillment_snapshot jsonb not null,
   created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
+  updated_at timestamptz not null default now(),
+  check (discount_cents <= subtotal_cents + tax_cents + fulfillment_cents),
+  check (total_cents = subtotal_cents + tax_cents + fulfillment_cents - discount_cents)
 );
 
 create table public.mme_order_lines (
