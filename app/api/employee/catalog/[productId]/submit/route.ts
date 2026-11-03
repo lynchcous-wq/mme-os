@@ -18,6 +18,11 @@ export async function POST(_request: Request, context: { params: Promise<{ produ
     if (authzError) return NextResponse.json({ error: "Submission authorization unavailable." }, { status: 503 });
     if (allowed !== true) return NextResponse.json({ error: "Catalog submission permission required." }, { status: 403 });
 
+    const { data: existing, error: lookupError } = await admin.from("products").select("id,created_by,catalog_status").eq("id", productId).maybeSingle();
+    if (lookupError) return NextResponse.json({ error: "Draft ownership could not be verified." }, { status: 500 });
+    if (!existing || existing.catalog_status !== "draft") return NextResponse.json({ error: "Draft not found or no longer editable." }, { status: 409 });
+    if (existing.created_by !== user.id) return NextResponse.json({ error: "Employees may submit only drafts they created." }, { status: 403 });
+
     const { data: product, error: updateError } = await admin.from("products")
       .update({ catalog_status: "pending_approval" })
       .eq("id", productId).eq("catalog_status", "draft").select("id,sku,name,catalog_status,version").maybeSingle();
