@@ -89,13 +89,13 @@ create trigger product_categories_updated_at
 before update on public.product_categories
 for each row execute function public.mme_catalog_set_updated_at();
 create function public.mme_catalog_products_set_updated_at()
-returns trigger language plpgsql as $
+returns trigger language plpgsql as $$
 begin
   new.updated_at = now();
   new.version = old.version + 1;
   return new;
 end;
-$;
+$$;
 create trigger products_updated_at
 before update on public.products
 for each row execute function public.mme_catalog_products_set_updated_at();
