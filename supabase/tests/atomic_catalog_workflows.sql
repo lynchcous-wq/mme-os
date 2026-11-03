@@ -40,6 +40,9 @@ begin
   if position('product_catalog_revisions' in v_def)=0 then
     raise exception 'Revision workflow must write immutable revision snapshot';
   end if;
+  if position('created_by is distinct from p_actor_user_id' in lower(v_def))=0 then
+    raise exception 'Revision workflow must fail closed for null or mismatched creators';
+  end if;
 
   select pg_get_functiondef('public.mme_catalog_create_product_draft(uuid,jsonb)'::regprocedure)
     into v_def;
