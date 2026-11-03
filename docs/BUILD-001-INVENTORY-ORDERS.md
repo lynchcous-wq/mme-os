@@ -12,7 +12,7 @@
 
 ## Atomic order creation and reservation
 
-`mme_create_order_and_reserve` is the server-only entry point. It creates a pending order, snapshots current database product prices and condition/SKU/title, records the fulfillment location on each line, calculates line/subtotal/total cents, and calls the reservation function in the same database transaction. It uses an idempotency key plus a request fingerprint to return the original order for a retry and rejects reuse with a different request. Tax, fulfillment, and discount amounts must be calculated/authorized by the trusted server before invocation.
+`mme_create_order_and_reserve` is the server-only entry point. It creates a pending order, snapshots current database product prices and condition/SKU/title, records the fulfillment location on each line, calculates line/subtotal/total cents, and calls the reservation function in the same database transaction. It uses an idempotency key plus a stable request fingerprint to return the original order for a retry and rejects reuse with a different request. The current MD5 fingerprint is only a non-security equality aid; it is not used for authentication, authorization, signatures, or payment verification. Tax, fulfillment, and discount amounts must be calculated/authorized by the trusted server before invocation.
 
 `mme_reserve_inventory` is a server-only PostgreSQL function. It:
 - accepts an existing pending order and a bounded JSON array of product/location/quantity requests;
