@@ -25,7 +25,7 @@ export default async function EmployeeCatalogPage() {
     <main className="simple-page">
       <header className="header">
         <Link className="brand" href="/"><span className="brand-mark">MM</span><span>MUCH MORE<br /><b>ELECTRONICS</b></span></Link>
-        <nav><Link href="/products">Customer storefront</Link><span style={{margin:"0 10px"}}>·</span><Link href="/employee/catalog/review">Review center</Link></nav>
+        <nav><Link href="/products">Customer storefront</Link><span style={{margin:"0 10px"}}>·</span><Link href="/employee/catalog/review">Review center</Link><span style={{margin:"0 10px"}}>·</span><Link href="/employee/catalog/corrections">My corrections</Link></nav>
         <div className="actions"><span>Employee workspace</span><form action="/api/employee/logout" method="post"><button type="submit" style={{border:"1px solid var(--line)",background:"transparent",padding:"8px 12px",cursor:"pointer"}}>Sign out</button></form></div>
       </header>
       <section style={{maxWidth:1180, width:"100%", margin:"0 auto", padding:"52px 6%"}}>
