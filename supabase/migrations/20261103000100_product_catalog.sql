@@ -79,7 +79,7 @@ insert into public.product_categories (name, slug, sort_order) values
 on conflict (slug) do nothing;
 
 create function public.mme_catalog_set_updated_at()
-returns trigger language plpgsql as $
+returns trigger language plpgsql as $$
 begin
   new.updated_at = now();
   return new;
@@ -93,7 +93,7 @@ before update on public.products
 for each row execute function public.mme_catalog_set_updated_at();
 
 create function public.mme_catalog_events_immutable()
-returns trigger language plpgsql as $
+returns trigger language plpgsql as $$
 begin
   raise exception 'Product catalog events are append-only';
 end;
