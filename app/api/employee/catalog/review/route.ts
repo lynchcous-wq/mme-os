@@ -34,8 +34,8 @@ export async function GET() {
 
     const submitterIds = [...new Set((products ?? []).map((product) => product.created_by).filter(Boolean))] as string[];
     const userResults = await Promise.all(submitterIds.map((id) => admin.auth.admin.getUserById(id)));
-    if (userResults.some((result) => result.error)) return NextResponse.json({ error: "Submitter identity details unavailable." }, { status: 500 });
-    const names = new Map(userResults.map((result) => [result.data.user.id, result.data.user.email ?? "Employee"]));
+    if (userResults.some((result) => result.error || !result.data.user)) return NextResponse.json({ error: "Submitter identity details unavailable." }, { status: 500 });
+    const names = new Map(userResults.flatMap((result) => result.data.user ? [[result.data.user.id, result.data.user.email ?? "Employee"] as const] : []));
 
     return NextResponse.json({
       products: (products ?? []).map((product) => ({
