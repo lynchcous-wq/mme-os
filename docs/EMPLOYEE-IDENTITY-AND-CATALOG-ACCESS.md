@@ -54,12 +54,14 @@ Client-supplied role names, user IDs, permission flags, approval fields, or cata
 
 ## Implementation gate
 
-The repository currently has no selected identity provider, Supabase client, employee relationship schema, role-grant schema, session validation, or permission middleware. This document is a contract for that implementation, not evidence that authentication or authorization is live.
+The repository now contains proposed employee relationship, permission-grant, CEO control, audit, and catalog authorization SQL migrations, plus structural verification scripts. These migrations have not been applied to a Supabase project. The application still has no selected identity provider, Supabase client, validated server session, employee session revocation flow, or server/API middleware. The SQL authorization function is a server-side decision point only; it is not a complete authentication system or a live API.
 
 Before enabling any employee write API:
-- Select and configure the identity provider and environment secrets.
-- Add employee relationship and permission-grant tables with restrictive RLS.
-- Implement server-only session validation and authorization helpers.
-- Add tests for employee termination while customer access remains active.
-- Add negative tests for self-approval, unauthorized publishing, stale sessions, missing roles, and CEO freeze.
+- Select and configure the identity provider and server-only environment secrets.
+- Apply and review the migrations in a dedicated test Supabase project.
+- Implement server-side session validation; derive the actor ID only from a verified session, never from request input.
+- Implement server-only API handlers that call the authorization function and enforce object scope.
+- Implement employee session revocation on suspension, termination, permission removal, and CEO freeze.
+- Add runtime tests for employee termination while customer access remains active, self-approval, unauthorized publishing, stale sessions, missing roles, grant expiry, and CEO freeze.
+- Provision the CEO user only after independently verifying the correct identity.
 - Verify behavior in a dedicated test project before production rollout.
