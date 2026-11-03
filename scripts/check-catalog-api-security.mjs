@@ -26,6 +26,25 @@ for (const route of routes) {
       failures.push("Review queue must authorize before querying product data: " + route.path);
     }
   }
+  if (route.path.endsWith("/submit/route.ts")) {
+    if (!source.includes('"catalog.submit"')) failures.push("Missing catalog.submit permission: " + route.path);
+    if (!source.includes('admin.rpc("mme_catalog_submit_product"')) failures.push("Missing atomic submit RPC: " + route.path);
+  }
+  if (route.path.endsWith("/approve/route.ts")) {
+    if (!source.includes('admin.rpc("mme_catalog_approve_product"')) failures.push("Missing atomic approval RPC: " + route.path);
+  }
+  if (route.path.endsWith("/publish/route.ts")) {
+    if (!source.includes('admin.rpc("mme_catalog_publish_product"')) failures.push("Missing atomic publication RPC: " + route.path);
+  }
+  if (route.path.endsWith("/return/route.ts")) {
+    if (!source.includes('admin.rpc("mme_catalog_return_for_correction"')) failures.push("Missing atomic return-for-correction RPC: " + route.path);
+  }
+  if (route.path.endsWith("/edit/route.ts")) {
+    if (!source.includes('admin.rpc("mme_catalog_revise_returned_product"')) failures.push("Missing atomic returned-draft revision RPC: " + route.path);
+  }
+  if (route.path === "app/api/employee/catalog/route.ts") {
+    if (!source.includes('admin.rpc("mme_catalog_create_product_draft"')) failures.push("Missing atomic draft creation RPC: " + route.path);
+  }
   if (route.bodyLimit) {
     if (!source.includes('import { readJsonObject } from "@/lib/http/read-json-object"')) failures.push("Missing bounded reader import: " + route.path);
     if (!source.includes("readJsonObject(request, " + route.bodyLimit + ")")) failures.push("Incorrect body limit: " + route.path);
