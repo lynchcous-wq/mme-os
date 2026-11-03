@@ -79,6 +79,15 @@ begin
     raise exception 'Invalid verified payment event' using errcode='22023';
   end if;
 
+  -- Keep aggregate and serialized payment handlers disjoint. Return before
+  -- inserting the event so the correct serialized handler can process it.
+  if exists (
+    select 1 from public.mme_order_lines
+    where order_id=p_order_id and serialized_unit_id is not null
+  ) then
+    return 'use_serialized_payment_processor';
+  end if;
+
   insert into public.mme_payment_events(provider,provider_event_id,event_type,provider_object_id,order_id,processing_status,payload_sha256)
   values('stripe',p_provider_event_id,p_event_type,p_provider_object_id,p_order_id,'received',lower(p_payload_sha256))
   on conflict(provider,provider_event_id) do nothing returning id into v_event_id;
