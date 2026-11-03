@@ -18,7 +18,12 @@ function textField(value: unknown, max: number): string | null {
   return cleaned.length > 0 && cleaned.length <= max ? cleaned : null;
 }
 
-function isHttpsUrl(value: string | null): boolean {\n  if (!value) return false;\n  try { return new URL(value).protocol === "https:"; } catch { return false; }\n}\n\nfunction slugify(value: string): string {
+function isHttpsUrl(value: string | null): boolean {
+  if (!value) return false;
+  try { return new URL(value).protocol === "https:"; } catch { return false; }
+}
+
+function slugify(value: string): string {
   return value.toLowerCase().normalize("NFKD").replace(/[\u0300-\u036f]/g, "")
     .replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 80);
 }
@@ -62,7 +67,7 @@ export async function POST(request: Request) {
       (body.upc_ean != null && body.upc_ean !== "" && !upcEan) ||
       (body.description != null && body.description !== "" && !description) ||
       (body.warranty_summary != null && body.warranty_summary !== "" && !warranty) ||
-      (body.media_url != null && body.media_url !== "" && (!mediaUrl || !/^https:\\/\\//i.test(mediaUrl)))) {
+      (body.media_url != null && body.media_url !== "" && !isHttpsUrl(mediaUrl))) {
     return NextResponse.json({ error: "One or more fields are invalid or too long." }, { status: 400 });
   }
   if (!specifications || typeof specifications !== "object" || Array.isArray(specifications)) {
