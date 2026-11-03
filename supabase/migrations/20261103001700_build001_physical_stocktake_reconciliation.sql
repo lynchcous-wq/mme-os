@@ -156,7 +156,8 @@ begin
   select cl.*,b.on_hand_quantity as current_quantity
   from public.mme_inventory_count_lines cl
   left join public.mme_inventory_balances b on b.product_id=cl.product_id and b.location_id=v_session.location_id
-  where cl.session_id=p_session_id and cl.variance_quantity<>0
+  where cl.session_id=p_session_id and cl.counted_quantity is not null
+    and cl.counted_quantity<>coalesce(b.on_hand_quantity,0)
   order by cl.product_id
   for update of cl
  loop
