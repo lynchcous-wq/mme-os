@@ -35,3 +35,19 @@ jobs:
 
       - name: Build application
         run: npm run build
+
+  edge-functions:
+    name: Supabase Edge Function type-check
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Type-check checkout and webhook functions
+        run: |
+          deno check supabase/functions/create-checkout-payment/index.ts
+          deno check supabase/functions/stripe-webhook/index.ts
