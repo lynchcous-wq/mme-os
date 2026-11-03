@@ -10,19 +10,39 @@ export async function readJsonObject(
   if (Number.isFinite(declaredLength) && declaredLength > maxBytes) {
     return { ok: false, status: 413, error: "Request body is too large." };
   }
+  if (!request.body) {
+    return { ok: false, status: 400, error: "A JSON request body is required." };
+  }
 
-  let raw: string;
+  const reader = request.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let totalBytes = 0;
   try {
-    raw = await request.text();
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      totalBytes += value.byteLength;
+      if (totalBytes > maxBytes) {
+        await reader.cancel("Request body size limit exceeded.");
+        return { ok: false, status: 413, error: "Request body is too large." };
+      }
+      chunks.push(value);
+    }
   } catch {
     return { ok: false, status: 400, error: "Request body could not be read." };
+  } finally {
+    reader.releaseLock();
   }
-  if (new TextEncoder().encode(raw).byteLength > maxBytes) {
-    return { ok: false, status: 413, error: "Request body is too large." };
+
+  const bytes = new Uint8Array(totalBytes);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
   }
 
   try {
-    const value: unknown = JSON.parse(raw);
+    const value: unknown = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes));
     if (!value || typeof value !== "object" || Array.isArray(value)) {
       return { ok: false, status: 400, error: "A JSON object is required." };
     }
