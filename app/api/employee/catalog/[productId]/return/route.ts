@@ -34,9 +34,9 @@ export async function POST(request: Request, context: { params: Promise<{ produc
     if (allowed !== true) return NextResponse.json({ error: "Catalog return-for-correction permission required." }, { status: 403 });
 
     const { data: existing, error: lookupError } = await admin.from("products")
-      .select("id,created_by,catalog_status").eq("id", productId).maybeSingle();
+      .select("id,created_by,catalog_status,approved_by").eq("id", productId).maybeSingle();
     if (lookupError) return NextResponse.json({ error: "Product could not be loaded." }, { status: 500 });
-    if (!existing || existing.catalog_status !== "pending_approval") return NextResponse.json({ error: "Product is no longer awaiting review." }, { status: 409 });
+    if (!existing || existing.catalog_status !== "pending_approval" || existing.approved_by !== null) return NextResponse.json({ error: "Product is no longer awaiting review." }, { status: 409 });
     if (existing.created_by === user.id) return NextResponse.json({ error: "A submitter cannot review their own product." }, { status: 403 });
 
     const { data: product, error: updateError } = await admin.from("products")
