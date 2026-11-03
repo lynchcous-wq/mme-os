@@ -91,3 +91,10 @@ Do not add actual credentials to `.env.example`. Set real values only in local i
 The dependent security branch adds `supabase/migrations/20261103000300_identity_audit_append_only.sql`. It rejects UPDATE and DELETE on audit rows and rejects TRUNCATE through database triggers. It also revokes direct sequence privileges from `public`, `anon`, and `authenticated`.
 
 This is defense-in-depth, not tamper-proof storage against the database owner or a sufficiently privileged administrator who can disable triggers or alter the schema. Production deployment must keep runtime application roles from owning the audit table or having DDL/trigger-management privileges. Verify that the generated identity sequence name matches the deployed schema before applying this migration. Test inserts through the approved server-side path and verify UPDATE, DELETE, and TRUNCATE are rejected for runtime roles.
+
+
+## 10. Whole-login security lock state
+
+The additive migration `supabase/migrations/20261103000400_identity_security_lock.sql` adds an identity-level `security_status` independent of the customer and employee relationship statuses. A locked identity requires a timestamp and nonblank reason; the acting identity is recorded when the lock is initiated by an MME person. Restoring the identity to active must clear the lock metadata through an audited server-side workflow.
+
+This schema state alone does not revoke existing Supabase sessions or enforce access. Every protected server request must check the identity security state, and a separate server-side workflow must revoke/refresh sessions as appropriate. Do not enable account self-unlock or client-side writes to these fields. CEO/authorized security actions require server-side permission checks and append-only audit evidence.
