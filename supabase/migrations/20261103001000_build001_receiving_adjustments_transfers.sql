@@ -169,10 +169,12 @@ begin
   if not found or not v_product.active or v_product.serialized then
     raise exception 'Adjustment product unavailable or serialized' using errcode='P0002';
   end if;
-  insert into public.mme_inventory_balances(product_id,location_id) 
-  select p_product_id,p_location_id where exists(select 1 from public.mme_store_locations where id=p_location_id and active=true)
+  if not exists(select 1 from public.mme_store_locations where id=p_location_id and active=true) then
+    raise exception 'Adjustment location unavailable' using errcode='P0002';
+  end if;
+  insert into public.mme_inventory_balances(product_id,location_id)
+  values(p_product_id,p_location_id)
   on conflict(product_id,location_id) do nothing;
-  if not found then raise exception 'Adjustment location unavailable' using errcode='P0002'; end if;
   select id,on_hand_quantity,reserved_quantity,average_unit_cost_cents into v_balance
    from public.mme_inventory_balances where product_id=p_product_id and location_id=p_location_id for update;
   v_after:=v_balance.on_hand_quantity+p_quantity_delta;
@@ -219,10 +221,15 @@ begin
   insert into public.mme_inventory_balances(product_id,location_id)
     values(p_product_id,p_from_location_id),(p_product_id,p_to_location_id)
     on conflict(product_id,location_id) do nothing;
+  -- Lock both balance rows in deterministic location order to reduce
+  -- deadlock risk when opposite-direction transfers run concurrently.
+  perform 1 from public.mme_inventory_balances
+   where product_id=p_product_id and location_id in (p_from_location_id,p_to_location_id)
+   order by location_id for update;
   select id,on_hand_quantity,reserved_quantity,average_unit_cost_cents into v_from
-    from public.mme_inventory_balances where product_id=p_product_id and location_id=p_from_location_id for update;
+    from public.mme_inventory_balances where product_id=p_product_id and location_id=p_from_location_id;
   select id,on_hand_quantity,reserved_quantity,average_unit_cost_cents into v_to
-    from public.mme_inventory_balances where product_id=p_product_id and location_id=p_to_location_id for update;
+    from public.mme_inventory_balances where product_id=p_product_id and location_id=p_to_location_id;
   if v_from.on_hand_quantity-v_from.reserved_quantity<p_quantity then
     raise exception 'Insufficient unreserved stock to transfer' using errcode='P0001';
   end if;
