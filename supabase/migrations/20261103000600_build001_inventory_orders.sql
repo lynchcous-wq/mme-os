@@ -283,11 +283,11 @@ declare
   v_line_total bigint;
   v_total bigint;
 begin
-  if p_idempotency_key is null or length(p_idempotency_key) < 8
+  if p_idempotency_key is null or length(btrim(p_idempotency_key)) < 8
      or length(p_idempotency_key) > 128
      or p_items is null or jsonb_typeof(p_items) is distinct from 'array'
      or jsonb_array_length(p_items) = 0 or jsonb_array_length(p_items) > 50
-     or p_fulfillment_method not in ('pickup','shipping')
+     or p_fulfillment_method is null or p_fulfillment_method not in ('pickup','shipping')
      or p_fulfillment_snapshot is null or jsonb_typeof(p_fulfillment_snapshot) is distinct from 'object'
      or p_tax_cents is null or p_tax_cents < 0
      or p_fulfillment_cents is null or p_fulfillment_cents < 0
