@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 
 type ReturnedDraft = {
-  id:string; sku:string; name:string; brand:string|null; model_number:string|null; upc_ean:string|null;
+  id:string; sku:string; name:string; category:string; brand:string|null; model_number:string|null; upc_ean:string|null;
   description:string|null; condition:string; tracking_mode:string; specifications:Record<string,unknown>;
   warranty_summary:string|null; correction_notes:string|null; version:number;
 };
@@ -22,7 +22,7 @@ export default function CorrectionWorkspace() {
       const result=await response.json();if(!response.ok)throw new Error(result.error||"Returned drafts unavailable.");
       const rows:ReturnedDraft[]=result.products??[];setItems(rows);
       setValues(Object.fromEntries(rows.map(item=>[item.id,{
-        name:item.name,sku:item.sku,brand:item.brand??"",model_number:item.model_number??"",upc_ean:item.upc_ean??"",
+        name:item.name,sku:item.sku,category:item.category,brand:item.brand??"",model_number:item.model_number??"",upc_ean:item.upc_ean??"",
         description:item.description??"",condition:item.condition,tracking_mode:item.tracking_mode,
         specifications:JSON.stringify(item.specifications,null,2),warranty_summary:item.warranty_summary??"",
       }])));
@@ -37,7 +37,7 @@ export default function CorrectionWorkspace() {
       const form=values[item.id];let specifications:unknown;
       try{specifications=JSON.parse(form.specifications);}catch{throw new Error("Specifications must be valid JSON.");}
       const response=await fetch("/api/employee/catalog/"+item.id+"/edit",{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({
-        expected_version:item.version,name:form.name,sku:form.sku,category:"televisions",brand:form.brand||null,
+        expected_version:item.version,name:form.name,sku:form.sku,category:form.category,brand:form.brand||null,
         model_number:form.model_number||null,upc_ean:form.upc_ean||null,description:form.description||null,
         condition:form.condition,tracking_mode:form.tracking_mode,specifications,warranty_summary:form.warranty_summary||null,
       })});
@@ -57,7 +57,7 @@ export default function CorrectionWorkspace() {
         <div style={{padding:14,background:"#f7f2e7",borderLeft:"3px solid #a77a30"}}><b style={{fontSize:12}}>Reviewer correction notes</b><p style={{fontSize:13,lineHeight:1.7,whiteSpace:"pre-wrap"}}>{item.correction_notes||"No notes supplied."}</p></div>
         <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))",gap:10}}>
           {(["name","sku","brand","model_number","upc_ean","warranty_summary"] as const).map(key=><label key={key} style={{fontSize:11,fontWeight:700,textTransform:"capitalize"}}>{key.replaceAll("_"," ")}<input style={input} value={values[item.id]?.[key]??""} onChange={e=>change(item.id,key,e.target.value)}/></label>)}
-          <label style={{fontSize:11,fontWeight:700}}>Condition<select style={input} value={values[item.id]?.condition??item.condition} onChange={e=>change(item.id,"condition",e.target.value)}>{["new","open_box","like_new","refurbished","used_excellent","used_good","used_fair","parts_only","damaged","inspection_required"].map(x=><option key={x} value={x}>{x.replaceAll("_"," ")}</option>)}</select></label>
+          <label style={{fontSize:11,fontWeight:700}}>Category<select style={input} value={values[item.id]?.category??item.category} onChange={e=>change(item.id,"category",e.target.value)}>{["televisions","laptops","tablets","cellphones","smartwatches","accessories","audio","gaming","smart-home","services-subscriptions"].map(x=><option key={x} value={x}>{x.replaceAll("-"," ")}</option>)}</select></label>\n          <label style={{fontSize:11,fontWeight:700}}>Condition<select style={input} value={values[item.id]?.condition??item.condition} onChange={e=>change(item.id,"condition",e.target.value)}>{["new","open_box","like_new","refurbished","used_excellent","used_good","used_fair","parts_only","damaged","inspection_required"].map(x=><option key={x} value={x}>{x.replaceAll("_"," ")}</option>)}</select></label>
           <label style={{fontSize:11,fontWeight:700}}>Tracking<select style={input} value={values[item.id]?.tracking_mode??item.tracking_mode} onChange={e=>change(item.id,"tracking_mode",e.target.value)}><option value="quantity">Quantity</option><option value="serialized">Serialized</option></select></label>
         </div>
         <label style={{fontSize:11,fontWeight:700}}>Description<textarea rows={3} style={input} value={values[item.id]?.description??""} onChange={e=>change(item.id,"description",e.target.value)}/></label>
