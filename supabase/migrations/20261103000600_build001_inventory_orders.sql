@@ -130,7 +130,7 @@ declare
   v_on_hand integer;
   v_reserved integer;
 begin
-  if p_order_id is null or jsonb_typeof(p_items) <> 'array'
+  if p_order_id is null or p_items is null or jsonb_typeof(p_items) is distinct from 'array'
      or jsonb_array_length(p_items) = 0 or jsonb_array_length(p_items) > 50 then
     raise exception 'Invalid reservation request' using errcode = '22023';
   end if;
@@ -186,6 +186,7 @@ begin
     join public.mme_inventory_balances b on b.product_id = p.id
     where p.id = v_item.product_id
       and p.active = true
+      and p.serialized = false
       and b.location_id = v_item.location_id
       and (select l.active from public.mme_store_locations l where l.id = b.location_id) = true
     for update of p, b;
@@ -237,3 +238,12 @@ revoke all on public.mme_order_lines from anon, authenticated;
 revoke all on public.mme_inventory_reservations from anon, authenticated;
 revoke all on public.mme_inventory_reservation_lines from anon, authenticated;
 revoke all on public.mme_payment_events from anon, authenticated;
+
+grant all on public.mme_store_locations to service_role;
+grant all on public.mme_products to service_role;
+grant all on public.mme_inventory_balances to service_role;
+grant all on public.mme_orders to service_role;
+grant all on public.mme_order_lines to service_role;
+grant all on public.mme_inventory_reservations to service_role;
+grant all on public.mme_inventory_reservation_lines to service_role;
+grant all on public.mme_payment_events to service_role;
