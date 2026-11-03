@@ -1,0 +1,16 @@
+begin;
+select plan(12);
+select has_table('public','mme_inventory_forecast_rules','forecast rules exist');
+select has_table('public','mme_purchase_proposals','purchase proposal header exists');
+select has_table('public','mme_purchase_proposal_lines','purchase proposal lines exist');
+select has_function('public','mme_get_inventory_forecast',array['uuid','uuid','boolean','integer','integer'],'forecast query exists');
+select has_function('public','mme_set_inventory_forecast_rule',array['uuid','uuid','integer','integer','integer','numeric','text','boolean','uuid','uuid'],'forecast rule update exists');
+select has_function('public','mme_create_purchase_proposal',array['text','uuid','text','uuid','jsonb'],'proposal creation exists');
+select has_function('public','mme_submit_purchase_proposal',array['uuid','uuid'],'proposal submission exists');
+select has_function('public','mme_decide_purchase_proposal',array['uuid','text','uuid','text'],'proposal decision exists');
+select ok(not has_table_privilege('anon','public.mme_purchase_proposals','select'),'anon cannot read purchasing proposals');
+select ok(not has_table_privilege('authenticated','public.mme_purchase_proposal_lines','insert'),'authenticated cannot insert proposal lines');
+select ok(has_function_privilege('service_role','public.mme_decide_purchase_proposal(uuid,text,uuid,text)','execute'),'service role can record decisions');
+select ok(not has_function_privilege('authenticated','public.mme_decide_purchase_proposal(uuid,text,uuid,text)','execute'),'authenticated cannot decide proposals directly');
+select * from finish();
+rollback;
