@@ -28,6 +28,8 @@ jobs:
         run: npm install --no-audit --no-fund
       - name: Supabase migration version check
         run: npm run check:migrations
+      - name: Catalog API security guard check
+        run: npm run check:catalog-api-security
       - name: TypeScript validation
         run: npm run lint
       - name: Production build
