@@ -63,6 +63,39 @@ begin
   ) then
     raise exception 'Append-only catalog event trigger is missing';
   end if;
+
+  if not exists (
+    select 1 from pg_constraint
+     where conrelid = 'public.products'::regclass
+       and contype = 'c'
+       and pg_get_constraintdef(oid) ilike '%condition%'
+       and pg_get_constraintdef(oid) ilike '%inspection_required%'
+       and pg_get_constraintdef(oid) ilike '%parts_only%'
+  ) then
+    raise exception 'Product condition allowlist constraint is missing';
+  end if;
+
+  if not exists (
+    select 1 from pg_constraint
+     where conrelid = 'public.products'::regclass
+       and contype = 'c'
+       and pg_get_constraintdef(oid) ilike '%tracking_mode%'
+       and pg_get_constraintdef(oid) ilike '%serialized%'
+       and pg_get_constraintdef(oid) ilike '%quantity%'
+  ) then
+    raise exception 'Product tracking mode allowlist constraint is missing';
+  end if;
+
+  if not exists (
+    select 1 from pg_constraint
+     where conrelid = 'public.products'::regclass
+       and contype = 'c'
+       and pg_get_constraintdef(oid) ilike '%catalog_status%'
+       and pg_get_constraintdef(oid) ilike '%pending_approval%'
+       and pg_get_constraintdef(oid) ilike '%published%'
+  ) then
+    raise exception 'Product catalog status allowlist constraint is missing';
+  end if;
 end;
 $$;
 
