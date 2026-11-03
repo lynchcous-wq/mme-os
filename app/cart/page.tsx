@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { demoProducts, formatPrice } from "@/app/catalog";
+import CartCount from "@/app/components/CartCount";
 
 const CART_KEY = "mme-demo-cart-v1";
 type CartLine = { productId: string; quantity: number };
@@ -34,7 +35,10 @@ export default function CartPage() {
   }, []);
 
   useEffect(() => {
-    if (ready) window.localStorage.setItem(CART_KEY, JSON.stringify(lines));
+    if (ready) {
+      window.localStorage.setItem(CART_KEY, JSON.stringify(lines));
+      window.dispatchEvent(new Event("mme-demo-cart-updated"));
+    }
   }, [lines, ready]);
 
   const items = useMemo(() => lines.flatMap((line) => {
@@ -58,7 +62,7 @@ export default function CartPage() {
     <header className="header">
       <Link className="brand" href="/" aria-label="Much More Electronics home"><span className="brand-mark">MM</span><span>MUCH MORE<br /><b>ELECTRONICS</b></span></Link>
       <nav aria-label="Shop navigation"><Link href="/products">Shop all</Link></nav>
-      <div className="actions"><Link href="/account">Account</Link></div>
+      <div className="actions"><Link href="/account">Account</Link><Link href="/cart">Bag <CartCount /></Link></div>
     </header>
     <section className="cart-page">
       <div className="eyebrow">Your selection</div>
