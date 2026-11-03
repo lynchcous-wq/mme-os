@@ -10,7 +10,9 @@
 - Time-limited inventory reservations and reservation lines.
 - Stripe webhook event ledger with unique provider event IDs for duplicate-delivery protection.
 
-## Atomic reservation
+## Atomic order creation and reservation
+
+`mme_create_order_and_reserve` is the server-only entry point. It creates a pending order, snapshots current database product prices and condition/SKU/title, records the fulfillment location on each line, calculates line/subtotal/total cents, and calls the reservation function in the same database transaction. It uses an idempotency key plus a request fingerprint to return the original order for a retry and rejects reuse with a different request. Tax, fulfillment, and discount amounts must be calculated/authorized by the trusted server before invocation.
 
 `mme_reserve_inventory` is a server-only PostgreSQL function. It:
 - accepts an existing pending order and a bounded JSON array of product/location/quantity requests;
@@ -24,7 +26,7 @@ Only the Supabase `service_role` may execute this function. Browser roles have n
 
 ## Important boundaries
 
-- This migration does not create the order header or line snapshots; a trusted server service must do so before calling the reservation function, in the same database transaction/RPC in the final production implementation.
+- The atomic RPC still requires a trusted server adapter to authenticate the customer, calculate tax/fulfillment/discount amounts, and call it. Its idempotency fingerprint is a request-retry aid, not an authentication or authorization control.
 - The reservation function does not yet consume, expire, or release reservations. Those require separate transactional functions and payment-state checks.
 - Serialized device inventory (IMEI/serial-level units) needs a dedicated unit table and reservation locking before serialized products are enabled for online checkout.
 - Customer identity is stored as an opaque UUID pending a reviewed foreign-key integration with Build 004 Identity Matrix.
@@ -42,6 +44,7 @@ Only the Supabase `service_role` may execute this function. Browser roles have n
 6. Invalid or overlong expiration rejected.
 7. Browser roles cannot select or mutate protected tables or invoke reservation RPC.
 8. Duplicate Stripe event IDs rejected by unique constraint.
-9. pgTAP schema smoke tests pass for table presence and service-role/browser-role privileges.
+9. Same idempotency key and same request returns the original order; reuse with changed request is rejected.
+10. pgTAP schema smoke tests pass for table presence and service-role/browser-role privileges.
 
 Apply only in a disposable Supabase development project after the Build 004 identity migrations and this migration have been reviewed and ordered. No production checkout until order creation, release/expiry, serialized inventory, Stripe test mode, signed webhooks, and reconciliation pass.
