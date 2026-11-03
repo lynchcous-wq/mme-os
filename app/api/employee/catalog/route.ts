@@ -149,7 +149,7 @@ export async function POST(request: Request) {
     if (mediaUrl) {
       const { error: mediaError } = await admin.from("product_media").insert({
         product_id: product.id,
-        media_type: /\\.(mp4|webm|mov)(?:[?#].*)?$/i.test(mediaUrl) ? "video" : "image",
+        media_type: new URL(mediaUrl).pathname.match(/\.(mp4|webm|mov)$/i) ? "video" : "image",
         external_url: mediaUrl,
         alt_text: `${name} product media`,
         is_primary: true,
