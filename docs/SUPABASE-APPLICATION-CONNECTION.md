@@ -43,3 +43,13 @@ Never commit real keys. Rotate any key that has been exposed in an untrusted loc
 6. Add logout, session revocation, provisioning, customer/employee relationship separation, and audit tests.
 7. Verify termination, suspension, permission revocation, global freeze, self-approval rejection, and unauthorized publication.
 8. Only then enable production catalog workflows and connect approved products to the customer storefront.
+
+
+## Product correction and revision workflow
+
+- Reviewers with `catalog.return` permission can return an unapproved pending product with required correction notes.
+- The original creator can load their returned drafts and revise them with `catalog.edit` permission.
+- Revision requests include the expected product version; stale edits return a conflict rather than silently overwriting newer data.
+- A revision clears prior approval/publication metadata and returns the product to draft status; the creator must submit it again.
+- Prior product fields are snapshotted in the append-only `product_catalog_revisions` table and a revision event is appended.
+- Snapshot, product update, and audit writes are currently separate requests. A database transaction/RPC is required before production.
