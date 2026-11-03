@@ -73,3 +73,21 @@ Before applying the migration:
 - All protected server operations deny by default and audit privileged changes.
 - No service-role secret appears in client bundles, logs, repository history, or public environment variables.
 - Build, tests, and dependency audit reviewed and passing with documented exceptions if any.
+
+
+## 8. Environment variable names
+
+The repository example uses the current Supabase key naming convention:
+
+- `NEXT_PUBLIC_SUPABASE_URL` — project URL.
+- `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` — publishable key; safe for browser use when protected by RLS and server authorization design.
+- `SUPABASE_URL` — server-side project URL.
+- `SUPABASE_SECRET_KEY` — server-only secret; never use a `NEXT_PUBLIC_` prefix.
+
+Do not add actual credentials to `.env.example`. Set real values only in local ignored environment files or the hosting provider's encrypted secret manager. The secret key must not enter client bundles, logs, source control, or chat.
+
+## 9. Audit immutability hardening
+
+The dependent security branch adds `supabase/migrations/20261103000300_identity_audit_append_only.sql`. It rejects UPDATE and DELETE on audit rows and rejects TRUNCATE through database triggers. It also revokes direct sequence privileges from `public`, `anon`, and `authenticated`.
+
+This is defense-in-depth, not tamper-proof storage against the database owner or a sufficiently privileged administrator who can disable triggers or alter the schema. Production deployment must keep runtime application roles from owning the audit table or having DDL/trigger-management privileges. Verify that the generated identity sequence name matches the deployed schema before applying this migration. Test inserts through the approved server-side path and verify UPDATE, DELETE, and TRUNCATE are rejected for runtime roles.
