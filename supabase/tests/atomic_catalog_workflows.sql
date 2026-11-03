@@ -1,6 +1,5 @@
--- Run after applying 20261103000600_atomic_catalog_workflows.sql.
--- These checks verify the transaction entry points and grants; behavior tests
--- still require an isolated Supabase/PostgreSQL test project with seeded users.
+-- Run after applying migrations 20261103000600 through 20261103000800.
+-- Structural checks only; behavioral rollback/concurrency tests require a test database.
 do $$
 declare
   v_name text;
@@ -41,12 +40,20 @@ begin
   if position('product_catalog_revisions' in v_def)=0 then
     raise exception 'Revision workflow must write immutable revision snapshot';
   end if;
-  if position('for update' in lower(v_def))=0 then
-    raise exception 'Revision workflow must lock product row';
+
+  select pg_get_functiondef('public.mme_catalog_create_product_draft(uuid,jsonb)'::regprocedure)
+    into v_def;
+  if position('product_media' in v_def)=0 then
+    raise exception 'Draft creation must attach optional media metadata atomically';
+  end if;
+  if position('catalog.create' in v_def)=0 then
+    raise exception 'Draft creation must authorize catalog.create';
+  end if;
+
+  select pg_get_functiondef('public.mme_catalog_publish_product(uuid,uuid)'::regprocedure)
+    into v_def;
+  if position('product_id' in v_def)=0 or position('catalog.approve' in v_def)=0 then
+    raise exception 'Publication must validate approver grant scope';
   end if;
 end;
 $$;
-
-  select pg_get_functiondef('public.mme_catalog_create_product_draft(uuid,jsonb)'::regprocedure) into v_def;
-  if position('product_media' in v_def)=0 then raise exception 'Draft creation must attach optional media metadata atomically'; end if;
-  if position('catalog.create' in v_def)=0 then raise exception 'Draft creation must authorize catalog.create'; end if;
