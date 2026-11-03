@@ -1,7 +1,7 @@
 -- Build 001 inventory/order schema smoke tests.
 -- Run with Supabase CLI / pgTAP against a disposable database after migrations 001-006.
 begin;
-select plan(16);
+select plan(20);
 
 select has_table('public','mme_store_locations','store locations table exists');
 select has_table('public','mme_products','product catalog table exists');
@@ -11,6 +11,7 @@ select has_table('public','mme_order_lines','order lines table exists');
 select has_table('public','mme_inventory_reservations','reservations table exists');
 select has_table('public','mme_inventory_reservation_lines','reservation lines table exists');
 select has_table('public','mme_payment_events','payment event ledger exists');
+select has_column('public','mme_order_lines','location_id','order line snapshots retain fulfillment location');
 select has_function(
   'public',
   'mme_reserve_inventory',
@@ -53,6 +54,29 @@ select ok(
     'execute'
   ),
   'authenticated cannot execute reservation function'
+);
+
+select has_function(
+  'public',
+  'mme_create_order_and_reserve',
+  array['text','uuid','text','jsonb','bigint','bigint','bigint','jsonb','timestamp with time zone'],
+  'atomic order creation and reservation function exists'
+);
+select ok(
+  has_function_privilege(
+    'service_role',
+    'public.mme_create_order_and_reserve(text,uuid,text,jsonb,bigint,bigint,bigint,jsonb,timestamp with time zone)',
+    'execute'
+  ),
+  'service_role can execute atomic order creation function'
+);
+select ok(
+  not has_function_privilege(
+    'authenticated',
+    'public.mme_create_order_and_reserve(text,uuid,text,jsonb,bigint,bigint,bigint,jsonb,timestamp with time zone)',
+    'execute'
+  ),
+  'authenticated cannot execute atomic order creation function'
 );
 
 select * from finish();
