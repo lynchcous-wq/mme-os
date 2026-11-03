@@ -12,6 +12,13 @@ alter table public.products
   add column if not exists returned_by uuid references auth.users(id) on delete set null,
   add column if not exists returned_at timestamptz;
 
+alter table public.products
+  add constraint products_correction_notes_length_check
+  check (correction_notes is null or char_length(correction_notes) <= 3000);
+
+create index if not exists products_creator_status_updated_idx
+  on public.products(created_by, catalog_status, updated_at desc);
+
 create table if not exists public.product_catalog_revisions (
   id bigint generated always as identity primary key,
   product_id uuid not null references public.products(id) on delete restrict,
