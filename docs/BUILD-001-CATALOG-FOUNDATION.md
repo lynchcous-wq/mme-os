@@ -25,3 +25,18 @@ Connect approved catalog records after Build 004's security boundary is validate
 
 ## Repository validation dependency
 This draft pull request targets the repository-safeguards branch so the CI workflow can validate this dependent catalog change. It must be reviewed/merged only after its base safeguards PR is accepted; it remains separate from `main` until then.
+
+
+## Cart demonstration increment
+
+The catalog's sample records now support a browser-local demonstration bag. Visitors can add sample listings, change quantities, remove lines, clear the bag, and see a reactive item count. Bag contents are stored in that browser's local storage only.
+
+This is not a customer cart or order record. It does not reserve stock, synchronize between devices, calculate tax/shipping, or create payment intents. The homepage product tiles are also explicitly labeled as illustrative examples. Newsletter signup remains disabled until a consent-aware customer communications service is connected.
+
+### Manual browser acceptance checklist
+- Add two different sample products and verify the bag count increments.
+- Add the same sample product twice and verify quantity increments.
+- Refresh and verify local demo bag contents persist in that browser.
+- Change quantity, remove a line, and clear the bag.
+- Verify no checkout, order confirmation, or payment action is exposed.
+- Verify demo-price disclaimers remain visible on catalog and homepage.
