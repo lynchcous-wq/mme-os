@@ -77,5 +77,35 @@ insert into public.product_categories (name, slug, sort_order) values
   ('Smart Home','smart-home',90),
   ('Services and Subscriptions','services-subscriptions',100)
 on conflict (slug) do nothing;
+
+create function public.mme_catalog_set_updated_at()
+returns trigger language plpgsql as $
+begin
+  new.updated_at = now();
+  return new;
+end;
+$;
+create trigger product_categories_updated_at
+before update on public.product_categories
+for each row execute function public.mme_catalog_set_updated_at();
+create trigger products_updated_at
+before update on public.products
+for each row execute function public.mme_catalog_set_updated_at();
+
+create function public.mme_catalog_events_immutable()
+returns trigger language plpgsql as $
+begin
+  raise exception 'Product catalog events are append-only';
+end;
+$;
+create trigger product_catalog_events_no_update_delete
+before update or delete on public.product_catalog_events
+for each row execute function public.mme_catalog_events_immutable();
+
+create index product_media_product_order_idx
+  on public.product_media(product_id, sort_order);
+create index product_catalog_events_product_created_idx
+  on public.product_catalog_events(product_id, created_at desc);
+
 comment on table public.products is 'Product/model catalog only. Physical units, stock, reservations, COGS and selling prices are owned by separate MME OS modules.';
 commit;
