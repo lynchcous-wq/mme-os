@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "check:migrations": "node scripts/check-migration-versions.mjs"
   },
   "dependencies": {
     "next": "^15.2.4",
