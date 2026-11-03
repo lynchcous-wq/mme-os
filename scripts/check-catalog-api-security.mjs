@@ -24,7 +24,7 @@ for (const route of routes) {
   if (!source.includes("session.auth.getUser()")) {
     failures.push(`Route does not derive identity from validated Supabase session: ${route.path}`);
   }
-  if (!source.includes("p_actor_user_id: user.id")) {
+  if (!/p_actor_user_id\\s*:\\s*user\\.id/.test(source)) {
     failures.push(`Route does not pass the server-derived actor identity: ${route.path}`);
   }
   if (/request\.json\s*\(/.test(source) || /request\.text\s*\(/.test(source)) {
