@@ -38,7 +38,7 @@ begin
   or p_actor_identity_id is null then
   raise exception 'Invalid serialized transfer request' using errcode='22023';
  end if;
- if (select count(distinct x) from unnest(p_unit_ids) x)<>array_length(p_unit_ids,1) then
+ if (select count(distinct unit_id) from unnest(p_unit_ids) as t(unit_id))<>array_length(p_unit_ids,1) then
   raise exception 'Duplicate unit ID in transfer request' using errcode='22023';
  end if;
  perform 1 from public.mme_store_locations where id=p_to_location_id and active=true;
