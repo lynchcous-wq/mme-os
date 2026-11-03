@@ -19,7 +19,9 @@ export async function GET() {
       .select("id,sku,name,brand,model_number,upc_ean,description,condition,tracking_mode,specifications,warranty_summary,catalog_status,correction_notes,version,updated_at,product_categories(slug)")
       .eq("created_by",user.id).eq("catalog_status","changes_requested").order("updated_at",{ascending:false}).limit(100);
     if (queryError) return NextResponse.json({ error: "Returned drafts could not be loaded. Confirm the correction migration is applied." }, { status: 500 });
-    return NextResponse.json({ products: (products ?? []).map(product => ({ ...product, category: Array.isArray(product.product_categories) ? product.product_categories[0]?.slug ?? "televisions" : product.product_categories?.slug ?? "televisions" })) });
+    type ReturnedProduct = { id: string; sku: string; name: string; brand: string | null; model_number: string | null; upc_ean: string | null; description: string | null; condition: string; tracking_mode: string; specifications: Record<string, unknown>; warranty_summary: string | null; catalog_status: string; correction_notes: string | null; version: number; updated_at: string; product_categories: { slug: string } | { slug: string }[] | null };
+    const returnedProducts = (products ?? []) as unknown as ReturnedProduct[];
+    return NextResponse.json({ products: returnedProducts.map(product => ({ ...product, category: Array.isArray(product.product_categories) ? product.product_categories[0]?.slug ?? "televisions" : product.product_categories?.slug ?? "televisions" })) });
   } catch {
     return NextResponse.json({ error: "Employee draft service unavailable." }, { status: 503 });
   }
