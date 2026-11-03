@@ -49,6 +49,7 @@ begin
   left join forecasts f on f.product_id=d.product_id and f.location_id=d.location_id
   left join inbound i on i.product_id=d.product_id and i.location_id=d.location_id
   where d.aggregate_available>0
+   and s.reorder_enabled and s.target_available_quantity>0
    and s.aggregate_available>s.target_available_quantity
    and (p_product_id is null or d.product_id=p_product_id)
    and (p_destination_location_id is null or d.location_id=p_destination_location_id)
