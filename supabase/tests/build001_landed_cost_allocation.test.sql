@@ -1,0 +1,10 @@
+begin;
+select plan(6);
+select has_table('public','mme_inventory_landed_cost_pools','landed cost pools exist');
+select has_table('public','mme_inventory_landed_cost_allocations','landed cost allocations exist');
+select has_function('public','mme_receive_inventory_with_landed_cost',array['text','text','text','bigint','bigint','bigint','bigint','bigint','text','uuid','uuid','text','jsonb'],'landed cost receipt RPC exists');
+select ok(not has_table_privilege('anon','public.mme_inventory_landed_cost_pools','select'),'anon cannot read landed cost pools');
+select ok(not has_table_privilege('authenticated','public.mme_inventory_landed_cost_allocations','select'),'authenticated cannot read cost allocations');
+select ok(not has_function_privilege('authenticated','public.mme_receive_inventory_with_landed_cost(text,text,text,bigint,bigint,bigint,bigint,bigint,text,uuid,uuid,text,jsonb)','execute'),'authenticated cannot execute landed cost receipt');
+select * from finish();
+rollback;
