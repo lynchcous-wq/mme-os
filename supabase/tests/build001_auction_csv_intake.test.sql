@@ -1,0 +1,12 @@
+begin;
+select plan(8);
+select has_table('public','mme_auction_import_batches','auction batches exist');
+select has_table('public','mme_auction_import_lines','auction import rows exist');
+select has_table('public','mme_auction_import_events','auction import audit exists');
+select has_function('public','mme_stage_auction_import',array['text','text','text','jsonb','text','text','bigint','bigint','bigint','bigint','bigint','text','uuid','jsonb'],'auction staging RPC exists');
+select has_function('public','mme_review_auction_import_line',array['uuid','uuid','uuid','text','numeric','uuid','text'],'auction row review RPC exists');
+select has_function('public','mme_decide_auction_import_batch',array['uuid','text','uuid','text'],'auction decision RPC exists');
+select ok(not has_table_privilege('anon','public.mme_auction_import_batches','select'),'anon cannot read auction batches');
+select ok(not has_function_privilege('authenticated','public.mme_decide_auction_import_batch(uuid,text,uuid,text)','execute'),'authenticated cannot approve auction batches directly');
+select * from finish();
+rollback;
