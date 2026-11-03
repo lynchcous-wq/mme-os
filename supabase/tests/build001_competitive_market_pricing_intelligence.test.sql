@@ -1,0 +1,15 @@
+begin;
+select plan(11);
+select has_table('public','mme_market_price_observations','market observation ledger exists');
+select has_function('public','mme_record_market_price_observation',array['uuid','text','bigint','text','text','numeric','timestamp with time zone','text','uuid','text'],'market evidence capture RPC exists');
+select has_function('public','mme_verify_market_price_observation',array['uuid','uuid','boolean','text'],'independent evidence verification RPC exists');
+select has_view('public','mme_market_price_position_v','market position view exists');
+select ok(not has_function_privilege('authenticated','public.mme_record_market_price_observation(uuid,text,bigint,text,text,numeric,timestamp with time zone,text,uuid,text)','execute'),'browser cannot inject market observations');
+select ok(not has_function_privilege('authenticated','public.mme_verify_market_price_observation(uuid,uuid,boolean,text)','execute'),'browser cannot verify market evidence');
+select ok(position('match_confidence>=90' in replace(lower(pg_get_viewdef('public.mme_market_price_position_v'::regclass)),' ',''))>0,'only high-confidence matches enter comparison');
+select ok(position('interval ''90 days''' in pg_get_viewdef('public.mme_market_price_position_v'::regclass))>0,'market evidence limited to 90-day window');
+select ok(position('insufficient_comparables' in pg_get_viewdef('public.mme_market_price_position_v'::regclass))>0,'small sample flagged');
+select ok(position('stale' in pg_get_viewdef('public.mme_market_price_position_v'::regclass))>0,'stale market data flagged');
+select ok(position('update public.mme_products' in lower(pg_get_functiondef('public.mme_verify_market_price_observation(uuid,uuid,boolean,text)'::regprocedure)))=0,'market evidence verification never changes MME product price');
+select * from finish();
+rollback;
