@@ -1,3 +1,4 @@
+import { readJsonObject } from "@/lib/http/read-json-object";
 import { NextResponse } from "next/server";
 import { createClient as createSessionClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -12,12 +13,9 @@ export async function POST(request: Request) {
   const { data: { user }, error: authError } = await session.auth.getUser();
   if (authError || !user) return NextResponse.json({ error: "Authentication required." }, { status: 401 });
 
-  let body: Record<string, unknown>;
-  try {
-    const value: unknown = await request.json();
-    if (!value || typeof value !== "object" || Array.isArray(value)) return NextResponse.json({ error: "A JSON object is required." }, { status: 400 });
-    body = value as Record<string, unknown>;
-  } catch { return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 }); }
+  const parsed = await readJsonObject(request, 24_000);
+  if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: parsed.status });
+  const body = parsed.value;
 
   const name=clean(body.name,160), sku=clean(body.sku,64), category=clean(body.category,80);
   const brand=body.brand == null || body.brand === "" ? null : clean(body.brand,100);
