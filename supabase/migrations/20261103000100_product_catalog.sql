@@ -84,7 +84,7 @@ begin
   new.updated_at = now();
   return new;
 end;
-$;
+$$;
 create trigger product_categories_updated_at
 before update on public.product_categories
 for each row execute function public.mme_catalog_set_updated_at();
@@ -97,7 +97,7 @@ returns trigger language plpgsql as $
 begin
   raise exception 'Product catalog events are append-only';
 end;
-$;
+$$;
 create trigger product_catalog_events_no_update_delete
 before update or delete on public.product_catalog_events
 for each row execute function public.mme_catalog_events_immutable();
