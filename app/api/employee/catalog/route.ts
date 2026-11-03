@@ -52,6 +52,7 @@ export async function POST(request: Request) {
   const condition = typeof body.condition === "string" ? body.condition : "";
   const tracking = typeof body.tracking_mode === "string" ? body.tracking_mode : "";
   const specifications = body.specifications;
+  const mediaUrl = body.media_url == null || body.media_url === "" ? null : textField(body.media_url, 2048);
 
   if (!name || !sku || !category || !allowedConditions.has(condition) || !allowedTracking.has(tracking)) {
     return NextResponse.json({ error: "Name, SKU, category, condition, and tracking method are required and must be valid." }, { status: 400 });
@@ -60,7 +61,8 @@ export async function POST(request: Request) {
       (body.model_number != null && body.model_number !== "" && !modelNumber) ||
       (body.upc_ean != null && body.upc_ean !== "" && !upcEan) ||
       (body.description != null && body.description !== "" && !description) ||
-      (body.warranty_summary != null && body.warranty_summary !== "" && !warranty)) {
+      (body.warranty_summary != null && body.warranty_summary !== "" && !warranty) ||
+      (body.media_url != null && body.media_url !== "" && (!mediaUrl || !/^https:\\/\\//i.test(mediaUrl)))) {
     return NextResponse.json({ error: "One or more fields are invalid or too long." }, { status: 400 });
   }
   if (!specifications || typeof specifications !== "object" || Array.isArray(specifications)) {
@@ -137,6 +139,19 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: "That SKU or product slug already exists." }, { status: 409 });
       }
       return NextResponse.json({ error: "Product draft could not be saved." }, { status: 500 });
+    }
+
+    if (mediaUrl) {
+      const { error: mediaError } = await admin.from("product_media").insert({
+        product_id: product.id,
+        media_type: /\\.(mp4|webm|mov)(?:[?#].*)?$/i.test(mediaUrl) ? "video" : "image",
+        external_url: mediaUrl,
+        alt_text: `${name} product media`,
+        is_primary: true,
+      });
+      if (mediaError) {
+        return NextResponse.json({ error: "Draft was created but media could not be attached. Contact an administrator before retrying.", product_id: product.id }, { status: 500 });
+      }
     }
 
     const { error: auditError } = await admin.from("product_catalog_events").insert({
