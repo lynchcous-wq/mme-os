@@ -109,7 +109,7 @@ begin
   on x.product_id=p.id
  where p.active=true and p.serialized=false
  for update of p;
- if (select count(distinct x.product_id) from jsonb_to_recordset(p_items) as x(product_id uuid,location_id uuid,quantity integer,acquisition_unit_cost_cents bigint))
+ if (select count(*) from (select distinct x.product_id,x.location_id from jsonb_to_recordset(p_items) as x(product_id uuid,location_id uuid,quantity integer,acquisition_unit_cost_cents bigint)) q)
   <> v_count then
   raise exception 'Each landed-cost line must identify a unique aggregate product/location' using errcode='22023';
  end if;
@@ -123,6 +123,8 @@ begin
   p_receipt_reference,v_receipt_id,p_acquisition_cost_cents,p_freight_cost_cents,p_auction_fee_cents,
   p_handling_cost_cents,p_other_cost_cents,p_allocation_method,p_actor_identity_id,p_approved_by_identity_id
  ) returning id into v_pool_id;
+ v_index:=0;
+ v_allocated:=0;
  for v_item in
   select x.product_id,x.location_id,x.quantity,x.acquisition_unit_cost_cents
   from jsonb_to_recordset(p_items) as x(product_id uuid,location_id uuid,quantity integer,acquisition_unit_cost_cents bigint)
@@ -130,8 +132,6 @@ begin
  loop
   v_index:=v_index+1;
   v_line_base:=v_item.quantity::bigint*v_item.acquisition_unit_cost_cents;
-  if v_index=v_count then v_line_extra:=v_extra-v_allocated+v_allocated-v_extra; -- overwritten below from deterministic allocation
-  end if;
   if p_allocation_method='equal_per_unit' then
    v_line_extra:=floor(v_extra::numeric*v_item.quantity/v_total_qty)::bigint;
   else
