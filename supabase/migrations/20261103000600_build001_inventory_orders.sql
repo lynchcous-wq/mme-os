@@ -62,6 +62,7 @@ create table public.mme_order_lines (
   id uuid primary key default gen_random_uuid(),
   order_id uuid not null references public.mme_orders(id) on delete restrict,
   product_id uuid not null references public.mme_products(id) on delete restrict,
+  location_id uuid not null references public.mme_store_locations(id) on delete restrict,
   sku_snapshot text not null,
   title_snapshot text not null,
   condition_snapshot text not null,
@@ -273,9 +274,9 @@ set search_path = ''
 as $$
 declare
   v_fingerprint text;
+  v_existing_fingerprint text;
   v_existing_id uuid;
   v_order_id uuid;
-  v_reservation_id uuid;
   v_item record;
   v_product record;
   v_subtotal bigint := 0;
@@ -310,48 +311,32 @@ begin
     raise exception 'Invalid or duplicate order lines' using errcode = '22023';
   end if;
 
-  v_fingerprint := encode(
-    pg_catalog.md5(
-      jsonb_build_object(
-        'customer_identity_id', p_customer_identity_id,
-        'fulfillment_method', p_fulfillment_method,
-        'fulfillment_snapshot', p_fulfillment_snapshot,
-        'tax_cents', p_tax_cents,
-        'fulfillment_cents', p_fulfillment_cents,
-        'discount_cents', p_discount_cents,
-        'items', p_items
-      )::text,
-      'sha256'
-    ),
+  v_fingerprint := pg_catalog.md5(
+    jsonb_build_object(
+      'customer_identity_id', p_customer_identity_id,
+      'fulfillment_method', p_fulfillment_method,
+      'fulfillment_snapshot', p_fulfillment_snapshot,
+      'tax_cents', p_tax_cents,
+      'fulfillment_cents', p_fulfillment_cents,
+      'discount_cents', p_discount_cents,
+      'items', p_items
+    )::text
   );
 
   select o.id, o.request_fingerprint
-    into v_existing_id, v_fingerprint
+    into v_existing_id, v_existing_fingerprint
   from public.mme_orders o
   where o.idempotency_key = p_idempotency_key
   for update;
 
   if found then
-    if v_fingerprint <> encode(
-      pg_catalog.md5(
-        jsonb_build_object(
-          'customer_identity_id', p_customer_identity_id,
-          'fulfillment_method', p_fulfillment_method,
-          'fulfillment_snapshot', p_fulfillment_snapshot,
-          'tax_cents', p_tax_cents,
-          'fulfillment_cents', p_fulfillment_cents,
-          'discount_cents', p_discount_cents,
-          'items', p_items
-        )::text,
-        'sha256'
-      ),
-    ) then
+    if v_existing_fingerprint <> v_fingerprint then
       raise exception 'Idempotency key reused with different request' using errcode = '23505';
     end if;
     return v_existing_id;
   end if;
 
-  -- Build authoritative line snapshots from the current product catalog.
+  -- Lock product records in deterministic order while snapshotting authoritative prices.
   for v_item in
     select x.product_id, x.location_id, x.quantity
     from jsonb_to_recordset(p_items) as x(product_id uuid, location_id uuid, quantity integer)
@@ -384,22 +369,6 @@ begin
     raise exception 'Invalid order total' using errcode = '22003';
   end if;
 
-  -- Recompute fingerprint after no mutation: includes request inputs, not client prices.
-  v_fingerprint := encode(
-    pg_catalog.md5(
-      jsonb_build_object(
-        'customer_identity_id', p_customer_identity_id,
-        'fulfillment_method', p_fulfillment_method,
-        'fulfillment_snapshot', p_fulfillment_snapshot,
-        'tax_cents', p_tax_cents,
-        'fulfillment_cents', p_fulfillment_cents,
-        'discount_cents', p_discount_cents,
-        'items', p_items
-      )::text,
-      'sha256'
-    ),
-  );
-
   insert into public.mme_orders(
     idempotency_key, request_fingerprint, customer_identity_id, status,
     subtotal_cents, tax_cents, fulfillment_cents, discount_cents, total_cents,
@@ -414,25 +383,12 @@ begin
 
   if v_order_id is null then
     select o.id, o.request_fingerprint
-      into v_existing_id, v_fingerprint
+      into v_existing_id, v_existing_fingerprint
     from public.mme_orders o
     where o.idempotency_key = p_idempotency_key
     for update;
 
-    if v_fingerprint <> encode(
-      pg_catalog.md5(
-        jsonb_build_object(
-          'customer_identity_id', p_customer_identity_id,
-          'fulfillment_method', p_fulfillment_method,
-          'fulfillment_snapshot', p_fulfillment_snapshot,
-          'tax_cents', p_tax_cents,
-          'fulfillment_cents', p_fulfillment_cents,
-          'discount_cents', p_discount_cents,
-          'items', p_items
-        )::text,
-        'sha256'
-      ),
-    ) then
+    if v_existing_fingerprint <> v_fingerprint then
       raise exception 'Idempotency key reused with different request' using errcode = '23505';
     end if;
     return v_existing_id;
@@ -446,24 +402,20 @@ begin
     select p.id, p.sku, p.title, p.condition_grade, p.unit_price_cents
       into v_product
     from public.mme_products p
-    where p.id = v_item.product_id
-    for update;
+    where p.id = v_item.product_id;
 
     v_line_total := v_product.unit_price_cents * v_item.quantity;
     insert into public.mme_order_lines(
-      order_id, product_id, sku_snapshot, title_snapshot, condition_snapshot,
-      quantity, unit_price_cents, line_total_cents
+      order_id, product_id, location_id, sku_snapshot, title_snapshot,
+      condition_snapshot, quantity, unit_price_cents, line_total_cents
     ) values (
-      v_order_id, v_product.id, v_product.sku, v_product.title, v_product.condition_grade,
-      v_item.quantity, v_product.unit_price_cents, v_line_total
+      v_order_id, v_product.id, v_item.location_id, v_product.sku, v_product.title,
+      v_product.condition_grade, v_item.quantity, v_product.unit_price_cents, v_line_total
     );
   end loop;
 
-  v_reservation_id := public.mme_reserve_inventory(
-    v_order_id,
-    p_items,
-    p_expires_at
-  );
+  -- The nested call locks inventory balances and rolls back the order if stock is unavailable.
+  perform public.mme_reserve_inventory(v_order_id, p_items, p_expires_at);
 
   return v_order_id;
 end;
