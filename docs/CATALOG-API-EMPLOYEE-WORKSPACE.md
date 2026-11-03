@@ -22,6 +22,8 @@
 - `POST /api/employee/catalog/:id/reject`: reject with reason; permission `catalog.approve`.
 - `POST /api/employee/catalog/:id/publish`: publish approved product; permission `catalog.publish`.
 
+Approval and publication are CEO-only by default. Delegation requires an explicit server-side grant from the CEO. The submitting employee must not approve their own submission. A client-provided role, status, approval identity or permission flag is never trusted.
+
 All write endpoints must:
 - Require a server-verified employee session and permission check.
 - Validate request bodies server-side; never trust client-side validation.
