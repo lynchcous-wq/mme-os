@@ -77,7 +77,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ produ
         category_id: categoryRow.id, sku, slug: name.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,100)+"-"+sku.toLowerCase(),
         name, brand, model_number: model, upc_ean: upc, description, condition, tracking_mode: tracking,
         specifications, warranty_summary: warranty, catalog_status: "draft",
-        correction_notes: null, returned_by: null, returned_at: null,
+        correction_notes: null, returned_by: null, returned_at: null,\n        approved_by: null, approved_at: null, published_at: null,
       })
       .eq("id",productId).eq("version",Number(expectedVersion)).eq("catalog_status","changes_requested")
       .select("id,sku,name,catalog_status,version,updated_at").maybeSingle();
