@@ -311,7 +311,7 @@ begin
   end if;
 
   v_fingerprint := encode(
-    extensions.digest(
+    pg_catalog.md5(
       jsonb_build_object(
         'customer_identity_id', p_customer_identity_id,
         'fulfillment_method', p_fulfillment_method,
@@ -323,7 +323,6 @@ begin
       )::text,
       'sha256'
     ),
-    'hex'
   );
 
   select o.id, o.request_fingerprint
@@ -334,7 +333,7 @@ begin
 
   if found then
     if v_fingerprint <> encode(
-      extensions.digest(
+      pg_catalog.md5(
         jsonb_build_object(
           'customer_identity_id', p_customer_identity_id,
           'fulfillment_method', p_fulfillment_method,
@@ -346,7 +345,6 @@ begin
         )::text,
         'sha256'
       ),
-      'hex'
     ) then
       raise exception 'Idempotency key reused with different request' using errcode = '23505';
     end if;
@@ -363,7 +361,7 @@ begin
       into v_product
     from public.mme_products p
     where p.id = v_item.product_id
-    for share;
+    for update;
 
     if not found or not v_product.active or v_product.serialized then
       raise exception 'Product unavailable for standard aggregate checkout' using errcode = 'P0002';
@@ -388,7 +386,7 @@ begin
 
   -- Recompute fingerprint after no mutation: includes request inputs, not client prices.
   v_fingerprint := encode(
-    extensions.digest(
+    pg_catalog.md5(
       jsonb_build_object(
         'customer_identity_id', p_customer_identity_id,
         'fulfillment_method', p_fulfillment_method,
@@ -400,7 +398,6 @@ begin
       )::text,
       'sha256'
     ),
-    'hex'
   );
 
   insert into public.mme_orders(
@@ -423,7 +420,7 @@ begin
     for update;
 
     if v_fingerprint <> encode(
-      extensions.digest(
+      pg_catalog.md5(
         jsonb_build_object(
           'customer_identity_id', p_customer_identity_id,
           'fulfillment_method', p_fulfillment_method,
@@ -435,7 +432,6 @@ begin
         )::text,
         'sha256'
       ),
-      'hex'
     ) then
       raise exception 'Idempotency key reused with different request' using errcode = '23505';
     end if;
@@ -451,7 +447,7 @@ begin
       into v_product
     from public.mme_products p
     where p.id = v_item.product_id
-    for share;
+    for update;
 
     v_line_total := v_product.unit_price_cents * v_item.quantity;
     insert into public.mme_order_lines(
