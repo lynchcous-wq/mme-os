@@ -146,7 +146,7 @@ begin
   source_quantity integer,inventory_type text,product_id uuid,location_id uuid,condition_grade text,
   acquisition_line_cost_cents bigint,retail_estimate_cents bigint,retail_source_url text,
   retail_source_name text,retail_checked_at timestamptz,retail_evidence jsonb,match_confidence numeric);
- if (select coalesce(sum(x.source_quantity::numeric*x.acquisition_line_cost_cents),0)
+ if (select coalesce(sum(x.acquisition_line_cost_cents::numeric),0)
    from jsonb_to_recordset(p_rows) as x(source_quantity integer,acquisition_line_cost_cents bigint))
    <> p_acquisition_cost_cents then
   raise exception 'Auction acquisition total must reconcile exactly to imported line costs' using errcode='22023';
@@ -201,7 +201,13 @@ begin
   if p_product_id is null or p_location_id is null then raise exception 'Matched line requires product and location' using errcode='22023'; end if;
   select serialized into v_serialized from public.mme_products where id=p_product_id and active=true;
   if not found then raise exception 'Active product not found' using errcode='P0002'; end if;
-  if exists(select 1 from public.mme_inventory_import_lines_dummy) then null; end if;
+  if (select serialized from public.mme_products where id=p_product_id) is distinct from
+     (select inventory_type='serialized' from public.mme_auction_import_lines where id=p_line_id) then
+   raise exception 'Catalog product serialized type does not match import line' using errcode='23514';
+  end if;
+  if not exists(select 1 from public.mme_store_locations where id=p_location_id and active=true) then
+   raise exception 'Active store location not found' using errcode='P0002';
+  end if;
  end if;
  update public.mme_auction_import_lines set product_id=case when p_review_status='matched' then p_product_id else null end,
   location_id=case when p_review_status='matched' then p_location_id else null end,
@@ -235,7 +241,7 @@ begin
   update public.mme_auction_import_batches set status='cancelled',updated_at=now() where id=p_batch_id;
  else
   if v_batch.status not in ('staged','needs_review') then return false; end if;
-  select coalesce(sum(source_quantity::numeric*acquisition_line_cost_cents),0),
+  select coalesce(sum(acquisition_line_cost_cents::numeric),0),
    count(*) filter(where review_status not in ('matched','approved') or product_id is null or location_id is null),
    count(*) filter(where inventory_type='aggregate' and exists(select 1 from public.mme_products p where p.id=product_id and p.serialized=true)
     or inventory_type='serialized' and exists(select 1 from public.mme_products p where p.id=product_id and p.serialized=false))
