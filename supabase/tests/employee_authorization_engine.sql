@@ -38,7 +38,8 @@ begin
     raise exception 'Self-approval protection must derive creator from the product row';
   end if;
 
-  if position('p_submitter_user_id' in fn_def) > 0 then
+  if position('p_actor_user_id = p_submitter_user_id' in fn_def) > 0
+     or position('p_submitter_user_id is not null' in fn_def) > 0 then
     raise exception 'Authorization function must not trust caller-supplied submitter identity';
   end if;
 
