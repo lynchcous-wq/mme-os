@@ -1,0 +1,36 @@
+name: MME OS CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main, feature/product-catalog-foundation]
+
+permissions:
+  contents: read
+
+jobs:
+  typecheck-and-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ci-placeholder-publishable-key
+      SUPABASE_SERVICE_ROLE_KEY: ci-placeholder-server-only-key
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Supabase migration version check
+        run: npm run check:migrations
+      - name: Catalog API security guard check
+        run: npm run check:catalog-api-security
+      - name: TypeScript validation
+        run: npm run lint
+      - name: Production build
+        run: npm run build
