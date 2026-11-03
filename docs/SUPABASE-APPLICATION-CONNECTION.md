@@ -27,8 +27,7 @@ Never commit real keys. Rotate any key that has been exposed in an untrusted loc
 ## Current limitations
 
 - Middleware verifies identity, not employee permission grants. The catalog page and draft-creation API check active employment and the global freeze; the draft API additionally calls the server-only authorization function for `catalog.create`.
-- `POST /api/employee/catalog` creates a draft product record after validating the session, employee relationship, global freeze, category, input shape, and `catalog.create` authorization. It records a `draft_created` event and can attach an HTTPS media URL as metadata. This is metadata linking only; binary uploads/storage integration are not implemented.
-- Draft creation and media/audit writes are separate database requests, not one atomic transaction. If a later step fails, an administrator must reconcile the already-created draft before the employee retries.
+- `POST /api/employee/catalog` calls a server-only transaction that creates the draft, attaches optional HTTPS media URL metadata, and writes the `draft_created` audit event atomically. Binary uploads/storage integration are not implemented.
 - No logout/session-revocation workflow or account provisioning UI exists yet.
 - CEO identity must be provisioned out-of-band after verification; it is not inferred from email, user metadata, or client input.
 - The service-role client must never be imported into client components.
@@ -38,7 +37,7 @@ Never commit real keys. Rotate any key that has been exposed in an untrusted loc
 1. Confirm the intended Supabase project and configure environment variables in a secure deployment environment.
 2. Apply migrations in a dedicated test project first and run the SQL verification scripts.
 3. Test draft creation, submission, reviewer return, creator-only revision, stale-version conflict, immutable revision snapshots, approval and publication against a dedicated Supabase test project.
-4. Convert product update, revision snapshot, and audit event writes into atomic database RPC transactions; verify stale-version conflicts and rollback behavior.
+4. Verify transaction rollback, stale-version conflicts, and concurrent transition behavior in the test project.
 5. Enforce permissions and object scope for every write/read action; never rely on hidden UI controls.
 6. Add logout, session revocation, provisioning, customer/employee relationship separation, and audit tests.
 7. Verify termination, suspension, permission revocation, global freeze, self-approval rejection, and unauthorized publication.
@@ -52,12 +51,12 @@ Never commit real keys. Rotate any key that has been exposed in an untrusted loc
 - Revision requests include the expected product version; stale edits return a conflict rather than silently overwriting newer data.
 - A revision clears prior approval/publication metadata and returns the product to draft status; the creator must submit it again.
 - Prior product fields are snapshotted in the append-only `product_catalog_revisions` table and a revision event is appended.
-- Snapshot, product update, and audit writes are currently separate requests. A database transaction/RPC is required before production.
+- The snapshot, product update, and audit event are now performed by one database transaction function; verify rollback and concurrency behavior before production.
 
 
 ## Atomic catalog workflow transactions
 
-Migration `20261103000600_atomic_catalog_workflows.sql` introduces server-only PostgreSQL functions for reviewer return, approval, publication, and employee revision. Each function locks the target product row, validates the transition and server-derived actor, updates product state, and writes its immutable event (and, for revisions, the prior-version snapshot) inside one database transaction. A failure in any step rolls back the entire function call.
+Migrations `20261103000600_atomic_catalog_workflows.sql`, `20261103000700_atomic_catalog_submission_and_publish_guard.sql`, and `20261103000800_atomic_catalog_draft_creation.sql` introduce server-only PostgreSQL functions for reviewer return, approval, publication, employee revision, submission, and initial draft creation. Each function locks the target product row, validates the transition and server-derived actor, updates product state, and writes its immutable event (and, for revisions, the prior-version snapshot) inside one database transaction. A failure in any step rolls back the entire function call.
 
 The corresponding API handlers now call these transaction functions rather than issuing separate product and audit requests. The service-role key remains server-only; the API derives actor identity from the validated Supabase session. The SQL functions are executable only by `service_role`, not browser roles.
 
@@ -69,3 +68,8 @@ The new structural test checks function existence, SECURITY DEFINER status, serv
 Migrations `20261103000700_atomic_catalog_submission_and_publish_guard.sql` and `20261103000800_atomic_catalog_draft_creation.sql` complete the transaction-backed employee catalog write path. Draft creation now inserts the product, optional HTTPS media metadata, and initial audit event in one function transaction. Submission now locks the draft, confirms the authenticated creator and submission permission, transitions it to pending review, and records the event atomically. The publication function also checks that the recorded approver was the CEO or an active employee with an unexpired, unrevoked global approval grant.
 
 The create API derives the actor from the validated Supabase session and sends normalized product fields to the server-only RPC. The new functions remain executable only by `service_role`. Media remains an external URL reference; binary upload to Supabase Storage is not included.
+
+
+## Migration ordering and safety
+
+Migration versions are unique and ordered from `20261103000100` through `20261103000800`. The correction/revision constraints and indexes were consolidated into the single `20261103000500_catalog_corrections_and_revisions.sql` migration to avoid duplicate Supabase migration versions. The branch was synchronized with the current `main` commit; the PR remains open and in draft.
