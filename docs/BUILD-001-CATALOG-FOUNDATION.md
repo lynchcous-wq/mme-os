@@ -11,9 +11,10 @@
 - Combine search and filters; show a clear empty state and clear-filters link.
 - Centralizes typed sample data and labels in `app/catalog.ts`.
 - Uses URL query parameters so filtering survives refresh and can be shared.
+- Adds a browser-local demonstration bag with quantity editing and removal; no server order is created.
 
 ## Data safety boundary
-All six records are demonstration fixtures. Their prices, condition and specifications are illustrative only—not verified inventory, offers, or purchasable products. The page has no add-to-cart or checkout action.
+All six records are demonstration fixtures. Their prices, condition and specifications are illustrative only—not verified inventory, offers, or purchasable products. A local-only demo bag is available, but it does not reserve stock, create an order, or accept payment.
 
 ## Not included
 Database-backed catalog, live stock, SKU/serial/IMEI records, CEO price approval, media management, cart, tax, shipping/pickup, orders, authentication, Stripe, and production analytics.
