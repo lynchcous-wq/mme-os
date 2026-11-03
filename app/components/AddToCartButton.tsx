@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { CatalogProduct } from "@/app/catalog";
 
 const CART_KEY = "mme-demo-cart-v1";
+const EVENT_NAME = "mme-demo-cart-updated";
 
 type CartLine = { productId: string; quantity: number };
 
@@ -27,6 +28,7 @@ export default function AddToCartButton({ product }: { product: CatalogProduct }
       if (existing) existing.quantity = Math.min(existing.quantity + 1, 20);
       else lines.push({ productId: product.id, quantity: 1 });
       window.localStorage.setItem(CART_KEY, JSON.stringify(lines));
+      window.dispatchEvent(new Event(EVENT_NAME));
       setAdded(true);
       window.setTimeout(() => setAdded(false), 1600);
     } catch {
