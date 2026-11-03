@@ -9,18 +9,18 @@ export default async function EmployeeCatalogPage() {
   const { data: { user }, error: userError } = await sessionClient.auth.getUser();
   if (userError || !user) redirect("/employee/login");
 
+  let employeeAccessAllowed = false;
   try {
     const admin = createAdminClient();
     const [{ data: employee, error: employeeError }, { data: settings, error: settingsError }] = await Promise.all([
       admin.from("employee_relationships").select("employment_status").eq("user_id", user.id).maybeSingle(),
       admin.from("employee_security_settings").select("employee_access_frozen,ceo_user_id").eq("singleton", true).maybeSingle(),
     ]);
-    if (employeeError || settingsError || employee?.employment_status !== "active" || !settings || settings.employee_access_frozen || !settings.ceo_user_id) {
-      redirect("/employee/access-denied");
-    }
+    employeeAccessAllowed = !employeeError && !settingsError && employee?.employment_status === "active" && !!settings && !settings.employee_access_frozen && !!settings.ceo_user_id;
   } catch {
     redirect("/employee/access-denied?reason=configuration");
   }
+  if (!employeeAccessAllowed) redirect("/employee/access-denied");
   return (
     <main className="simple-page">
       <header className="header">
