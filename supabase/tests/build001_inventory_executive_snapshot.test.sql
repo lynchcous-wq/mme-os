@@ -1,0 +1,11 @@
+begin;
+select plan(7);
+select has_function('public','mme_get_inventory_executive_snapshot',array['uuid'],'executive inventory snapshot exists');
+select ok(not has_function_privilege('anon','public.mme_get_inventory_executive_snapshot(uuid)','execute'),'anon cannot execute executive snapshot');
+select ok(not has_function_privilege('authenticated','public.mme_get_inventory_executive_snapshot(uuid)','execute'),'authenticated cannot execute executive snapshot');
+select ok(has_column('public','mme_serialized_unit_costs','landed_cost_cents'),'serialized device landed cost is available');
+select ok(has_table('public','mme_inventory_exceptions'),'inventory exception queue is available');
+select ok(has_table('public','mme_cycle_count_sessions'),'new cycle count workflow is available');
+select ok(has_table('public','mme_inventory_reorder_rules'),'location reorder controls are available');
+select * from finish();
+rollback;
