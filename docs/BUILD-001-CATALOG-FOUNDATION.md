@@ -20,3 +20,7 @@ Database-backed catalog, live stock, SKU/serial/IMEI records, CEO price approval
 
 ## Next
 Connect approved catalog records after Build 004's security boundary is validated; then add stock and condition-grade details, persistent cart/order lifecycle, and Stripe test-mode Checkout only after signed webhooks, idempotency, and reconciliation are implemented and tested.
+
+
+## Repository validation dependency
+This draft pull request targets the repository-safeguards branch so the CI workflow can validate this dependent catalog change. It must be reviewed/merged only after its base safeguards PR is accepted; it remains separate from `main` until then.
