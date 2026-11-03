@@ -24,7 +24,7 @@ for (const route of routes) {
   if (!source.includes("session.auth.getUser()")) {
     failures.push(`Route does not derive identity from validated Supabase session: ${route.path}`);
   }
-  if (!/p_actor_user_id\s*:\s*user\.id/.test(source)) {
+  if (!/p_actor_user_id\\s*:\\s*user\\.id/.test(source)) {
     failures.push(`Route does not pass the server-derived actor identity: ${route.path}`);
   }
   if (/request\.json\s*\(/.test(source) || /request\.text\s*\(/.test(source)) {
@@ -34,7 +34,7 @@ for (const route of routes) {
     if (!source.includes('import { readJsonObject } from "@/lib/http/read-json-object"')) {
       failures.push(`Route does not import the bounded JSON reader: ${route.path}`);
     }
-    if (!source.includes(`readJsonObject(request, ${route.bodyLimit})`)) {
+    if (!source.includes(`readJsonObject(request, ${route.bodyLimit.toLocaleString("en-US").replaceAll(",","_")})`)) {
       failures.push(`Route does not enforce the expected ${route.bodyLimit}-byte body limit: ${route.path}`);
     }
   }
