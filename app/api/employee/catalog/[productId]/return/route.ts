@@ -1,3 +1,4 @@
+import { readJsonObject } from "@/lib/http/read-json-object";
 import { NextResponse } from "next/server";
 import { createClient as createSessionClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -9,12 +10,9 @@ export async function POST(request: Request, context: { params: Promise<{ produc
   const { productId } = await context.params;
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(productId))
     return NextResponse.json({ error: "Invalid product identifier." }, { status: 400 });
-  let body: { correction_notes?: unknown };
-  try {
-    const value: unknown = await request.json();
-    if (!value || typeof value !== "object" || Array.isArray(value)) return NextResponse.json({ error: "A JSON object is required." }, { status: 400 });
-    body = value as { correction_notes?: unknown };
-  } catch { return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 }); }
+  const parsed = await readJsonObject(request, 4_000);
+  if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: parsed.status });
+  const body = parsed.value;
   const notes = typeof body.correction_notes === "string" ? body.correction_notes.trim() : "";
   if (notes.length < 10 || notes.length > 2000) return NextResponse.json({ error: "Correction notes must be between 10 and 2,000 characters." }, { status: 400 });
   try {
