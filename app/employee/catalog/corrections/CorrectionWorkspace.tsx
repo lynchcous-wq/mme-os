@@ -14,7 +14,7 @@ export default function CorrectionWorkspace() {
   const [error,setError]=useState("");
   const [message,setMessage]=useState("");
   const [loading,setLoading]=useState(true);
-  const [saving,setSaving]=useState("");
+  const [saving,setSaving]=useState("");\n  const [readyToSubmit,setReadyToSubmit]=useState("");\n  const [submitting,setSubmitting]=useState(false);
   async function load(){
     setLoading(true);setError("");
     try{
@@ -50,7 +50,7 @@ export default function CorrectionWorkspace() {
   const input={width:"100%",padding:9,border:"1px solid #d6d9d3",fontSize:12} as const;
   return <section style={{display:"grid",gap:18}}>
     <div><div className="eyebrow">MME OS · Employee corrections</div><h1 style={{fontSize:32,margin:"8px 0"}}>Returned product drafts</h1><p style={{fontSize:13,color:"var(--muted)"}}>Review the feedback, update your own draft, and save a new version.</p></div>
-    {error&&<p role="alert" style={{color:"#a22"}}>{error}</p>}{message&&<p role="status" style={{color:"#17613e"}}>{message}</p>}
+    {error&&<p role="alert" style={{color:"#a22"}}>{error}</p>}{message&&<p role="status" style={{color:"#17613e"}}>{message}</p>}\n    {readyToSubmit && <button disabled={submitting} onClick={async()=>{setSubmitting(true);setError("");try{const response=await fetch("/api/employee/catalog/"+readyToSubmit+"/submit",{method:"POST"});const result=await response.json();if(!response.ok)throw new Error(result.error||"Resubmission failed.");setMessage("Corrected draft resubmitted for approval.");setReadyToSubmit("");await load();}catch(cause){setError(cause instanceof Error?cause.message:"Resubmission failed.");}finally{setSubmitting(false);}}} style={{justifySelf:"start",padding:"11px 16px",border:0,background:"#164b3c",color:"white",fontSize:12,fontWeight:700}}>{submitting?"Submitting…":"Resubmit corrected draft for approval"}</button>}
     {loading?<p>Loading returned drafts…</p>:items.length===0?<div style={{padding:24,border:"1px solid var(--line)",background:"white"}}>No drafts currently require correction.</div>:
       items.map(item=><article key={item.id} style={{padding:20,border:"1px solid var(--line)",background:"white",display:"grid",gap:12}}>
         <div><div className="eyebrow">{item.sku} · Version {item.version}</div><h2 style={{fontSize:21,margin:"6px 0"}}>{item.name}</h2></div>
