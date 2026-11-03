@@ -1,0 +1,14 @@
+begin;
+select plan(10);
+select has_table('public','mme_price_markdown_proposals','markdown proposal queue exists');
+select has_function('public','mme_create_price_markdown_proposal',array['uuid','uuid'],'markdown proposal RPC exists');
+select has_function('public','mme_decide_price_markdown_proposal',array['uuid','uuid','boolean','text'],'markdown decision RPC exists');
+select ok(not has_function_privilege('authenticated','mme_create_price_markdown_proposal(uuid,uuid)','execute'),'browser cannot create privileged proposals directly');
+select ok(not has_function_privilege('authenticated','mme_decide_price_markdown_proposal(uuid,uuid,boolean,text)','execute'),'browser cannot approve prices directly');
+select ok(position('requester cannot approve own markdown' in lower(pg_get_functiondef('public.mme_decide_price_markdown_proposal(uuid,uuid,boolean,text)'::regprocedure)))>0,'self-approval is blocked');
+select ok(position('v_cost>v.proposed_price_cents' in replace(lower(pg_get_functiondef('public.mme_decide_price_markdown_proposal(uuid,uuid,boolean,text)'::regprocedure)),' ',''))>0,'approval rechecks cost floor');
+select ok(position('v_product.unit_price_cents<>v.current_price_cents' in replace(lower(pg_get_functiondef('public.mme_decide_price_markdown_proposal(uuid,uuid,boolean,text)'::regprocedure)),' ',''))>0,'approval detects stale price');
+select ok(position('set unit_price_cents=v.proposed_price_cents' in replace(lower(pg_get_functiondef('public.mme_decide_price_markdown_proposal(uuid,uuid,boolean,text)'::regprocedure)),' ',''))>0,'catalog price changes only in approval RPC');
+select ok(position('product_global' in pg_get_functiondef('public.mme_create_price_markdown_proposal(uuid,uuid)'::regprocedure))>0,'global pricing scope is disclosed');
+select * from finish();
+rollback;
