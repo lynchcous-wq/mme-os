@@ -15,6 +15,7 @@ export default function ReviewQueue() {
   const [loading, setLoading] = useState(true);
   const [working, setWorking] = useState("");
   const [message, setMessage] = useState("");
+  const [notesById, setNotesById] = useState<Record<string,string>>({});
 
   async function load() {
     setLoading(true); setError("");
@@ -30,13 +31,13 @@ export default function ReviewQueue() {
 
   useEffect(() => { void load(); }, []);
 
-  async function act(id: string, action: "approve" | "publish") {
+  async function act(id: string, action: "approve" | "publish" | "return") {
     setWorking(id + action); setError(""); setMessage("");
     try {
-      const response = await fetch(`/api/employee/catalog/${id}/${action}`, { method: "POST" });
+      const response = await fetch(`/api/employee/catalog/${id}/${action}`, { method: "POST", ...(action === "return" ? { headers: { "Content-Type": "application/json" }, body: JSON.stringify({ correction_notes: notesById[id] ?? "" }) } : {}) });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || "Action could not be completed.");
-      setMessage(action === "approve" ? "Product approved. Publication requires separate authorization." : "Product published.");
+      setMessage(action === "approve" ? "Product approved. Publication requires separate authorization." : action === "publish" ? "Product published." : "Product returned to its submitter with correction notes.");
       await load();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Action could not be completed.");
@@ -63,8 +64,9 @@ export default function ReviewQueue() {
         <div style={{borderTop:"1px solid var(--line)",paddingTop:12}}><b style={{fontSize:12}}>Audit history</b>
           {item.history.map(event=><p key={event.id} style={{fontSize:11,color:"var(--muted)",margin:"7px 0"}}>{new Date(event.created_at).toLocaleString()} · {event.event_type.replaceAll("_"," ")} · {event.actor_label} · v{event.product_version}</p>)}
         </div>
+        <label style={{display:"grid",gap:6,fontSize:12}}>Return for correction — explain exactly what must change<textarea value={notesById[item.id] ?? ""} onChange={event=>setNotesById(previous=>({...previous,[item.id]:event.target.value}))} minLength={10} maxLength={2000} rows={3} placeholder="Example: Confirm the exact model number and add RAM, storage, and screen condition details." style={{width:"100%",padding:10,border:"1px solid var(--line)",fontSize:12}}/></label>
         <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
-          <button disabled={!!working || !!item.history.some(event=>event.event_type==="approved")} onClick={()=>void act(item.id,"approve")} style={buttonStyle}>{working===item.id+"approve"?"Approving…":"Approve product"}</button>
+          <button disabled={!!working || !!item.history.some(event=>event.event_type==="approved")} onClick={()=>void act(item.id,"approve")} style={buttonStyle}>{working===item.id+"approve"?"Approving…":"Approve product"}</button>\n          <button disabled={!!working || (notesById[item.id] ?? "").trim().length<10} onClick={()=>void act(item.id,"return")} style={buttonStyle}>{working===item.id+"return"?"Returning…":"Return for correction"}</button>
           <button disabled={!!working || !item.history.some(event=>event.event_type==="approved")} onClick={()=>void act(item.id,"publish")} style={{...buttonStyle,background:"#164b3c",color:"#fff"}}>{working===item.id+"publish"?"Publishing…":"Publish product"}</button>
         </div>
       </article>)
