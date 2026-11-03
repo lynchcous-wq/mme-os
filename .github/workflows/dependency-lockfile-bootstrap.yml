@@ -1,0 +1,31 @@
+name: Dependency lockfile bootstrap
+
+on:
+  push:
+    branches: ["maintenance/lockfile-bootstrap"]
+
+permissions:
+  contents: read
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+      - name: Generate npm lockfile
+        run: npm install --package-lock-only --ignore-scripts
+      - name: Capture dependency audit
+        run: npm audit --json > npm-audit.json || true
+      - name: Upload generated lockfile and audit report
+        uses: actions/upload-artifact@v4
+        with:
+          name: mme-dependency-bootstrap
+          path: |
+            package-lock.json
+            npm-audit.json
+          if-no-files-found: error
+          retention-days: 3
