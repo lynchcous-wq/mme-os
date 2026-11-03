@@ -1,0 +1,15 @@
+begin;
+select plan(11);
+select has_table('public','mme_channel_stock_claims','shared channel claims exist');
+select has_table('public','mme_channel_stock_claim_lines','claim lines exist');
+select has_view('public','mme_inventory_available_to_sell_v','available-to-sell view exists');
+select has_function('public','mme_create_channel_stock_claim',array['text','text','uuid','timestamp with time zone','jsonb'],'claim creation function exists');
+select has_function('public','mme_release_channel_stock_claim',array['uuid'],'claim release function exists');
+select has_function('public','mme_expire_channel_stock_claims',array['integer'],'claim expiry function exists');
+select ok(not has_table_privilege('authenticated','public.mme_channel_stock_claims','select'),'browser cannot read claim ledger');
+select ok(not has_function_privilege('authenticated','public.mme_create_channel_stock_claim(text,text,uuid,timestamp with time zone,jsonb)','execute'),'browser cannot create claims directly');
+select ok(not has_function_privilege('authenticated','public.mme_release_channel_stock_claim(uuid)','execute'),'browser cannot release claims directly');
+select ok(position('reserved_quantity=reserved_quantity+v_item.quantity' in replace(lower(pg_get_functiondef('public.mme_create_channel_stock_claim(text,text,uuid,timestamp with time zone,jsonb)'::regprocedure)),' ',''))>0,'aggregate claim increments authoritative reserved quantity');
+select ok(position('skip locked' in lower(pg_get_functiondef('public.mme_expire_channel_stock_claims(integer)'::regprocedure)))>0,'expiry worker uses concurrent-safe skip-locked batching');
+select * from finish();
+rollback;
