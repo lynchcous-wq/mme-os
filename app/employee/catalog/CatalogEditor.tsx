@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import type { CSSProperties } from "react";
 
-const categories = ["Televisions","Laptops","Tablets","Cellphones","Smartwatches","Accessories","Audio","Gaming","Smart Home","Services and Subscriptions"];
+const categories = [["televisions","Televisions"],["laptops","Laptops"],["tablets","Tablets"],["cellphones","Cellphones"],["smartwatches","Smartwatches"],["accessories","Accessories"],["audio","Audio"],["gaming","Gaming"],["smart-home","Smart Home"],["services-subscriptions","Services and Subscriptions"]];
 const conditions = [
   ["new","New"],["open_box","Open Box"],["like_new","Like New"],["refurbished","Refurbished"],
   ["used_excellent","Used — Excellent"],["used_good","Used — Good"],["used_fair","Used — Fair"],
@@ -13,7 +13,7 @@ const conditions = [
 export default function CatalogEditor() {
   const [name,setName] = useState("");
   const [sku,setSku] = useState("");
-  const [category,setCategory] = useState("Televisions");
+  const [category,setCategory] = useState("televisions");
   const [brand,setBrand] = useState("");
   const [model,setModel] = useState("");
   const [upc,setUpc] = useState("");
@@ -25,6 +25,8 @@ export default function CatalogEditor() {
   const [media,setMedia] = useState("");
   const [error,setError] = useState("");
   const [preview,setPreview] = useState(false);
+  const [saving,setSaving] = useState(false);
+  const [saveMessage,setSaveMessage] = useState("");
 
   const parsedSpecs = useMemo(() => {
     try {
@@ -49,10 +51,10 @@ export default function CatalogEditor() {
   };
 
   return <div className="catalog-layout" style={{display:"grid",gridTemplateColumns:"minmax(0,1.3fr) minmax(260px,.7fr)",gap:22,alignItems:"start"}}>
-    <form onSubmit={(event)=>{event.preventDefault();const message=validate();setError(message);setPreview(!message);}} style={{background:"white",border:"1px solid var(--line)",padding:22,borderRadius:5,display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
+    <form onSubmit={async (event)=>{event.preventDefault();const message=validate();setError(message);setSaveMessage("");setPreview(false);if(message)return;setSaving(true);try{const response=await fetch("/api/employee/catalog",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});const result=await response.json();if(!response.ok)throw new Error(result.error || "Draft could not be saved.");setSaveMessage("Draft saved successfully. Product ID: "+result.product.id);setName("");setSku("");setBrand("");setModel("");setUpc("");setDescription("");setSpecs("{}");setWarranty("");setMedia("");}catch(cause){setError(cause instanceof Error ? cause.message : "Draft could not be saved.");}finally{setSaving(false);}}} style={{background:"white",border:"1px solid var(--line)",padding:22,borderRadius:5,display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
       <label style={field}>Product name *<input required value={name} onChange={e=>setName(e.target.value)} placeholder="e.g. 55-inch 4K Smart TV" style={input}/></label>
       <label style={field}>MME SKU *<input required value={sku} onChange={e=>setSku(e.target.value)} placeholder="MME-TV-0001" style={input}/></label>
-      <label style={field}>Category<select value={category} onChange={e=>setCategory(e.target.value)} style={input}>{categories.map(x=><option key={x}>{x}</option>)}</select></label>
+      <label style={field}>Category<select value={category} onChange={e=>setCategory(e.target.value)} style={input}>{categories.map(([value,label])=><option key={value} value={value}>{label}</option>)}</select></label>
       <label style={field}>Condition<select value={condition} onChange={e=>setCondition(e.target.value)} style={input}>{conditions.map(([v,l])=><option key={v} value={v}>{l}</option>)}</select></label>
       <label style={field}>Brand<input value={brand} onChange={e=>setBrand(e.target.value)} placeholder="Manufacturer brand" style={input}/></label>
       <label style={field}>Model number<input value={model} onChange={e=>setModel(e.target.value)} placeholder="Model / part number" style={input}/></label>
@@ -63,10 +65,12 @@ export default function CatalogEditor() {
       <label style={field}>Warranty summary<input value={warranty} onChange={e=>setWarranty(e.target.value)} placeholder="e.g. 90-day limited warranty" style={input}/></label>
       <label style={field}>Image / demo video HTTPS link<input value={media} onChange={e=>setMedia(e.target.value)} placeholder="https://..." style={input}/></label>
       {error && <p role="alert" style={{gridColumn:"1 / -1",color:"#a33",fontSize:12,margin:0}}>{error}</p>}
+      {saveMessage && <p role="status" style={{gridColumn:"1 / -1",color:"#17613e",fontSize:12,margin:0}}>{saveMessage}</p>}
       <div style={{gridColumn:"1 / -1",display:"flex",gap:10,alignItems:"center",flexWrap:"wrap"}}>
-        <button type="submit" style={primary}>Validate draft preview</button>
+        <button type="submit" style={primary} disabled={saving}>{saving ? "Saving draft…" : "Save draft"}</button>
+        <button type="button" onClick={()=>{const message=validate();setError(message);setPreview(!message);}} style={secondary}>Preview JSON</button>
         <button type="button" onClick={()=>{setName("");setSku("");setBrand("");setModel("");setUpc("");setDescription("");setSpecs("{}");setWarranty("");setMedia("");setError("");setPreview(false);}} style={secondary}>Clear form</button>
-        <span style={{fontSize:10,color:"var(--muted)"}}>Draft only · no database write</span>
+        <span style={{fontSize:10,color:"var(--muted)"}}>Drafts save to MME catalog · not published</span>
       </div>
     </form>
     <aside style={{background:"#f3f0e9",border:"1px solid var(--line)",padding:20,borderRadius:5}}>
