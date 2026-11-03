@@ -41,7 +41,7 @@ begin
   if v_category_id is null then raise exception 'Product category is unavailable' using errcode='22023'; end if;
 
   v_media_url:=nullif(btrim(p_product_data->>'media_url'),'');
-  if v_media_url is not null and (length(v_media_url)>2048 or v_media_url !~ '^https://') then
+  if v_media_url is not null and (length(v_media_url)>2048 or v_media_url !~* '^https://') then
     raise exception 'Media URL must be HTTPS and at most 2,048 characters' using errcode='22023';
   end if;
 
