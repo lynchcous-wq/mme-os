@@ -18,7 +18,7 @@ function textField(value: unknown, max: number): string | null {
   return cleaned.length > 0 && cleaned.length <= max ? cleaned : null;
 }
 
-function slugify(value: string): string {
+function isHttpsUrl(value: string | null): boolean {\n  if (!value) return false;\n  try { return new URL(value).protocol === "https:"; } catch { return false; }\n}\n\nfunction slugify(value: string): string {
   return value.toLowerCase().normalize("NFKD").replace(/[\u0300-\u036f]/g, "")
     .replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 80);
 }
