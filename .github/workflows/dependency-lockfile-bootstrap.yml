@@ -2,7 +2,7 @@ name: Dependency lockfile bootstrap
 
 on:
   push:
-    branches: ["maintenance/lockfile-bootstrap"]
+    branches: ["security/build-001-dependency-lockfile"]
 
 permissions:
   contents: read
