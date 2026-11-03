@@ -13,7 +13,9 @@ begin
     'mme_catalog_return_for_correction(uuid,uuid,text)',
     'mme_catalog_approve_product(uuid,uuid)',
     'mme_catalog_publish_product(uuid,uuid)',
-    'mme_catalog_revise_returned_product(uuid,uuid,integer,jsonb)'
+    'mme_catalog_revise_returned_product(uuid,uuid,integer,jsonb)',
+    'mme_catalog_submit_product(uuid,uuid)',
+    'mme_catalog_create_product_draft(uuid,jsonb)'
   ] loop
     select pg_get_functiondef(p.oid), p.prosecdef
       into v_def, v_security_definer
@@ -24,6 +26,9 @@ begin
     if not v_security_definer then raise exception 'Atomic workflow must be SECURITY DEFINER: %',v_name; end if;
     if position('product_catalog_events' in v_def)=0 then
       raise exception 'Atomic workflow must write catalog audit events: %',v_name;
+    end if;
+    if position('for update' in lower(v_def))=0 and v_name <> 'mme_catalog_create_product_draft(uuid,jsonb)' then
+      raise exception 'State transition workflow must lock product row: %',v_name;
     end if;
     select has_function_privilege('service_role',v_name,'EXECUTE') into v_service_granted;
     if not v_service_granted then raise exception 'service_role execute grant missing: %',v_name; end if;
@@ -41,3 +46,7 @@ begin
   end if;
 end;
 $$;
+
+  select pg_get_functiondef('public.mme_catalog_create_product_draft(uuid,jsonb)'::regprocedure) into v_def;
+  if position('product_media' in v_def)=0 then raise exception 'Draft creation must attach optional media metadata atomically'; end if;
+  if position('catalog.create' in v_def)=0 then raise exception 'Draft creation must authorize catalog.create'; end if;
