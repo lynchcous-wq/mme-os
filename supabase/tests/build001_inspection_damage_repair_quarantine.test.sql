@@ -1,0 +1,16 @@
+begin;
+select plan(12);
+select has_table('public','mme_inventory_inspections','inspection records exist');
+select has_table('public','mme_inventory_holds','aggregate hold ledger exists');
+select has_column('public','mme_inventory_inspections','photo_evidence','photo evidence references are recorded');
+select has_column('public','mme_inventory_inspections','findings','inspection findings are recorded');
+select has_function('public','mme_inspect_aggregate_inventory',array['text','uuid','uuid','integer','text','text','text','jsonb','jsonb','uuid','uuid'],'aggregate inspection RPC exists');
+select has_function('public','mme_resolve_aggregate_inspection',array['uuid','text','text','text','uuid','uuid'],'aggregate resolution RPC exists');
+select has_function('public','mme_inspect_serialized_unit',array['text','uuid','text','text','text','jsonb','jsonb','uuid','uuid'],'serialized inspection RPC exists');
+select has_function('public','mme_resolve_serialized_inspection',array['uuid','text','text','text','uuid','uuid'],'serialized resolution RPC exists');
+select ok(not has_table_privilege('anon','public.mme_inventory_inspections','select'),'anon cannot read inspection records');
+select ok(not has_table_privilege('authenticated','public.mme_inventory_holds','update'),'authenticated cannot mutate holds');
+select ok(has_function_privilege('service_role','public.mme_inspect_aggregate_inventory(text,uuid,uuid,integer,text,text,text,jsonb,jsonb,uuid,uuid)','execute'),'service role can inspect aggregate inventory');
+select ok(not has_function_privilege('authenticated','public.mme_resolve_serialized_inspection(uuid,text,text,text,uuid,uuid)','execute'),'authenticated cannot resolve serialized inspection directly');
+select * from finish();
+rollback;
