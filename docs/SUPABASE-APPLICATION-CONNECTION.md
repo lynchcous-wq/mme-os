@@ -62,3 +62,10 @@ Migration `20261103000600_atomic_catalog_workflows.sql` introduces server-only P
 The corresponding API handlers now call these transaction functions rather than issuing separate product and audit requests. The service-role key remains server-only; the API derives actor identity from the validated Supabase session. The SQL functions are executable only by `service_role`, not browser roles.
 
 The new structural test checks function existence, SECURITY DEFINER status, service-role-only grants, audit writes, revision snapshot writes, and row locking. It has not been run against a database. A dedicated test project is still required for behavior, rollback, concurrent requests, permission revocation, and migration-order tests.
+
+
+## Atomic draft creation and submission
+
+Migrations `20261103000700_atomic_catalog_submission_and_publish_guard.sql` and `20261103000800_atomic_catalog_draft_creation.sql` complete the transaction-backed employee catalog write path. Draft creation now inserts the product, optional HTTPS media metadata, and initial audit event in one function transaction. Submission now locks the draft, confirms the authenticated creator and submission permission, transitions it to pending review, and records the event atomically. The publication function also checks that the recorded approver was the CEO or an active employee with an unexpired, unrevoked global approval grant.
+
+The create API derives the actor from the validated Supabase session and sends normalized product fields to the server-only RPC. The new functions remain executable only by `service_role`. Media remains an external URL reference; binary upload to Supabase Storage is not included.
