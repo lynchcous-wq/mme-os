@@ -7,6 +7,13 @@ alter table public.mme_auction_import_events add constraint mme_auction_import_e
  check(event_type in ('batch_created','rows_staged','validation_completed','line_matched','line_reviewed',
  'batch_approved','batch_rejected','batch_cancelled','document_attached','retail_research_updated','batch_received'));
 
+alter table public.mme_serialized_unit_costs
+ add column allocated_additional_cost_cents bigint not null default 0 check(allocated_additional_cost_cents>=0);
+alter table public.mme_serialized_unit_costs drop column landed_cost_cents;
+alter table public.mme_serialized_unit_costs add column landed_cost_cents bigint
+ generated always as (acquisition_cost_cents+freight_cost_cents+auction_fee_cents+
+ handling_cost_cents+other_cost_cents+allocated_additional_cost_cents) stored;
+
 create table public.mme_auction_import_serials (
  id uuid primary key default gen_random_uuid(),
  batch_line_id uuid not null references public.mme_auction_import_lines(id) on delete restrict,
@@ -215,18 +222,13 @@ begin
      values(v_line.product_id,v_line.location_id,v_serial.serial_number,v_serial.imei,coalesce(v_line.condition_grade,'used'))
      returning id into v_unit_id;
      insert into public.mme_serialized_unit_costs(unit_id,acquisition_cost_cents,freight_cost_cents,
-      auction_fee_cents,handling_cost_cents,other_cost_cents,source_reference,
+      auction_fee_cents,handling_cost_cents,other_cost_cents,allocated_additional_cost_cents,source_reference,
       created_by_identity_id,approved_by_identity_id)
      values(v_unit_id,
       v_acq_unit+case when v_serial_count<=v_unit_acq_remainder then 1 else 0 end,
-      case when v_serial_count<=floor(v_batch.freight_cost_cents::numeric*v_line_extra/greatest(v_extra,1)) then 0 else 0 end,
-      0,0,0,v_batch.batch_reference,p_actor_identity_id,p_approved_by_identity_id);
-     -- Replace the provisional cost components with a per-unit split of the line's additional allocation.
-     update public.mme_serialized_unit_costs set
-      freight_cost_cents=case when v_extra_unit+case when v_serial_count<=v_unit_extra_remainder then 1 else 0 end>0
-       then v_extra_unit+case when v_serial_count<=v_unit_extra_remainder then 1 else 0 end else 0 end,
-      other_cost_cents=0
-     where unit_id=v_unit_id;
+      0,0,0,0,
+      v_extra_unit+case when v_serial_count<=v_unit_extra_remainder then 1 else 0 end,
+      v_batch.batch_reference,p_actor_identity_id,p_approved_by_identity_id);
      v_unit_ids:=array_append(v_unit_ids,v_unit_id);
     end;
    end loop;
