@@ -1,0 +1,16 @@
+begin;
+select plan(12);
+select has_function('public','mme_process_unified_order_payment_event',array['text','text','text','uuid','bigint','text','text'],'unified Stripe event processor exists');
+select ok(not has_function_privilege('authenticated','public.mme_process_unified_order_payment_event(text,text,text,uuid,bigint,text,text)','execute'),'browser cannot process payment events');
+select ok(position('mme_inventory_reservation_lines' in pg_get_functiondef('public.mme_process_unified_order_payment_event(text,text,text,uuid,bigint,text,text)'::regprocedure))>0,'processor handles aggregate reservations');
+select ok(position('mme_serialized_unit_reservations' in pg_get_functiondef('public.mme_process_unified_order_payment_event(text,text,text,uuid,bigint,text,text)'::regprocedure))>0,'processor handles serialized reservations');
+select ok(position('paid_and_mixed_stock_consumed' in pg_get_functiondef('public.mme_process_unified_order_payment_event(text,text,text,uuid,bigint,text,text)'::regprocedure))>0,'mixed orders have one atomic success path');
+select ok(position('payment_failed_all_stock_released' in pg_get_functiondef('public.mme_process_unified_order_payment_event(text,text,text,uuid,bigint,text,text)'::regprocedure))>0,'failed payment releases both stock types');
+select ok(position('reservation_expired_refund_review_stock_released' in pg_get_functiondef('public.mme_process_unified_order_payment_event(text,text,text,uuid,bigint,text,text)'::regprocedure))>0,'late success releases expired stock and flags refund review');
+select ok(position('on conflict(provider,provider_event_id) do nothing' in lower(pg_get_functiondef('public.mme_process_unified_order_payment_event(text,text,text,uuid,bigint,text,text)'::regprocedure)))>0,'Stripe webhook event IDs are idempotent');
+select ok(position('expected_amount_cents<>p_amount_received_cents' in lower(pg_get_functiondef('public.mme_process_unified_order_payment_event(text,text,text,uuid,bigint,text,text)'::regprocedure)))>0,'actual received amount must match bound amount');
+select ok(position('v_intent.expected_amount_cents<>v_order.total_cents' in lower(pg_get_functiondef('public.mme_process_unified_order_payment_event(text,text,text,uuid,bigint,text,text)'::regprocedure)))>0,'intent amount must match authoritative order total');
+select ok(position('for update' in lower(pg_get_functiondef('public.mme_process_unified_order_payment_event(text,text,text,uuid,bigint,text,text)'::regprocedure)))>0,'order and stock records are locked');
+select ok(position('payload_sha256' in lower(pg_get_functiondef('public.mme_process_unified_order_payment_event(text,text,text,uuid,bigint,text,text)'::regprocedure)))>0,'verified event payload hash is retained');
+select * from finish();
+rollback;
