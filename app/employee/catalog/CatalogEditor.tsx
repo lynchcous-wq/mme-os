@@ -27,6 +27,8 @@ export default function CatalogEditor() {
   const [preview,setPreview] = useState(false);
   const [saving,setSaving] = useState(false);
   const [saveMessage,setSaveMessage] = useState("");
+  const [savedProductId,setSavedProductId] = useState("");
+  const [submitting,setSubmitting] = useState(false);
 
   const parsedSpecs = useMemo(() => {
     try {
@@ -51,7 +53,7 @@ export default function CatalogEditor() {
   };
 
   return <div className="catalog-layout" style={{display:"grid",gridTemplateColumns:"minmax(0,1.3fr) minmax(260px,.7fr)",gap:22,alignItems:"start"}}>
-    <form onSubmit={async (event)=>{event.preventDefault();const message=validate();setError(message);setSaveMessage("");setPreview(false);if(message)return;setSaving(true);try{const response=await fetch("/api/employee/catalog",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});const result=await response.json();if(!response.ok)throw new Error(result.error || "Draft could not be saved.");setSaveMessage("Draft saved successfully. Product ID: "+result.product.id);setName("");setSku("");setBrand("");setModel("");setUpc("");setDescription("");setSpecs("{}");setWarranty("");setMedia("");}catch(cause){setError(cause instanceof Error ? cause.message : "Draft could not be saved.");}finally{setSaving(false);}}} style={{background:"white",border:"1px solid var(--line)",padding:22,borderRadius:5,display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
+    <form onSubmit={async (event)=>{event.preventDefault();const message=validate();setError(message);setSaveMessage("");setPreview(false);if(message)return;setSaving(true);try{const response=await fetch("/api/employee/catalog",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});const result=await response.json();if(!response.ok)throw new Error(result.error || "Draft could not be saved.");setSavedProductId(result.product.id);setSaveMessage("Draft saved. Submit it for approval when ready.");setName("");setSku("");setBrand("");setModel("");setUpc("");setDescription("");setSpecs("{}");setWarranty("");setMedia("");}catch(cause){setError(cause instanceof Error ? cause.message : "Draft could not be saved.");}finally{setSaving(false);}}} style={{background:"white",border:"1px solid var(--line)",padding:22,borderRadius:5,display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
       <label style={field}>Product name *<input required value={name} onChange={e=>setName(e.target.value)} placeholder="e.g. 55-inch 4K Smart TV" style={input}/></label>
       <label style={field}>MME SKU *<input required value={sku} onChange={e=>setSku(e.target.value)} placeholder="MME-TV-0001" style={input}/></label>
       <label style={field}>Category<select value={category} onChange={e=>setCategory(e.target.value)} style={input}>{categories.map(([value,label])=><option key={value} value={value}>{label}</option>)}</select></label>
