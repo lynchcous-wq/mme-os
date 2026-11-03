@@ -1,7 +1,13 @@
 import CartCount from "@/app/components/CartCount";
 
 const categories = [
-  { name: "Televisions", slug: "televisions", tagline: "Big-screen moments", icon: "▣" },\n  { name: "Computers", slug: "computers", tagline: "Power your next idea", icon: "⌘" },\n  { name: "Phones & tablets", slug: "phones-tablets", tagline: "Your world, connected", icon: "▤" },\n  { name: "Wearables", slug: "wearables", tagline: "Made to move with you", icon: "◉" },\n  { name: "Accessories", slug: "accessories", tagline: "The little essentials", icon: "⌁" },\n  { name: "Services", slug: null, tagline: "A hand when you need it", icon: "+" },\n];
+  { name: "Televisions", slug: "televisions", tagline: "Big-screen moments", icon: "▣" },
+  { name: "Computers", slug: "computers", tagline: "Power your next idea", icon: "⌘" },
+  { name: "Phones & tablets", slug: "phones-tablets", tagline: "Your world, connected", icon: "▤" },
+  { name: "Wearables", slug: "wearables", tagline: "Made to move with you", icon: "◉" },
+  { name: "Accessories", slug: "accessories", tagline: "The little essentials", icon: "⌁" },
+  { name: "Services", slug: null, tagline: "A hand when you need it", icon: "+" },
+];
 const products = [
   { name: "MacBook Air 13-inch", description: "M2 · 8GB memory · 256GB SSD", condition: "Refurbished · Excellent", price: "$749", oldPrice: "$999", art: "▰", color: "peach" },
   { name: "4K UHD Smart TV, 55-inch", description: "HDR · Smart platform · 4K Ultra HD", condition: "Open box · Like new", price: "$329", oldPrice: "$499", art: "▱", color: "lilac" },
