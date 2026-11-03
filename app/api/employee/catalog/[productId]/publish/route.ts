@@ -7,27 +7,16 @@ export async function POST(_request: Request, context: { params: Promise<{ produ
   const { data: { user }, error } = await session.auth.getUser();
   if (error || !user) return NextResponse.json({ error: "Authentication required." }, { status: 401 });
   const { productId } = await context.params;
-  if (!/^[0-9a-f-]{36}$/i.test(productId)) return NextResponse.json({ error: "Invalid product identifier." }, { status: 400 });
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(productId))
+    return NextResponse.json({ error: "Invalid product identifier." }, { status: 400 });
   try {
     const admin = createAdminClient();
-    const { data: allowed, error: authError } = await admin.rpc("mme_employee_authorize_catalog_action", {
-      p_actor_user_id: user.id, p_permission_key: "catalog.publish", p_target_product_id: productId, p_submitter_user_id: null,
-    });
-    if (authError) return NextResponse.json({ error: "Publication authorization unavailable." }, { status: 503 });
-    if (allowed !== true) return NextResponse.json({ error: "Publication permission required. The product must be approved first." }, { status: 403 });
-    const { data: product, error: updateError } = await admin.from("products")
-      .update({ catalog_status: "published", published_at: new Date().toISOString() })
-      .eq("id", productId).eq("catalog_status", "pending_approval")
-      .not("approved_by", "is", null).not("approved_at", "is", null)
-      .select("id,sku,name,catalog_status,approved_by,approved_at,published_at,version").maybeSingle();
-    if (updateError) return NextResponse.json({ error: "Product could not be published." }, { status: 500 });
-    if (!product) return NextResponse.json({ error: "Product is not approved or is no longer awaiting publication." }, { status: 409 });
-    const { error: auditError } = await admin.from("product_catalog_events").insert({
-      product_id: product.id, event_type: "published", actor_id: user.id, product_version: product.version, event_data: {},
-    });
-    if (auditError) return NextResponse.json({ error: "Publication saved but audit event failed. Contact an administrator.", product_id: product.id }, { status: 500 });
-    return NextResponse.json({ product });
-  } catch {
-    return NextResponse.json({ error: "Catalog publication service unavailable." }, { status: 503 });
-  }
+    const { data, error: rpcError } = await admin.rpc("mme_catalog_publish_product", { p_actor_user_id: user.id, p_product_id: productId });
+    if (rpcError) {
+      if (rpcError.code === "42501") return NextResponse.json({ error: "Publication permission required." }, { status: 403 });
+      if (rpcError.code === "40001") return NextResponse.json({ error: "Product must be approved and awaiting publication." }, { status: 409 });
+      return NextResponse.json({ error: "Atomic product publication failed." }, { status: 500 });
+    }
+    return NextResponse.json({ product: data });
+  } catch { return NextResponse.json({ error: "Catalog publication service unavailable." }, { status: 503 }); }
 }
