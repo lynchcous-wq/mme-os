@@ -40,6 +40,7 @@ create table public.mme_inventory_balances (
 create table public.mme_orders (
   id uuid primary key default gen_random_uuid(),
   idempotency_key text not null unique,
+  request_fingerprint text not null,
   customer_identity_id uuid,
   status text not null default 'pending_payment'
     check (status in ('pending_payment','paid','payment_failed','cancelled','expired','partially_refunded','refunded','disputed')),
@@ -249,3 +250,230 @@ grant all on public.mme_order_lines to service_role;
 grant all on public.mme_inventory_reservations to service_role;
 grant all on public.mme_inventory_reservation_lines to service_role;
 grant all on public.mme_payment_events to service_role;
+
+
+-- Creates an order, snapshots current database prices, and reserves stock in
+-- the same transaction. Tax/fulfillment/discount inputs must be calculated by
+-- a trusted server service before this function is called.
+create or replace function public.mme_create_order_and_reserve(
+  p_idempotency_key text,
+  p_customer_identity_id uuid,
+  p_fulfillment_method text,
+  p_fulfillment_snapshot jsonb,
+  p_tax_cents bigint,
+  p_fulfillment_cents bigint,
+  p_discount_cents bigint,
+  p_items jsonb,
+  p_expires_at timestamptz
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_fingerprint text;
+  v_existing_id uuid;
+  v_order_id uuid;
+  v_reservation_id uuid;
+  v_item record;
+  v_product record;
+  v_subtotal bigint := 0;
+  v_line_total bigint;
+  v_total bigint;
+begin
+  if p_idempotency_key is null or length(p_idempotency_key) < 8
+     or length(p_idempotency_key) > 128
+     or p_items is null or jsonb_typeof(p_items) is distinct from 'array'
+     or jsonb_array_length(p_items) = 0 or jsonb_array_length(p_items) > 50
+     or p_fulfillment_method not in ('pickup','shipping')
+     or p_fulfillment_snapshot is null or jsonb_typeof(p_fulfillment_snapshot) is distinct from 'object'
+     or p_tax_cents is null or p_tax_cents < 0
+     or p_fulfillment_cents is null or p_fulfillment_cents < 0
+     or p_discount_cents is null or p_discount_cents < 0
+     or p_expires_at is null or p_expires_at <= now()
+     or p_expires_at > now() + interval '30 minutes' then
+    raise exception 'Invalid order creation request' using errcode = '22023';
+  end if;
+
+  if exists (
+    select 1
+    from jsonb_to_recordset(p_items) as x(product_id uuid, location_id uuid, quantity integer)
+    where x.product_id is null or x.location_id is null
+       or x.quantity is null or x.quantity < 1 or x.quantity > 20
+  ) or exists (
+    select 1
+    from jsonb_to_recordset(p_items) as x(product_id uuid, location_id uuid, quantity integer)
+    group by x.product_id, x.location_id
+    having count(*) > 1
+  ) then
+    raise exception 'Invalid or duplicate order lines' using errcode = '22023';
+  end if;
+
+  v_fingerprint := encode(
+    extensions.digest(
+      jsonb_build_object(
+        'customer_identity_id', p_customer_identity_id,
+        'fulfillment_method', p_fulfillment_method,
+        'fulfillment_snapshot', p_fulfillment_snapshot,
+        'tax_cents', p_tax_cents,
+        'fulfillment_cents', p_fulfillment_cents,
+        'discount_cents', p_discount_cents,
+        'items', p_items
+      )::text,
+      'sha256'
+    ),
+    'hex'
+  );
+
+  select o.id, o.request_fingerprint
+    into v_existing_id, v_fingerprint
+  from public.mme_orders o
+  where o.idempotency_key = p_idempotency_key
+  for update;
+
+  if found then
+    if v_fingerprint <> encode(
+      extensions.digest(
+        jsonb_build_object(
+          'customer_identity_id', p_customer_identity_id,
+          'fulfillment_method', p_fulfillment_method,
+          'fulfillment_snapshot', p_fulfillment_snapshot,
+          'tax_cents', p_tax_cents,
+          'fulfillment_cents', p_fulfillment_cents,
+          'discount_cents', p_discount_cents,
+          'items', p_items
+        )::text,
+        'sha256'
+      ),
+      'hex'
+    ) then
+      raise exception 'Idempotency key reused with different request' using errcode = '23505';
+    end if;
+    return v_existing_id;
+  end if;
+
+  -- Build authoritative line snapshots from the current product catalog.
+  for v_item in
+    select x.product_id, x.location_id, x.quantity
+    from jsonb_to_recordset(p_items) as x(product_id uuid, location_id uuid, quantity integer)
+    order by x.product_id, x.location_id
+  loop
+    select p.id, p.sku, p.title, p.condition_grade, p.unit_price_cents, p.active, p.serialized
+      into v_product
+    from public.mme_products p
+    where p.id = v_item.product_id
+    for share;
+
+    if not found or not v_product.active or v_product.serialized then
+      raise exception 'Product unavailable for standard aggregate checkout' using errcode = 'P0002';
+    end if;
+
+    v_line_total := v_product.unit_price_cents * v_item.quantity;
+    if v_line_total > 9000000000000000 then
+      raise exception 'Order line total exceeds supported amount' using errcode = '22003';
+    end if;
+
+    v_subtotal := v_subtotal + v_line_total;
+    if v_subtotal > 9000000000000000 then
+      raise exception 'Order subtotal exceeds supported amount' using errcode = '22003';
+    end if;
+  end loop;
+
+  v_total := v_subtotal + p_tax_cents + p_fulfillment_cents - p_discount_cents;
+  if p_discount_cents > v_subtotal + p_tax_cents + p_fulfillment_cents
+     or v_total < 0 or v_total > 9000000000000000 then
+    raise exception 'Invalid order total' using errcode = '22003';
+  end if;
+
+  -- Recompute fingerprint after no mutation: includes request inputs, not client prices.
+  v_fingerprint := encode(
+    extensions.digest(
+      jsonb_build_object(
+        'customer_identity_id', p_customer_identity_id,
+        'fulfillment_method', p_fulfillment_method,
+        'fulfillment_snapshot', p_fulfillment_snapshot,
+        'tax_cents', p_tax_cents,
+        'fulfillment_cents', p_fulfillment_cents,
+        'discount_cents', p_discount_cents,
+        'items', p_items
+      )::text,
+      'sha256'
+    ),
+    'hex'
+  );
+
+  insert into public.mme_orders(
+    idempotency_key, request_fingerprint, customer_identity_id, status,
+    subtotal_cents, tax_cents, fulfillment_cents, discount_cents, total_cents,
+    fulfillment_method, fulfillment_snapshot
+  ) values (
+    p_idempotency_key, v_fingerprint, p_customer_identity_id, 'pending_payment',
+    v_subtotal, p_tax_cents, p_fulfillment_cents, p_discount_cents, v_total,
+    p_fulfillment_method, p_fulfillment_snapshot
+  )
+  on conflict (idempotency_key) do nothing
+  returning id into v_order_id;
+
+  if v_order_id is null then
+    select o.id, o.request_fingerprint
+      into v_existing_id, v_fingerprint
+    from public.mme_orders o
+    where o.idempotency_key = p_idempotency_key
+    for update;
+
+    if v_fingerprint <> encode(
+      extensions.digest(
+        jsonb_build_object(
+          'customer_identity_id', p_customer_identity_id,
+          'fulfillment_method', p_fulfillment_method,
+          'fulfillment_snapshot', p_fulfillment_snapshot,
+          'tax_cents', p_tax_cents,
+          'fulfillment_cents', p_fulfillment_cents,
+          'discount_cents', p_discount_cents,
+          'items', p_items
+        )::text,
+        'sha256'
+      ),
+      'hex'
+    ) then
+      raise exception 'Idempotency key reused with different request' using errcode = '23505';
+    end if;
+    return v_existing_id;
+  end if;
+
+  for v_item in
+    select x.product_id, x.location_id, x.quantity
+    from jsonb_to_recordset(p_items) as x(product_id uuid, location_id uuid, quantity integer)
+    order by x.product_id, x.location_id
+  loop
+    select p.id, p.sku, p.title, p.condition_grade, p.unit_price_cents
+      into v_product
+    from public.mme_products p
+    where p.id = v_item.product_id
+    for share;
+
+    v_line_total := v_product.unit_price_cents * v_item.quantity;
+    insert into public.mme_order_lines(
+      order_id, product_id, sku_snapshot, title_snapshot, condition_snapshot,
+      quantity, unit_price_cents, line_total_cents
+    ) values (
+      v_order_id, v_product.id, v_product.sku, v_product.title, v_product.condition_grade,
+      v_item.quantity, v_product.unit_price_cents, v_line_total
+    );
+  end loop;
+
+  v_reservation_id := public.mme_reserve_inventory(
+    v_order_id,
+    p_items,
+    p_expires_at
+  );
+
+  return v_order_id;
+end;
+$$;
+
+revoke all on function public.mme_create_order_and_reserve(text, uuid, text, jsonb, bigint, bigint, bigint, jsonb, timestamptz) from public;
+revoke all on function public.mme_create_order_and_reserve(text, uuid, text, jsonb, bigint, bigint, bigint, jsonb, timestamptz) from anon;
+revoke all on function public.mme_create_order_and_reserve(text, uuid, text, jsonb, bigint, bigint, bigint, jsonb, timestamptz) from authenticated;
+grant execute on function public.mme_create_order_and_reserve(text, uuid, text, jsonb, bigint, bigint, bigint, jsonb, timestamptz) to service_role;
