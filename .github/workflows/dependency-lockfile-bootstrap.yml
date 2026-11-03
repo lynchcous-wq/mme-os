@@ -19,6 +19,8 @@ jobs:
         run: npm install --package-lock-only --ignore-scripts
       - name: Capture dependency audit
         run: npm audit --json > npm-audit.json || true
+      - name: Preview non-forced audit remediation
+        run: npm audit fix --dry-run --json > npm-audit-fix-plan.json || true
       - name: Upload generated lockfile and audit report
         uses: actions/upload-artifact@v4
         with:
@@ -26,5 +28,6 @@ jobs:
           path: |
             package-lock.json
             npm-audit.json
+            npm-audit-fix-plan.json
           if-no-files-found: error
           retention-days: 3
