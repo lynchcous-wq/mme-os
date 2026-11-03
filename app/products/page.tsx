@@ -1,4 +1,5 @@
 import Link from "next/link";
+import AddToCartButton from "@/app/components/AddToCartButton";
 import { categoryLabels, conditionLabels, demoProducts, formatPrice, type ProductCategory, type ProductCondition } from "@/app/catalog";
 
 type SearchParams = Promise<{ q?: string; condition?: string; category?: string }>;
@@ -45,7 +46,7 @@ export default async function ProductsPage({ searchParams }: { searchParams: Sea
             <h3>{product.name}</h3><p>{product.description}</p>
             <ul>{product.specs.map((spec) => <li key={spec}>{spec}</li>)}</ul>
             <div className="catalog-price"><strong>{formatPrice(product.priceCents)}</strong>{product.compareAtPriceCents && <del>{formatPrice(product.compareAtPriceCents)}</del>}</div>
-            <span className="demo-notice">Illustrative price · Not for purchase</span>
+            <span className="demo-notice">Illustrative price · Not for purchase</span><AddToCartButton product={product} />
           </div>
         </article>)}
       </div> : <div className="catalog-empty"><h2>No matching examples</h2><p>Try another search or clear one of the filters.</p><Link className="button" href="/products">View all examples ↗</Link></div>}
