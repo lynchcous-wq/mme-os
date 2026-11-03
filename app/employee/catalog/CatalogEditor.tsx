@@ -68,6 +68,7 @@ export default function CatalogEditor() {
       <label style={field}>Image / demo video HTTPS link<input value={media} onChange={e=>setMedia(e.target.value)} placeholder="https://..." style={input}/></label>
       {error && <p role="alert" style={{gridColumn:"1 / -1",color:"#a33",fontSize:12,margin:0}}>{error}</p>}
       {saveMessage && <p role="status" style={{gridColumn:"1 / -1",color:"#17613e",fontSize:12,margin:0}}>{saveMessage}</p>}
+      {savedProductId && <button type="button" disabled={submitting} onClick={async()=>{setSubmitting(true);setError("");try{const response=await fetch("/api/employee/catalog/"+savedProductId+"/submit",{method:"POST"});const result=await response.json();if(!response.ok)throw new Error(result.error||"Submission failed.");setSaveMessage("Draft submitted for review: "+result.product.name);setSavedProductId("");}catch(cause){setError(cause instanceof Error?cause.message:"Submission failed.");}finally{setSubmitting(false);}}} style={{gridColumn:"1 / -1",padding:11,border:0,borderRadius:3,background:"#164b3c",color:"white",fontSize:11,fontWeight:700}}>{submitting?"Submitting…":"Submit saved draft for approval"}</button>}
       <div style={{gridColumn:"1 / -1",display:"flex",gap:10,alignItems:"center",flexWrap:"wrap"}}>
         <button type="submit" style={primary} disabled={saving}>{saving ? "Saving draft…" : "Save draft"}</button>
         <button type="button" onClick={()=>{const message=validate();setError(message);setPreview(!message);}} style={secondary}>Preview JSON</button>
