@@ -1,0 +1,44 @@
+# Build 001 — authoritative inventory and order schema
+
+**Status:** Proposed Supabase migration; not applied to any database.
+
+## Tables added
+
+- Store locations and active product catalog records.
+- Location-specific on-hand and reserved inventory balances.
+- Pending/paid/cancelled/refunded order headers and immutable line snapshots.
+- Time-limited inventory reservations and reservation lines.
+- Stripe webhook event ledger with unique provider event IDs for duplicate-delivery protection.
+
+## Atomic reservation
+
+`mme_reserve_inventory` is a server-only PostgreSQL function. It:
+- accepts an existing pending order and a bounded JSON array of product/location/quantity requests;
+- rejects invalid, duplicate, inactive, unavailable, and insufficient-stock lines;
+- locks product and inventory rows in deterministic product/location order;
+- increments reserved quantities and writes reservation lines in the same transaction;
+- limits reservation expiry to 30 minutes;
+- rolls back all changes if any requested line fails.
+
+Only the Supabase `service_role` may execute this function. Browser roles have no direct table privileges or RLS policies. Never expose the service-role/secret key to a browser.
+
+## Important boundaries
+
+- This migration does not create the order header or line snapshots; a trusted server service must do so before calling the reservation function, in the same database transaction/RPC in the final production implementation.
+- The reservation function does not yet consume, expire, or release reservations. Those require separate transactional functions and payment-state checks.
+- Serialized device inventory (IMEI/serial-level units) needs a dedicated unit table and reservation locking before serialized products are enabled for online checkout.
+- Customer identity is stored as an opaque UUID pending a reviewed foreign-key integration with Build 004 Identity Matrix.
+- Tax, shipping rates, discounts, Stripe Checkout Sessions, webhook signature verification, refunds, and reconciliation are not implemented here.
+
+## Required database tests before use
+
+1. One available unit reserved successfully.
+2. Two concurrent requests for the last unit: exactly one succeeds.
+3. Multi-line request with one insufficient line: no partial reservation remains.
+4. Duplicate product/location lines rejected.
+5. Inactive product/location rejected.
+6. Invalid or overlong expiration rejected.
+7. Browser roles cannot select or mutate protected tables or invoke reservation RPC.
+8. Duplicate Stripe event IDs rejected by unique constraint.
+
+Apply only in a disposable Supabase development project after the Build 004 identity migrations and this migration have been reviewed and ordered. No production checkout until order creation, release/expiry, serialized inventory, Stripe test mode, signed webhooks, and reconciliation pass.
