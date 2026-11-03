@@ -33,7 +33,7 @@ export default async function EmployeeCatalogPage() {
         <h1 style={{fontFamily:"Manrope,sans-serif",fontSize:"clamp(34px,5vw,52px)",letterSpacing:"-.06em",margin:"12px 0"}}>Product <em style={{color:"var(--accent)"}}>workspace.</em></h1>
         <p style={{maxWidth:700,color:"var(--muted)",lineHeight:1.8,fontSize:13}}>Prepare a product record for review. Product details live here; stock units, reservations, acquisition cost and selling prices are managed in their own MME OS modules.</p>
         <div style={{margin:"24px 0",padding:16,border:"1px solid #e5c69a",background:"#fff8eb",borderRadius:4,color:"#664b28",fontSize:12,lineHeight:1.7}}>
-          <b>Preview mode — not connected to employee authentication or database storage.</b><br/>
+          <b>Employee access is checked on the server when Supabase and the employee-control migrations are configured. Product drafts remain preview-only and are not saved.</b><br/>
           This page demonstrates the catalog entry workflow. Do not enter real customer, payment, IMEI or serial-number data. Drafts on this screen are not saved.
         </div>
         <CatalogEditor />
