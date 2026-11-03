@@ -28,16 +28,14 @@ export async function GET() {
 
     const ids = (products ?? []).map((product) => product.id);
     const { data: events, error: eventsError } = ids.length
-      ? await admin.from("product_catalog_events").select("id,product_id,event_type,actor_id,product_version,event_data,created_at").in("product_id", ids).order("created_at", { ascending: false })
+      ? await admin.from("product_catalog_events").select("id,product_id,event_type,actor_id,product_version,event_data,created_at").in("product_id", ids).order("created_at", { ascending: false }).limit(500)
       : { data: [], error: null };
     if (eventsError) return NextResponse.json({ error: "Product history could not be loaded." }, { status: 500 });
 
-    const userIds = [...new Set([...(products ?? []).map((p) => p.created_by), ...(products ?? []).map((p) => p.approved_by), ...(events ?? []).map((e) => e.actor_id)].filter(Boolean))] as string[];
-    const { data: identities, error: identitiesError } = userIds.length
-      ? await admin.auth.admin.listUsers({ perPage: 1000 })
-      : { data: { users: [] }, error: null };
-    if (identitiesError) return NextResponse.json({ error: "Reviewer identity details unavailable." }, { status: 500 });
-    const names = new Map((identities?.users ?? []).filter((u) => userIds.includes(u.id)).map((u) => [u.id, u.email ?? "Employee"]));
+    const submitterIds = [...new Set((products ?? []).map((product) => product.created_by).filter(Boolean))] as string[];
+    const userResults = await Promise.all(submitterIds.map((id) => admin.auth.admin.getUserById(id)));
+    if (userResults.some((result) => result.error)) return NextResponse.json({ error: "Submitter identity details unavailable." }, { status: 500 });
+    const names = new Map(userResults.map((result) => [result.data.user.id, result.data.user.email ?? "Employee"]));
 
     return NextResponse.json({
       products: (products ?? []).map((product) => ({
