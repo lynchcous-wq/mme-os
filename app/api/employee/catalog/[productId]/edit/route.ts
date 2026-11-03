@@ -1,3 +1,4 @@
+import { readJsonObject } from "@/lib/http/read-json-object";
 import { NextResponse } from "next/server";
 import { createClient as createSessionClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -14,12 +15,9 @@ export async function PATCH(request: Request, context: { params: Promise<{ produ
   const { productId } = await context.params;
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(productId))
     return NextResponse.json({ error: "Invalid product identifier." }, { status: 400 });
-  let body: Record<string, unknown>;
-  try {
-    const value: unknown = await request.json();
-    if (!value || typeof value !== "object" || Array.isArray(value)) return NextResponse.json({ error: "A JSON object is required." }, { status: 400 });
-    body = value as Record<string, unknown>;
-  } catch { return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 }); }
+  const parsed = await readJsonObject(request, 24_000);
+  if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: parsed.status });
+  const body = parsed.value;
 
   const expectedVersion = body.expected_version;
   const name = clean(body.name,160), sku = clean(body.sku,64), category = clean(body.category,80);
