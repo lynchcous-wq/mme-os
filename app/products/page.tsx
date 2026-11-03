@@ -1,5 +1,6 @@
 import Link from "next/link";
 import AddToCartButton from "@/app/components/AddToCartButton";
+import CartCount from "@/app/components/CartCount";
 import { categoryLabels, conditionLabels, demoProducts, formatPrice, type ProductCategory, type ProductCondition } from "@/app/catalog";
 
 type SearchParams = Promise<{ q?: string; condition?: string; category?: string }>;
@@ -24,7 +25,7 @@ export default async function ProductsPage({ searchParams }: { searchParams: Sea
     <header className="header">
       <Link className="brand" href="/" aria-label="Much More Electronics home"><span className="brand-mark">MM</span><span>MUCH MORE<br /><b>ELECTRONICS</b></span></Link>
       <nav aria-label="Shop navigation"><Link href="/products">Shop all</Link><Link href="/#deals">Deals</Link></nav>
-      <div className="actions"><Link href="/account">Account</Link><Link href="/cart">Bag <span className="count">0</span></Link></div>
+      <div className="actions"><Link href="/account">Account</Link><Link href="/cart">Bag <CartCount /></Link></div>
     </header>
     <section className="catalog-page">
       <div className="eyebrow">Explore MME</div>
