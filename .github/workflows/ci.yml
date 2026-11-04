@@ -66,6 +66,6 @@ jobs:
       - name: Start local Supabase
         run: supabase start
       - name: Apply complete migration chain to an empty local database
-        run: supabase db reset --local
+        run: supabase db reset
       - name: Run pgTAP database tests
-        run: supabase test db --local
+        run: supabase test db
