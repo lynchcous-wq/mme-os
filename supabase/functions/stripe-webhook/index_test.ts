@@ -17,6 +17,20 @@ Deno.test("readBoundedBody rejects an empty request", async () => {
   assertEquals(body, null);
 });
 
+Deno.test("readBoundedBody accepts a body exactly at its byte limit", async () => {
+  const body = await readBoundedBody(new Request("https://example.test", { method: "POST", body: "1234567" }), 7);
+  assertEquals(body, "1234567");
+});
+
+Deno.test("readBoundedBody rejects invalid UTF-8 instead of throwing", async () => {
+  const request = new Request("https://example.test", {
+    method: "POST",
+    body: new Uint8Array([0xc3, 0x28]),
+  });
+  const body = await readBoundedBody(request, 2);
+  assertEquals(body, null);
+});
+
 Deno.test("sha256Hex returns a stable SHA-256 digest", async () => {
   assertEquals(await sha256Hex("abc"), "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad");
 });
