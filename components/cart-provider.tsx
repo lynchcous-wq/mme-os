@@ -20,8 +20,8 @@ type CartContextValue = {
   ready: boolean;
   count: number;
   addLine: (line: CartLine) => void;
-  updateQuantity: (productId: string, locationId: string, quantity: number) => void;
-  removeLine: (productId: string, locationId: string) => void;
+  updateQuantity: (productId: string, locationId: string, quantity: number, serializedUnitId?: string) => void;
+  removeLine: (productId: string, locationId: string, serializedUnitId?: string) => void;
   clear: () => void;
 };
 
@@ -63,7 +63,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
-  const updateQuantity = useCallback((productId: string, locationId: string, quantity: number) => {
+  const updateQuantity = useCallback((productId: string, locationId: string, quantity: number, serializedUnitId?: string) => {
     setLines((current) => current.map((line) =>
       line.product_id === productId && line.location_id === locationId
         ? { ...line, quantity: Math.max(1, Math.min(line.available_quantity, Math.floor(quantity) || 1)) }
@@ -71,8 +71,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     ));
   }, []);
 
-  const removeLine = useCallback((productId: string, locationId: string) => {
-    setLines((current) => current.filter((line) => !(line.product_id === productId && line.location_id === locationId)));
+  const removeLine = useCallback((productId: string, locationId: string, serializedUnitId?: string) => {
+    setLines((current) => current.filter((line) => !(line.product_id === productId && line.location_id === locationId && line.serialized_unit_id === serializedUnitId)));
   }, []);
 
   const clear = useCallback(() => setLines([]), []);
