@@ -10,7 +10,7 @@ select ok(not has_table_privilege('authenticated','public.mme_pickup_verificatio
 select ok(not has_table_privilege('authenticated','public.mme_pickup_verification_challenges','insert'),'browser cannot issue pickup challenges directly');
 select ok(not has_function_privilege('authenticated','public.mme_issue_pickup_verification_challenge(uuid,text,timestamp with time zone,uuid)','execute'),'browser cannot issue pickup codes');
 select ok(not has_function_privilege('authenticated','public.mme_verify_pickup_challenge(uuid,text)','execute'),'browser cannot directly verify pickup codes');
-select ok(has_column('public','mme_pickup_verification_challenges','max_attempts'),'pickup challenge has an attempt limit');
-select ok(has_column('public','mme_customer_notification_outbox','idempotency_key'),'notification queue is idempotent');
+select has_column('public','mme_pickup_verification_challenges','max_attempts','pickup challenge has an attempt limit');
+select has_column('public','mme_customer_notification_outbox','idempotency_key','notification queue is idempotent');
 select * from finish();
 rollback;

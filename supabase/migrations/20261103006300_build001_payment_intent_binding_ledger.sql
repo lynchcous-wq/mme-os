@@ -9,6 +9,11 @@ create table if not exists public.mme_order_payment_intents (
  created_at timestamptz not null default now(),
  unique(provider,provider_object_id)
 );
+
+-- Add the customer binding to the pre-existing ledger without discarding rows.
+alter table public.mme_order_payment_intents add column if not exists bound_customer_identity_id uuid;
+update public.mme_order_payment_intents i set bound_customer_identity_id=o.customer_identity_id from public.mme_orders o where o.id=i.order_id and i.bound_customer_identity_id is null and o.customer_identity_id is not null;
+
 alter table public.mme_order_payment_intents enable row level security;
 revoke all on public.mme_order_payment_intents from public,anon,authenticated;
 grant all on public.mme_order_payment_intents to service_role;
@@ -44,8 +49,8 @@ begin
    and v_existing.bound_customer_identity_id=p_customer_identity_id then return v_existing.id; end if;
   raise exception 'Order or PaymentIntent already bound' using errcode='23505';
  end if;
- insert into public.mme_order_payment_intents(provider,provider_object_id,order_id,expected_amount_cents,currency,bound_customer_identity_id)
- values('stripe',btrim(p_provider_object_id),p_order_id,p_expected_amount_cents,'USD',p_customer_identity_id)
+ insert into public.mme_order_payment_intents(provider,provider_object_id,order_id,expected_amount_cents,currency,bound_customer_identity_id,created_by_identity_id)
+ values('stripe',btrim(p_provider_object_id),p_order_id,p_expected_amount_cents,'USD',p_customer_identity_id,p_customer_identity_id)
  returning id into v_binding_id;
  return v_binding_id;
 end; $$;

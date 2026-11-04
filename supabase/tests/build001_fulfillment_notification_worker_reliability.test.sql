@@ -8,7 +8,7 @@ select has_column('public','mme_customer_notification_outbox','next_attempt_at',
 select ok(not has_function_privilege('authenticated','mme_claim_customer_notifications(text,integer,integer)','execute'),'browser cannot claim notification jobs');
 select ok(not has_function_privilege('authenticated','mme_complete_customer_notification(uuid,text,text,text)','execute'),'browser cannot complete notification jobs');
 select ok(not has_function_privilege('authenticated','mme_fail_customer_notification(uuid,text,text,boolean)','execute'),'browser cannot fail notification jobs');
-select ok(has_column('public','mme_customer_notification_outbox','attempt_count'),'attempt counter bounds retry policy');
-select ok(has_column('public','mme_customer_notification_outbox','provider_message_id'),'provider message receipt is recorded');
+select has_column('public','mme_customer_notification_outbox','attempt_count','attempt counter bounds retry policy');
+select has_column('public','mme_customer_notification_outbox','provider_message_id','provider message receipt is recorded');
 select * from finish();
 rollback;
