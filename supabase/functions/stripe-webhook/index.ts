@@ -37,10 +37,17 @@ Deno.serve(async (request) => {
   }
 
   const signature = request.headers.get("stripe-signature");
-  if (!signature) return json({ error: "missing_signature" }, 400);
+  if (!signature || signature.length > 4096) return json({ error: "missing_or_invalid_signature_header" }, 400);
 
-  // Verify the exact raw request bytes before parsing or trusting event fields.
+  // Bound webhook input before buffering it, then verify the exact raw bytes.
+  const declaredLength = Number(request.headers.get("content-length") ?? "0");
+  if (Number.isFinite(declaredLength) && declaredLength > 1_048_576) {
+    return json({ error: "webhook_payload_too_large" }, 413);
+  }
   const rawBody = await request.text();
+  if (!rawBody || new TextEncoder().encode(rawBody).byteLength > 1_048_576) {
+    return json({ error: "webhook_payload_too_large_or_empty" }, 413);
+  }
   const stripe = new Stripe(stripeSecret, { apiVersion: "2025-02-24.acacia" });
   let event: Stripe.Event;
   try {
