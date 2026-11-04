@@ -63,6 +63,9 @@ jobs:
         uses: supabase/setup-cli@v1
         with:
           version: latest
+      - name: Move local database ports away from runner defaults
+        run: |
+          sed -i 's/^port = 54322$/port = 54332/; s/^shadow_port = 54320$/shadow_port = 54330/' supabase/config.toml
       - name: Start local Supabase
         run: supabase start
       - name: Apply complete migration chain to an empty local database
