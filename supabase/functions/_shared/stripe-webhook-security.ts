@@ -36,8 +36,8 @@ export async function readBoundedBody(request: Request, maxBytes: number): Promi
 }
 
 
-export async function verifyStripeWebhook(rawBody: string, signature: string, secret: string): Promise<Stripe.Event> {
-  const stripe = new Stripe("sk_test_webhook_verification_only", { apiVersion: "2025-02-24.acacia" });
+export async function verifyStripeWebhook(rawBody: string, signature: string, secret: string, apiCredential: string): Promise<Stripe.Event> {
+  const stripe = new Stripe(apiCredential, { apiVersion: "2025-02-24.acacia" });
   return await stripe.webhooks.constructEventAsync(
     rawBody,
     signature,
