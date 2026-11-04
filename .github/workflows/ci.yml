@@ -49,8 +49,8 @@ jobs:
           deno-version: v2.x
       - name: Type-check checkout and webhook functions
         run: |
-          deno check --node-modules-dir=auto supabase/functions/create-checkout-payment/index.ts
-          deno check --node-modules-dir=auto supabase/functions/stripe-webhook/index.ts
+          deno check --node-modules-dir=none supabase/functions/create-checkout-payment/index.ts
+          deno check --node-modules-dir=none supabase/functions/stripe-webhook/index.ts
 
   database-tests:
     name: Supabase migration and pgTAP tests
