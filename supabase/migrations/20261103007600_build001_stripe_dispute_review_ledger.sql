@@ -16,6 +16,19 @@ create table public.mme_payment_disputes (
  received_at timestamptz not null default now(),
  unique(provider,provider_event_id)
 );
+create or replace function public.mme_prevent_payment_dispute_mutation()
+returns trigger language plpgsql security definer set search_path=''
+as $
+begin
+ raise exception 'Stripe dispute events are immutable; record a new provider event instead'
+  using errcode='55000';
+end;
+$;
+revoke all on function public.mme_prevent_payment_dispute_mutation() from public,anon,authenticated;
+create trigger mme_payment_disputes_immutable
+before update or delete on public.mme_payment_disputes
+for each row execute function public.mme_prevent_payment_dispute_mutation();
+
 create index mme_payment_disputes_order_idx on public.mme_payment_disputes(order_id,received_at desc);
 alter table public.mme_payment_disputes enable row level security;
 revoke all on public.mme_payment_disputes from public,anon,authenticated;
