@@ -1,5 +1,6 @@
 import Stripe from "npm:stripe@17.7.0";
 import { createClient } from "npm:@supabase/supabase-js@2.49.1";
+import { readBoundedBody } from "../_shared/stripe-webhook-security.ts";
 
 const baseHeaders = { "Content-Type": "application/json", "Vary": "Origin" };
 const reply = (body: unknown, status = 200, origin?: string) =>
@@ -45,13 +46,20 @@ Deno.serve(async (req) => {
     : stripeKey.startsWith("sk_test_") || stripeKey.startsWith("rk_test_");
   if (!keyMatchesMode) return reply({ error: "stripe_mode_configuration_mismatch" }, 503, origin);
 
-  const contentLength = Number(req.headers.get("content-length") ?? "0");
-  if (Number.isFinite(contentLength) && contentLength > 64_000) {
-    return reply({ error: "request_too_large" }, 413, origin);
+  const contentLengthHeader = req.headers.get("content-length");
+  if (contentLengthHeader !== null) {
+    if (!/^\\d+$/.test(contentLengthHeader)) {
+      return reply({ error: "invalid_content_length" }, 400, origin);
+    }
+    if (Number(contentLengthHeader) > 64_000) {
+      return reply({ error: "request_too_large" }, 413, origin);
+    }
   }
   let body: unknown;
   try {
-    body = await req.json();
+    const rawBody = await readBoundedBody(req, 64_000);
+    if (rawBody === null) return reply({ error: "invalid_json" }, 400, origin);
+    body = JSON.parse(rawBody);
   } catch {
     return reply({ error: "invalid_json" }, 400, origin);
   }
