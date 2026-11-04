@@ -1,7 +1,7 @@
 begin;
 select plan(9);
 select has_table('public','mme_order_payment_intents','Stripe intent binding table exists');
-select has_function('public','mme_bind_order_payment_intent',array['uuid','text','uuid'],'payment intent binding RPC exists');
+select ok(to_regprocedure('public.mme_bind_order_payment_intent(uuid,text,uuid)') is null,'legacy actor-supplied PaymentIntent binding RPC is retired');
 select has_function('public','mme_process_aggregate_order_payment_event',array['text','text','text','uuid','bigint','text','text'],'aggregate payment event RPC exists');
 select ok(not has_table_privilege('anon','public.mme_order_payment_intents','select'),'anon cannot read payment intent bindings');
 select ok(not has_table_privilege('authenticated','public.mme_order_payment_intents','insert'),'authenticated cannot create payment intent bindings');
