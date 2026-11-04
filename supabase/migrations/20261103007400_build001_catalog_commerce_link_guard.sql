@@ -111,7 +111,7 @@ returns trigger
 language plpgsql
 security definer
 set search_path = ''
-as $
+as $$
 begin
   if new.sku is distinct from old.sku
      and exists (
@@ -123,7 +123,7 @@ begin
   end if;
   return new;
 end;
-$;
+$$;
 
 create trigger products_prevent_linked_sku_change
 before update of sku on public.products
