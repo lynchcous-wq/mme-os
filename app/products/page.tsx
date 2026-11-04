@@ -18,6 +18,7 @@ type Product = {
   brand: string | null;
   category: string;
   condition: string;
+  catalog_condition: string;
   price_cents: number;
   currency: string;
   serialized: boolean;
@@ -70,7 +71,7 @@ export default function ProductsPage() {
 
   const visibleProducts = useMemo(() => products.filter((product) => {
     const searchable = [product.title, product.brand, product.sku, product.category].filter(Boolean).join(" ").toLowerCase();
-    return (condition === "all" || product.condition === condition)
+    return (condition === "all" || product.catalog_condition === condition)
       && (category === "all" || product.category === category)
       && searchable.includes(search.toLowerCase());
   }), [products, condition, category, search]);
@@ -97,8 +98,11 @@ export default function ProductsPage() {
             <option value="all">All conditions</option>
             <option value="new">New</option>
             <option value="open_box">Open box</option>
+            <option value="like_new">Like new</option>
             <option value="refurbished">Refurbished</option>
-            <option value="used">Used</option>
+            <option value="used_excellent">Pre-owned · Excellent</option>
+            <option value="used_good">Pre-owned · Good</option>
+            <option value="used_fair">Pre-owned · Fair</option>
           </select>
         </label>
         <label className="catalog-filter">Category
@@ -117,7 +121,7 @@ export default function ProductsPage() {
         {visibleProducts.map((product) => <article className="live-product" key={product.id}>
           <div className="live-product-art"><span className="live-product-mark">MME</span><span className="live-product-symbol">◇</span></div>
           <div className="live-product-info">
-            <small>{product.category} · {conditionLabel(product.condition)}</small>
+            <small>{product.category} · {conditionLabel(product.catalog_condition)}</small>
             <h2>{product.title}</h2>
             {product.brand && <span className="live-brand">{product.brand}</span>}
             {product.description && <p>{product.description}</p>}
