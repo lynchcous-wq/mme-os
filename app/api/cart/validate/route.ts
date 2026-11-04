@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
 
-type RequestLine = { product_id: string; location_id: string; quantity: number };
+type RequestLine = { product_id: string; location_id: string; quantity: number; serialized_unit_id?: string };
 type Row = Record<string, unknown>;
 
 async function readTable<T extends Row>(
@@ -50,7 +50,8 @@ export async function POST(request: Request) {
         !Number.isInteger(item.quantity) || item.quantity < 1 || item.quantity > 100) {
       return NextResponse.json({ error: "Cart contains an invalid product, location, or quantity." }, { status: 400 });
     }
-    const key = `${item.product_id}:${item.location_id}`;
+    if (item.serialized_unit_id !== undefined && !uuidPattern.test(item.serialized_unit_id)) return NextResponse.json({ error: "Cart contains an invalid serialized unit." }, { status: 400 });
+    const key = `${item.product_id}:${item.location_id}:${item.serialized_unit_id ?? "aggregate"}`;
     if (seen.has(key)) return NextResponse.json({ error: "Combine duplicate product and location lines." }, { status: 400 });
     seen.add(key);
   }
@@ -58,7 +59,8 @@ export async function POST(request: Request) {
   try {
     const productIds = [...new Set(items.map((item) => item.product_id))];
     const locationIds = [...new Set(items.map((item) => item.location_id))];
-    const [commerce, catalog, balances, locations] = await Promise.all([
+    const unitIds = [...new Set(items.flatMap((item) => item.serialized_unit_id ? [item.serialized_unit_id] : []))];
+    const [commerce, catalog, balances, locations, units] = await Promise.all([
       readTable<Row>(baseUrl, serviceKey, "mme_products",
         `select=id,catalog_product_id,sku,title,unit_price_cents,currency,active,serialized&active=eq.true&id=in.(${productIds.join(",")})`),
       readTable<Row>(baseUrl, serviceKey, "products",
@@ -67,12 +69,15 @@ export async function POST(request: Request) {
         `select=product_id,location_id,on_hand_quantity,reserved_quantity&product_id=in.(${productIds.join(",")})&location_id=in.(${locationIds.join(",")})`),
       readTable<Row>(baseUrl, serviceKey, "mme_store_locations",
         `select=id,display_name,active&active=eq.true&id=in.(${locationIds.join(",")})`),
+      unitIds.length ? readTable<Row>(baseUrl, serviceKey, "mme_serialized_units",
+        `select=id,product_id,location_id,condition_grade,unit_status&unit_status=eq.in_stock&id=in.(${unitIds.join(",")})`) : Promise.resolve([] as Row[]),
     ]);
 
     const catalogIds = new Set(catalog.map((row) => String(row.id)));
     const productById = new Map(commerce.map((row) => [String(row.id), row]));
     const locationById = new Map(locations.map((row) => [String(row.id), row]));
     const balanceByKey = new Map(balances.map((row) => [`${row.product_id}:${row.location_id}`, row]));
+    const unitById = new Map(units.map((row) => [String(row.id), row]));
     const validated = [];
 
     for (const item of items) {
@@ -82,7 +87,23 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: "A cart item is no longer published or its store is unavailable. Refresh your cart." }, { status: 409 });
       }
       if (product.serialized === true) {
-        return NextResponse.json({ error: `Serialized device checkout requires individual serial-number verification. Remove ${String(product.title)} and contact MME for assistance.` }, { status: 409 });
+        if (!item.serialized_unit_id || item.quantity !== 1) {
+          return NextResponse.json({ error: "Choose one individually verified device for " + String(product.title) + "." }, { status: 409 });
+        }
+        const unit = unitById.get(item.serialized_unit_id);
+        if (!unit || unit.product_id !== item.product_id || unit.location_id !== item.location_id || unit.unit_status !== "in_stock") {
+          return NextResponse.json({ error: "That individual device is no longer available. Refresh and choose another unit." }, { status: 409 });
+        }
+        validated.push({
+          product_id: item.product_id, location_id: item.location_id, quantity: 1,
+          serialized_unit_id: item.serialized_unit_id, title: product.title, sku: product.sku,
+          unit_price_cents: Number(product.unit_price_cents), currency: String(product.currency ?? "USD"),
+          location_name: location.display_name, line_total_cents: Number(product.unit_price_cents), available_quantity: 1,
+        });
+        continue;
+      }
+      if (item.serialized_unit_id) {
+        return NextResponse.json({ error: "A serialized device selection does not match this product." }, { status: 409 });
       }
       const balance = balanceByKey.get(`${item.product_id}:${item.location_id}`);
       const available = balance
