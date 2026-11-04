@@ -1,7 +1,7 @@
 begin;
-select plan(0);
+select plan(1);
 -- Run only after applying 20261103000500_catalog_corrections_and_revisions.sql
-do $$
+select lives_ok($test$ do $do$
 declare
   v_status_check boolean;
   v_notes_column boolean;
@@ -36,7 +36,7 @@ begin
   ) into v_immutable_trigger;
   if not v_immutable_trigger then raise exception 'revision immutability trigger missing'; end if;
 end;
-$$;
+$do$; $test$, 'catalog correction and revision safeguards are present');
 
 select * from finish();
 rollback;

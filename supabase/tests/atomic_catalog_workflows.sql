@@ -1,8 +1,8 @@
 begin;
-select plan(0);
+select plan(1);
 -- Run after applying migrations 20261103000600 through 20261103000800.
 -- Structural checks only; behavioral rollback/concurrency tests require a test database.
-do $$
+select lives_ok($test$ do $do$
 declare
   v_name text;
   v_def text;
@@ -61,7 +61,7 @@ begin
     raise exception 'Publication must validate approver grant scope';
   end if;
 end;
-$$;
+$do$; $test$, 'atomic catalog workflows enforce locking, audit, authorization and revision invariants');
 
 select * from finish();
 rollback;
