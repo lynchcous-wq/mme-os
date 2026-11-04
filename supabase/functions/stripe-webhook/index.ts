@@ -98,9 +98,10 @@ Deno.serve(async (request) => {
       return json({ error: "stripe_refund_binding_mismatch" }, 409);
     }
 
-    const refundEventType = event.type === "refund.created"
-      ? "refund_submitted"
-      : event.type === "refund.failed" || refund.status === "failed" || refund.status === "canceled"
+    // Stripe may deliver refund.created after the refund has already succeeded.
+    // Prefer the provider object's verified state over the event name.
+    const refundEventType = event.type === "refund.failed" ||
+        refund.status === "failed" || refund.status === "canceled"
       ? "refund_failed"
       : refund.status === "succeeded"
       ? "refund_succeeded"
