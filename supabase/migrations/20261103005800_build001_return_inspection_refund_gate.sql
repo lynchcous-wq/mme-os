@@ -76,4 +76,4 @@ end; $$;
 revoke all on function public.mme_guard_return_refund_inspection() from public,anon,authenticated;
 revoke all on function public.mme_finalize_return_line_inspection(uuid,uuid,text,text,text,uuid,uuid) from public,anon,authenticated;
 grant execute on function public.mme_finalize_return_line_inspection(uuid,uuid,text,text,text,uuid,uuid) to service_role;
-comment on function public.mme_return_refund_approvals is 'Refund approvals are rejected until every accepted return line has a completed, matching customer-return inspection.';
+comment on table public.mme_return_refund_approvals is 'Refund approvals are rejected until every accepted return line has a completed, matching customer-return inspection.';
