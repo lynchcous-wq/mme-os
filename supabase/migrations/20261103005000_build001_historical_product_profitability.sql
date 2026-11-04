@@ -41,24 +41,19 @@ select ol.product_id,ol.location_id,ol.sku_snapshot,ol.title_snapshot,
  ol.condition_snapshot,count(distinct ol.order_id)::bigint as paid_order_count,
  sum(ol.quantity)::bigint as paid_units,
  sum(ol.line_total_cents::numeric)::numeric as gross_line_revenue_cents,
- (sum(ol.quantity::numeric*ol.cost_basis_unit_cents)
-  filter (where ol.cost_basis_status='captured'))::numeric as captured_cost_of_goods_cents,
- (sum(ol.quantity)::bigint
-  filter (where ol.cost_basis_status='missing')) as units_missing_cost_basis,
- (sum(ol.quantity)::bigint
-  filter (where ol.cost_basis_status='captured')) as units_with_cost_basis,
- case when sum(ol.quantity::numeric*ol.cost_basis_unit_cents)
-  filter (where ol.cost_basis_status='captured') is null then null
-  else (sum(ol.line_total_cents::numeric)
-   filter (where ol.cost_basis_status='captured'))
-   -(sum(ol.quantity::numeric*ol.cost_basis_unit_cents)
-   filter (where ol.cost_basis_status='captured')) end as gross_profit_before_order_discounts_refunds_cents,
- case when (sum(ol.line_total_cents::numeric)
-   filter (where ol.cost_basis_status='captured'))=0 then null
-  else round(100.0*(
-   (sum(ol.line_total_cents::numeric) filter (where ol.cost_basis_status='captured'))
-   -(sum(ol.quantity::numeric*ol.cost_basis_unit_cents) filter (where ol.cost_basis_status='captured'))
-  )/(sum(ol.line_total_cents::numeric) filter (where ol.cost_basis_status='captured')),2) end as gross_margin_before_order_discounts_refunds_percent,
+ sum(case when ol.cost_basis_status='captured'
+   then ol.quantity::numeric*ol.cost_basis_unit_cents end)::numeric as captured_cost_of_goods_cents,
+ sum(case when ol.cost_basis_status='missing' then ol.quantity else 0 end)::bigint as units_missing_cost_basis,
+ sum(case when ol.cost_basis_status='captured' then ol.quantity else 0 end)::bigint as units_with_cost_basis,
+ case when count(case when ol.cost_basis_status='captured' then 1 end)=0 then null
+  else sum(case when ol.cost_basis_status='captured'
+   then ol.line_total_cents::numeric-ol.quantity::numeric*ol.cost_basis_unit_cents end)
+ end as gross_profit_before_order_discounts_refunds_cents,
+ case when sum(case when ol.cost_basis_status='captured' then ol.line_total_cents::numeric end)=0 then null
+  else round(100.0*sum(case when ol.cost_basis_status='captured'
+   then ol.line_total_cents::numeric-ol.quantity::numeric*ol.cost_basis_unit_cents end)
+   /sum(case when ol.cost_basis_status='captured' then ol.line_total_cents::numeric end),2)
+ end as gross_margin_before_order_discounts_refunds_percent,
  min(ol.created_at) as first_paid_order_line_at,max(ol.created_at) as last_paid_order_line_at
 from public.mme_order_lines ol
 join public.mme_orders o on o.id=ol.order_id
