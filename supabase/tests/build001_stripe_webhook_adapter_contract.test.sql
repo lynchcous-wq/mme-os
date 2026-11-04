@@ -6,5 +6,6 @@ select ok(position('expected_amount_cents<>v_order.total_cents' in lower(pg_get_
 select ok(position('payload_sha256' in lower(pg_get_functiondef('public.mme_process_unified_order_payment_event(text,text,text,uuid,bigint,text,text)'::regprocedure)))>0,'database retains verified raw payload hash');
 select ok(not has_function_privilege('authenticated','public.mme_process_unified_order_payment_event(text,text,text,uuid,bigint,text,text)','execute'),'browser cannot call payment processor');
 select ok(exists(select 1 from pg_tables where schemaname='public' and tablename='mme_order_payment_intents'),'server binding ledger exists');
+select ok((select prosecdef from pg_proc where oid='public.mme_process_unified_order_payment_event(text,text,text,uuid,bigint,text,text)'::regprocedure),'payment processor runs with SECURITY DEFINER');
 select * from finish();
 rollback;
