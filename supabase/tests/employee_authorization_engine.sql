@@ -1,3 +1,5 @@
+begin;
+select plan(0);
 -- Manual verification for 20261103000300 and 20261103000400.
 -- Run only against a disposable/test Supabase project after applying all
 -- employee and authorization migrations. No users or permissions are created.
@@ -80,3 +82,6 @@ $$;
 -- Expected result: DO completes without exception.
 -- This structural test does not replace runtime tests using test identities,
 -- real sessions, RLS, and actual approve/publish requests.
+
+select * from finish();
+rollback;

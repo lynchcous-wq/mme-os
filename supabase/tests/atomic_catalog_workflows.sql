@@ -1,3 +1,5 @@
+begin;
+select plan(0);
 -- Run after applying migrations 20261103000600 through 20261103000800.
 -- Structural checks only; behavioral rollback/concurrency tests require a test database.
 do $$
@@ -60,3 +62,6 @@ begin
   end if;
 end;
 $$;
+
+select * from finish();
+rollback;

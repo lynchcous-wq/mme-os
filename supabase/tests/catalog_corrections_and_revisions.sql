@@ -1,3 +1,5 @@
+begin;
+select plan(0);
 -- Run only after applying 20261103000500_catalog_corrections_and_revisions.sql
 do $$
 declare
@@ -35,3 +37,6 @@ begin
   if not v_immutable_trigger then raise exception 'revision immutability trigger missing'; end if;
 end;
 $$;
+
+select * from finish();
+rollback;

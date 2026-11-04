@@ -1,3 +1,5 @@
+begin;
+select plan(0);
 -- Manual verification for 20261103000200_employee_access_control.sql.
 -- Run only against a disposable/test Supabase project after applying the migration.
 -- This script checks structure and fail-closed defaults; it does not create users.
@@ -84,3 +86,6 @@ $$;
 -- Expected result: DO completes without exception.
 -- A null CEO identity means no privileged catalog approval can be authorized.
 -- Never run provisioning or permission grants from a browser/client context.
+
+select * from finish();
+rollback;

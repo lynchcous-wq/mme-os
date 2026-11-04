@@ -1,3 +1,5 @@
+begin;
+select plan(0);
 -- Manual database verification for 20261103000100_product_catalog.sql.
 -- Run only against a disposable/test Supabase project after applying the migration.
 -- This file is a verification script; it does not apply migrations or create test data.
@@ -101,3 +103,6 @@ $$;
 
 -- Expected result: DO completes without exception.
 -- RLS remains closed by default until reviewed role-specific policies are deployed.
+
+select * from finish();
+rollback;
