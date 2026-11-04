@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
+import { useCart } from "../../../components/cart-provider";
 
 type ProductDetail = {
   id: string;
@@ -59,6 +60,10 @@ export default function ProductDetailPage() {
   const [product, setProduct] = useState<ProductDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [selectedLocation, setSelectedLocation] = useState("");
+  const [quantity, setQuantity] = useState(1);
+  const [added, setAdded] = useState(false);
+  const { addLine, count } = useCart();
 
   useEffect(() => {
     let active = true;
@@ -68,7 +73,7 @@ export default function ProductDetailPage() {
         if (!response.ok) throw new Error(payload.error || "Product details are unavailable.");
         return payload as { product: ProductDetail };
       })
-      .then((payload) => { if (active) setProduct(payload.product); })
+      .then((payload) => { if (active) { setProduct(payload.product); setSelectedLocation(payload.product.availability.find((item) => item.available_quantity > 0)?.location_id ?? ""); } })
       .catch((reason: unknown) => {
         if (active) setError(reason instanceof Error ? reason.message : "Product details are unavailable.");
       })
@@ -123,8 +128,28 @@ export default function ProductDetailPage() {
             ? <p>Specifications will be added as product details are completed.</p>
             : <dl className="product-specifications">{Object.entries(product.specifications).map(([key, value]) => <div key={key}><dt>{label(key)}</dt><dd>{displayValue(value)}</dd></div>)}</dl>}
         </section>
-        <button className="catalog-disabled-button" type="button" disabled>Purchasing coming soon</button>
-        <p className="product-detail-note">Online purchasing will open after MME completes customer identity, tax, fulfillment and payment validation.</p>
+        {product.available_quantity > 0 && <section className="product-detail-section cart-add-panel">
+          <h2>Add to your bag</h2>
+          <label className="cart-select-label">Pickup / fulfillment location
+            <select value={selectedLocation} onChange={(event) => { setSelectedLocation(event.target.value); setAdded(false); }}>
+              <option value="">Choose an available location</option>
+              {product.availability.filter((item) => item.available_quantity > 0).map((item) => <option key={item.location_id} value={item.location_id}>{item.location_name} · {item.available_quantity} available</option>)}
+            </select>
+          </label>
+          <label className="cart-select-label">Quantity
+            <input type="number" min="1" max={product.availability.find((item) => item.location_id === selectedLocation)?.available_quantity ?? 1} value={quantity}
+              onChange={(event) => { setQuantity(Math.max(1, Math.min(Number(event.target.value) || 1, product.availability.find((item) => item.location_id === selectedLocation)?.available_quantity ?? 1))); setAdded(false); }} />
+          </label>
+          <button className="button" type="button" disabled={!selectedLocation} onClick={() => {
+            const location = product.availability.find((item) => item.location_id === selectedLocation);
+            if (!location || location.available_quantity < quantity) return;
+            addLine({ product_id: product.id, location_id: location.location_id, quantity, title: product.title, sku: product.sku, price_cents: product.price_cents, currency: product.currency, location_name: location.location_name, available_quantity: location.available_quantity });
+            setAdded(true);
+          }}>Add to bag</button>
+          {added && <p className="cart-added-message" role="status">Added to your bag. <Link href="/cart">View bag ({count})</Link></p>}
+        </section>}
+        {product.available_quantity === 0 && <button className="catalog-disabled-button" type="button" disabled>Currently unavailable</button>}
+        <p className="product-detail-note">Adding to your bag does not reserve inventory or charge you. Current price and availability are rechecked before checkout.</p>
       </div>
     </section>}
 
