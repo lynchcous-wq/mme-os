@@ -1,10 +1,10 @@
 begin;
-select plan(0);
+select plan(1);
 -- Manual verification for 20261103000200_employee_access_control.sql.
 -- Run only against a disposable/test Supabase project after applying the migration.
 -- This script checks structure and fail-closed defaults; it does not create users.
 
-do $$
+select lives_ok($test$ do $do$
 declare
   table_name text;
   rls_enabled boolean;
@@ -81,7 +81,7 @@ begin
     end if;
   end if;
 end;
-$$;
+$do$; $test$, 'employee access controls fail closed and retain audit protections');
 
 -- Expected result: DO completes without exception.
 -- A null CEO identity means no privileged catalog approval can be authorized.

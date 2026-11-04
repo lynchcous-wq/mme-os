@@ -1,10 +1,10 @@
 begin;
-select plan(0);
+select plan(1);
 -- Manual verification for 20261103000300 and 20261103000400.
 -- Run only against a disposable/test Supabase project after applying all
 -- employee and authorization migrations. No users or permissions are created.
 
-do $$
+select lives_ok($test$ do $do$
 declare
   fn oid;
   fn_def text;
@@ -77,7 +77,7 @@ begin
     raise exception 'Publication authorization must require an approved pending product';
   end if;
 end;
-$$;
+$do$; $test$, 'employee authorization enforces separation of duties and grant scope');
 
 -- Expected result: DO completes without exception.
 -- This structural test does not replace runtime tests using test identities,
