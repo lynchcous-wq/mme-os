@@ -5,14 +5,22 @@ create table if not exists public.mme_order_payment_intents (
  order_id uuid not null unique references public.mme_orders(id) on delete restrict,
  expected_amount_cents bigint not null check (expected_amount_cents>=0),
  currency text not null default 'USD' check (currency='USD'),
- bound_customer_identity_id uuid not null,
+ bound_customer_identity_id uuid,
  created_at timestamptz not null default now(),
  unique(provider,provider_object_id)
 );
 
 -- Add the customer binding to the pre-existing ledger without discarding rows.
 alter table public.mme_order_payment_intents add column if not exists bound_customer_identity_id uuid;
-update public.mme_order_payment_intents i set bound_customer_identity_id=o.customer_identity_id from public.mme_orders o where o.id=i.order_id and i.bound_customer_identity_id is null and o.customer_identity_id is not null;
+-- Legacy POS orders may be guest sales with no customer identity. Preserve those
+-- bindings as unassigned rather than incorrectly treating the employee actor as customer.
+update public.mme_order_payment_intents i
+ set bound_customer_identity_id=o.customer_identity_id
+ from public.mme_orders o
+ where o.id=i.order_id and i.bound_customer_identity_id is null
+   and o.customer_identity_id is not null;
+comment on column public.mme_order_payment_intents.bound_customer_identity_id is
+ 'Customer identity for customer checkout bindings; NULL is retained for historical or guest POS orders.';
 
 alter table public.mme_order_payment_intents enable row level security;
 revoke all on public.mme_order_payment_intents from public,anon,authenticated;
