@@ -41,6 +41,7 @@ type StoreLocation = {
 };
 
 type Category = { id: string; name: string; slug: string };
+type SerializedUnit = { product_id: string; location_id: string; unit_status: string };
 
 async function readTable<T>(baseUrl: string, serviceKey: string, table: string, query: string): Promise<T[]> {
   const response = await fetch(`${baseUrl}/rest/v1/${table}?${query}`, {
@@ -102,29 +103,46 @@ export async function GET() {
         "product_categories",
         "select=id,name,slug&is_active=eq.true",
       ),
+      readTable<SerializedUnit>(
+        baseUrl,
+        serviceKey,
+        "mme_serialized_units",
+        "select=product_id,location_id,unit_status&unit_status=eq.in_stock",
+      ),
     ]);
 
     const catalogById = new Map(catalogProducts.map((product) => [product.id, product]));
     const categoryById = new Map(categories.map((category) => [category.id, category]));
-    const locationsById = new Map(locations.map((location) => [location.id, location]));\n    const serializedStock = new Map<string, number>();\n    for (const unit of serializedUnits) {\n      const key = `${unit.product_id}:${unit.location_id}`;\n      serializedStock.set(key, (serializedStock.get(key) ?? 0) + 1);\n    }
+    const locationsById = new Map(locations.map((location) => [location.id, location]));
+    const serializedStock = new Map<string, number>();\n    for (const unit of serializedUnits) {\n      const key = `${unit.product_id}:${unit.location_id}`;\n      serializedStock.set(key, (serializedStock.get(key) ?? 0) + 1);\n    }
 
     const products = commerceProducts.flatMap((commerce) => {
       if (!commerce.catalog_product_id) return [];
       const catalog = catalogById.get(commerce.catalog_product_id);
       if (!catalog) return [];
 
-      const availability = balances
-        .filter((balance) => balance.product_id === commerce.id)
-        .flatMap((balance) => {
-          const location = locationsById.get(balance.location_id);
-          if (!location) return [];
-          return [{
-            location_id: location.id,
-            location_code: location.location_code,
-            location_name: location.display_name,
-            available_quantity: Math.max(0, balance.on_hand_quantity - balance.reserved_quantity),
-          }];
-        });
+      const availability = commerce.serialized === true
+        ? locations.flatMap((location) => {
+            const available = serializedStock.get(`${commerce.id}:${location.id}`) ?? 0;
+            return available > 0 ? [{
+              location_id: location.id,
+              location_code: location.location_code,
+              location_name: location.display_name,
+              available_quantity: available,
+            }] : [];
+          })
+        : balances
+            .filter((balance) => balance.product_id === commerce.id)
+            .flatMap((balance) => {
+              const location = locationsById.get(balance.location_id);
+              if (!location) return [];
+              return [{
+                location_id: location.id,
+                location_code: location.location_code,
+                location_name: location.display_name,
+                available_quantity: Math.max(0, balance.on_hand_quantity - balance.reserved_quantity),
+              }];
+            });
 
       return [{
         id: commerce.id,
