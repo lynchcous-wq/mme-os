@@ -30,7 +30,7 @@ export default function InspectionStationPage() {
 
   const allChecked = checks.every(([key]) => results[key] !== "not_tested");
   const hasFailure = Object.values(results).some(value => value === "fail");
-  const validBattery = battery === "" || (/^\\d{1,3}$/.test(battery) && Number(battery) >= 0 && Number(battery) <= 100);
+  const validBattery = battery === "" || (/^\d{1,3}$/.test(battery) && Number(battery) >= 0 && Number(battery) <= 100);
 
   function addPhotos(files: FileList | null) {
     if (!files) return;
