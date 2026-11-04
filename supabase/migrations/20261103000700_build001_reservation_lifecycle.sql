@@ -75,7 +75,12 @@ begin
      or p_provider_object_id is null or length(btrim(p_provider_object_id))=0 or p_order_id is null
      or p_amount_received_cents is null or p_amount_received_cents<0
      or lower(coalesce(p_currency,''))<>'usd'
-     or p_payload_sha256 is null or p_payload_sha256 !~ '^[0-9a-fA-F]{64}  if exists (
+     or p_payload_sha256 is null or p_payload_sha256 !~ '^[0-9a-fA-F]{64}$' then
+    raise exception 'Invalid verified payment event' using errcode='22023';
+  end if;
+
+  -- Keep aggregate and serialized payment handlers disjoint. Return before inserting the event so the correct serialized handler can process it.
+  if exists (
     select 1 from public.mme_order_lines
     where order_id=p_order_id and serialized_unit_id is not null
   ) then
