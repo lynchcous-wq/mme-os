@@ -9,7 +9,7 @@ select ok(not has_function_privilege('authenticated','mme_decide_inventory_trans
 select ok(position('requester cannot approve their own transfer' in lower(pg_get_functiondef('public.mme_decide_inventory_transfer_request(uuid,uuid,boolean,text)'::regprocedure)))>0,'self-approval is blocked');
 select ok(position('mme_transfer_inventory' in pg_get_functiondef('public.mme_decide_inventory_transfer_request(uuid,uuid,boolean,text)'::regprocedure))>0,'aggregate approval invokes atomic stock transfer');
 select ok(position('mme_transfer_serialized_units' in pg_get_functiondef('public.mme_decide_inventory_transfer_request(uuid,uuid,boolean,text)'::regprocedure))>0,'serialized approval invokes serialized transfer');
-select ok(position('request_status=''pending_approval''' in lower(pg_get_functiondef('public.mme_decide_inventory_transfer_request(uuid,uuid,boolean,text)'::regprocedure)))>0,'only pending requests can be decided');
+select ok(position('v.request_status<>''pending_approval''' in lower(pg_get_functiondef('public.mme_decide_inventory_transfer_request(uuid,uuid,boolean,text)'::regprocedure)))>0,'only pending requests can be decided');
 select ok(has_function_privilege('service_role','mme_decide_inventory_transfer_request(uuid,uuid,boolean,text)','execute'),'trusted backend can process transfer approval');
 select * from finish();
 rollback;

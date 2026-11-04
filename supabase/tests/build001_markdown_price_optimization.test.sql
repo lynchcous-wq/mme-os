@@ -8,7 +8,7 @@ select ok(not has_function_privilege('authenticated','mme_decide_price_markdown_
 select ok(position('requester cannot approve own markdown' in lower(pg_get_functiondef('public.mme_decide_price_markdown_proposal(uuid,uuid,boolean,text)'::regprocedure)))>0,'self-approval is blocked');
 select ok(position('v_cost>v.proposed_price_cents' in replace(lower(pg_get_functiondef('public.mme_decide_price_markdown_proposal(uuid,uuid,boolean,text)'::regprocedure)),' ',''))>0,'approval rechecks cost floor');
 select ok(position('v_product.unit_price_cents<>v.current_price_cents' in replace(lower(pg_get_functiondef('public.mme_decide_price_markdown_proposal(uuid,uuid,boolean,text)'::regprocedure)),' ',''))>0,'approval detects stale price');
-select ok(position('set unit_price_cents=v.proposed_price_cents' in replace(lower(pg_get_functiondef('public.mme_decide_price_markdown_proposal(uuid,uuid,boolean,text)'::regprocedure)),' ',''))>0,'catalog price changes only in approval RPC');
+select ok(position('update public.mme_products' in lower(pg_get_functiondef('public.mme_decide_price_markdown_proposal(uuid,uuid,boolean,text)'::regprocedure)))>0 and position('unit_price_cents=v.proposed_price_cents' in replace(lower(pg_get_functiondef('public.mme_decide_price_markdown_proposal(uuid,uuid,boolean,text)'::regprocedure)),' ',''))>0,'catalog price changes only in approval RPC');
 select ok(position('product_global' in pg_get_functiondef('public.mme_create_price_markdown_proposal(uuid,uuid)'::regprocedure))>0,'global pricing scope is disclosed');
 select * from finish();
 rollback;
