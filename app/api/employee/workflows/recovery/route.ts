@@ -143,7 +143,7 @@ export async function POST(request: Request) {
 
     const executionStatus = await response.json() as unknown;
     if (typeof executionStatus !== "string" ||
-        !["queued", "failed"].includes(executionStatus)) {
+        !["queued", "dead_letter"].includes(executionStatus)) {
       return NextResponse.json({ error: "Workflow recovery returned an invalid result." }, { status: 502 });
     }
 
