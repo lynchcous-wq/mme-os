@@ -11,7 +11,7 @@ function getConfig() {
 }
 
 async function authenticate(request: Request) {
-  const token = request.headers.get("authorization")?.match(/^Bearer ([^\\s]+)$/)?.[1];
+  const token = request.headers.get("authorization")?.match(/^Bearer ([^\s]+)$/)?.[1];
   if (!token) return { error: "Employee sign-in is required.", status: 401 as const };
 
   const { base, anon, service } = getConfig();
@@ -76,9 +76,18 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Review request is too large." }, { status: 413 });
     }
 
+    const contentType = request.headers.get("content-type") ?? "";
+    if (!contentType.toLowerCase().includes("application/json")) {
+      return NextResponse.json({ error: "Content-Type must be application/json." }, { status: 415 });
+    }
+
     let body: unknown;
     try {
-      body = await request.json();
+      const rawBody = await request.text();
+      if (new TextEncoder().encode(rawBody).byteLength > 12000) {
+        return NextResponse.json({ error: "Review request is too large." }, { status: 413 });
+      }
+      body = JSON.parse(rawBody);
     } catch {
       return NextResponse.json({ error: "A valid JSON review is required." }, { status: 400 });
     }
