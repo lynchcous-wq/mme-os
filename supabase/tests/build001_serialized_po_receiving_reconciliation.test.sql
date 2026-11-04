@@ -1,0 +1,13 @@
+begin;
+select plan(9);
+select has_table('public','mme_purchase_order_serialized_receipts','serialized PO receipt ledger exists');
+select has_function('public','mme_receive_scanned_serialized_po_unit',array['uuid','uuid','uuid','text','text','text','bigint','bigint','bigint','bigint','bigint','text','uuid','uuid'],'serialized PO intake RPC exists');
+select ok(not has_function_privilege('authenticated','public.mme_receive_scanned_serialized_po_unit(uuid,uuid,uuid,text,text,text,bigint,bigint,bigint,bigint,bigint,text,uuid,uuid)','execute'),'browser cannot receive serialized units directly');
+select ok(position('serialized=true' in replace(lower(pg_get_functiondef('public.mme_receive_scanned_serialized_po_unit(uuid,uuid,uuid,text,text,text,bigint,bigint,bigint,bigint,bigint,text,uuid,uuid)'::regprocedure)),' ',''))>0,'only serialized PO products can use this intake');
+select ok(position('received_quantity>=v_line.ordered_quantity' in replace(lower(pg_get_functiondef('public.mme_receive_scanned_serialized_po_unit(uuid,uuid,uuid,text,text,text,bigint,bigint,bigint,bigint,bigint,text,uuid,uuid)'::regprocedure)),' ',''))>0,'PO line over-receipt blocked');
+select ok(position('mme_record_serialized_unit_landed_cost' in pg_get_functiondef('public.mme_receive_scanned_serialized_po_unit(uuid,uuid,uuid,text,text,text,bigint,bigint,bigint,bigint,bigint,text,uuid,uuid)'::regprocedure))>0,'per-unit landed cost recorded');
+select ok(position('mme_purchase_order_serialized_receipts' in pg_get_functiondef('public.mme_complete_receiving_station_session(uuid,text,uuid,uuid)'::regprocedure))>0,'session completion reconciles serialized units');
+select ok(position('p_actor_identity_id=p_approved_by_identity_id' in replace(lower(pg_get_functiondef('public.mme_receive_scanned_serialized_po_unit(uuid,uuid,uuid,text,text,text,bigint,bigint,bigint,bigint,bigint,text,uuid,uuid)'::regprocedure)),' ',''))>0,'receiving requires independent approval identity');
+select ok(not has_function_privilege('authenticated','public.mme_complete_receiving_station_session(uuid,text,uuid,uuid)','execute'),'browser cannot complete receiving directly');
+select * from finish();
+rollback;

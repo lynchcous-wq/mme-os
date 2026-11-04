@@ -1,0 +1,12 @@
+begin;
+select plan(8);
+select has_table('public','mme_receiving_station_sessions','receiving station sessions exist');
+select has_table('public','mme_receiving_station_scans','scan audit records exist');
+select has_function('public','mme_open_receiving_station_session',array['text','uuid','uuid','uuid','text','text'],'session open RPC exists');
+select has_function('public','mme_scan_receiving_station',array['uuid','text','text','integer','uuid'],'scan lookup RPC exists');
+select has_function('public','mme_submit_receiving_station_session',array['uuid','uuid'],'session submit RPC exists');
+select has_function('public','mme_complete_receiving_station_session',array['uuid','text','uuid','uuid'],'PO receipt completion RPC exists');
+select has_function('public','mme_receive_scanned_serialized_unit',array['uuid','uuid','text','text','text','uuid'],'serialized intake RPC exists');
+select ok(not has_table_privilege('anon','public.mme_receiving_station_scans','select'),'anon cannot read scan records');
+select * from finish();
+rollback;

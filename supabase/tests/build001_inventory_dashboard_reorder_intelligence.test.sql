@@ -1,0 +1,14 @@
+begin;
+select plan(10);
+select has_table('public','mme_inventory_reorder_rules','reorder rules exist');
+select has_view('public','mme_inventory_dashboard_v','inventory dashboard view exists');
+select has_function('public','mme_get_inventory_dashboard',array['uuid','text','boolean','integer','integer'],'dashboard query function exists');
+select has_function('public','mme_set_inventory_reorder_rule',array['uuid','uuid','integer','integer','integer','text','boolean','uuid','uuid'],'reorder rule function exists');
+select ok(not has_table_privilege('anon','public.mme_inventory_reorder_rules','select'),'anon cannot read reorder rules');
+select ok(not has_table_privilege('authenticated','public.mme_inventory_reorder_rules','update'),'authenticated cannot change reorder rules');
+select ok(has_function_privilege('service_role','public.mme_get_inventory_dashboard(uuid,text,boolean,integer,integer)','execute'),'service role can query dashboard');
+select ok(not has_function_privilege('authenticated','public.mme_get_inventory_dashboard(uuid,text,boolean,integer,integer)','execute'),'authenticated cannot query dashboard directly');
+select ok(has_function_privilege('service_role','public.mme_set_inventory_reorder_rule(uuid,uuid,integer,integer,integer,text,boolean,uuid,uuid)','execute'),'service role can set reorder rules');
+select ok(not has_function_privilege('anon','public.mme_set_inventory_reorder_rule(uuid,uuid,integer,integer,integer,text,boolean,uuid,uuid)','execute'),'anon cannot set reorder rules');
+select * from finish();
+rollback;

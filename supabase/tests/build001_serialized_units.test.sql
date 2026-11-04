@@ -1,0 +1,14 @@
+begin;
+select plan(10);
+select has_table('public','mme_serialized_units','serialized unit ledger exists');
+select has_table('public','mme_serialized_unit_reservations','serialized reservation ledger exists');
+select has_column('public','mme_serialized_units','imei','IMEI is tracked');
+select has_column('public','mme_serialized_units','serial_number','serial number is tracked');
+select ok(not has_table_privilege('anon','public.mme_serialized_units','select'),'anon cannot read serialized inventory');
+select ok(not has_table_privilege('authenticated','public.mme_serialized_units','update'),'authenticated cannot mutate serialized inventory');
+select ok(has_table_privilege('service_role','public.mme_serialized_units','select'),'service role can read serialized inventory');
+select ok(has_function_privilege('service_role','public.mme_receive_serialized_unit(uuid,uuid,text,text,text)','execute'),'service role can receive a serialized unit');
+select ok(not has_function_privilege('anon','public.mme_receive_serialized_unit(uuid,uuid,text,text,text)','execute'),'anon cannot receive a serialized unit');
+select ok(not has_function_privilege('authenticated','public.mme_receive_serialized_unit(uuid,uuid,text,text,text)','execute'),'authenticated cannot receive a serialized unit');
+select * from finish();
+rollback;

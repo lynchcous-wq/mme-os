@@ -1,0 +1,12 @@
+begin;
+select plan(8);
+select has_table('public','mme_serialized_unit_movements','serialized movement ledger exists');
+select has_function('public','mme_transfer_serialized_units',array['uuid[]','uuid','text','uuid','uuid','text'],'serialized transfer RPC exists');
+select has_function('public','mme_change_serialized_unit_status',array['uuid','text','text','uuid','uuid','text'],'serialized status RPC exists');
+select ok(not has_table_privilege('anon','public.mme_serialized_unit_movements','select'),'anon cannot read serialized movement ledger');
+select ok(not has_table_privilege('authenticated','public.mme_serialized_unit_movements','insert'),'authenticated cannot write serialized movement ledger');
+select ok(not has_function_privilege('authenticated','public.mme_transfer_serialized_units(uuid[],uuid,text,uuid,uuid,text)','execute'),'authenticated cannot transfer serialized units directly');
+select ok(not has_function_privilege('authenticated','public.mme_change_serialized_unit_status(uuid,text,text,uuid,uuid,text)','execute'),'authenticated cannot change serialized status directly');
+select ok(has_function_privilege('service_role','public.mme_transfer_serialized_units(uuid[],uuid,text,uuid,uuid,text)','execute'),'service role can invoke trusted transfer adapter');
+select * from finish();
+rollback;

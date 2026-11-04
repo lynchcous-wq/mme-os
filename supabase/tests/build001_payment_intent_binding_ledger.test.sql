@@ -1,0 +1,12 @@
+begin;
+select plan(8);
+select has_table('public','mme_order_payment_intents','PaymentIntent ledger exists');
+select has_column('public','mme_order_payment_intents','bound_customer_identity_id','ledger captures bound customer identity');
+select ok(not has_table_privilege('authenticated','public.mme_order_payment_intents','select'),'browser cannot read ledger');
+select ok(not has_table_privilege('anon','public.mme_order_payment_intents','insert'),'anonymous cannot create bindings');
+select has_function('public','mme_bind_order_payment_intent',array['uuid','text','bigint','text','uuid'],'binding RPC exists');
+select ok(not has_function_privilege('authenticated','public.mme_bind_order_payment_intent(uuid,text,bigint,text,uuid)','execute'),'browser cannot bind PaymentIntent');
+select ok(position('customer_identity_id is distinct from p_customer_identity_id' in lower(pg_get_functiondef('public.mme_bind_order_payment_intent(uuid,text,bigint,text,uuid)'::regprocedure)))>0,'binding validates order ownership');
+select ok(position('v_order.total_cents<>p_expected_amount_cents' in lower(pg_get_functiondef('public.mme_bind_order_payment_intent(uuid,text,bigint,text,uuid)'::regprocedure)))>0,'binding validates authoritative amount');
+select * from finish();
+rollback;

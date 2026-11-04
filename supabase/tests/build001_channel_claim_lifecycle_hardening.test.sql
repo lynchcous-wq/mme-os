@@ -1,0 +1,12 @@
+begin;
+select plan(8);
+select has_column('public','mme_channel_stock_claim_lines','is_active','claim lines track active stock ownership');
+select ok(exists(select 1 from pg_indexes where schemaname='public' and indexname='mme_channel_claim_serialized_unit_active_unique' and indexdef ilike '%where%is_active%'),'serialized uniqueness applies only to active claim lines');
+select ok(not exists(select 1 from pg_indexes where schemaname='public' and indexname='mme_channel_claim_serialized_unit_unique'),'obsolete permanent serialized uniqueness index removed');
+select ok(position('set is_active=false' in lower(pg_get_functiondef('public.mme_release_channel_stock_claim(uuid)'::regprocedure)))>0,'release deactivates historical claim lines');
+select ok(position('set is_active=false' in lower(pg_get_functiondef('public.mme_convert_channel_claim_to_order(uuid,text,uuid,text,jsonb,bigint,bigint,bigint,timestamp with time zone)'::regprocedure)))>0,'conversion transfers stock ownership away from claim lines');
+select ok(position('v_existing_fingerprint is distinct from v_fingerprint' in lower(pg_get_functiondef('public.mme_convert_channel_claim_to_order(uuid,text,uuid,text,jsonb,bigint,bigint,bigint,timestamp with time zone)'::regprocedure)))>0,'converted retry validates identical request fingerprint');
+select ok(position('v_fingerprint:=md5' in lower(pg_get_functiondef('public.mme_convert_channel_claim_to_order(uuid,text,uuid,text,jsonb,bigint,bigint,bigint,timestamp with time zone)'::regprocedure)))>0,'fingerprint is calculated before idempotent retry handling');
+select ok(not has_function_privilege('authenticated','public.mme_convert_channel_claim_to_order(uuid,text,uuid,text,jsonb,bigint,bigint,bigint,timestamp with time zone)','execute'),'browser cannot invoke conversion');
+select * from finish();
+rollback;

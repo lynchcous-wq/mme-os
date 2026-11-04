@@ -1,0 +1,12 @@
+begin;
+select plan(8);
+select has_table('public','mme_label_profiles','label profiles exist');
+select has_table('public','mme_label_profile_versions','profile version history exists');
+select has_table('public','mme_label_print_jobs','print jobs exist');
+select has_table('public','mme_label_print_job_items','print job item snapshots exist');
+select has_function('public','mme_create_label_profile',array['text','text','uuid','text'],'profile creation RPC exists');
+select has_function('public','mme_create_label_print_job',array['text','uuid','uuid','jsonb'],'print job creation RPC exists');
+select ok(not has_table_privilege('anon','public.mme_label_profiles','select'),'anon cannot read label profiles');
+select ok(not has_table_privilege('authenticated','public.mme_label_print_jobs','insert'),'authenticated cannot insert print jobs directly');
+select * from finish();
+rollback;

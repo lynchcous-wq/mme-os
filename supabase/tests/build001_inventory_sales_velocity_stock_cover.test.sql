@@ -1,0 +1,13 @@
+begin;
+select plan(9);
+select has_view('public','mme_inventory_sales_velocity_v','inventory sales velocity view exists');
+select ok(position('o.status=''paid''' in replace(lower(pg_get_viewdef('public.mme_inventory_sales_velocity_v'::regclass)),' ',''))>0,'only paid orders contribute to velocity');
+select ok(position('30 days' in lower(pg_get_viewdef('public.mme_inventory_sales_velocity_v'::regclass)))>0,'30-day sales window exists');
+select ok(position('60 days' in lower(pg_get_viewdef('public.mme_inventory_sales_velocity_v'::regclass)))>0,'60-day sales window exists');
+select ok(position('90 days' in lower(pg_get_viewdef('public.mme_inventory_sales_velocity_v'::regclass)))>0,'90-day sales window exists');
+select ok(position('available_quantity' in pg_get_viewdef('public.mme_inventory_sales_velocity_v'::regclass))>0,'available stock excludes reserved units');
+select ok(position('days_of_available_stock_at_30d_velocity' in pg_get_viewdef('public.mme_inventory_sales_velocity_v'::regclass))>0,'stock cover is exposed as a rate-based estimate');
+select ok(position('cost_basis_status=''missing''' in replace(lower(pg_get_viewdef('public.mme_inventory_sales_velocity_v'::regclass)),' ',''))>0,'missing cost snapshots are disclosed');
+select ok(not has_table_privilege('authenticated','public.mme_inventory_sales_velocity_v','select'),'browser cannot query privileged performance view directly');
+select * from finish();
+rollback;

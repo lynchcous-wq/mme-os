@@ -1,0 +1,13 @@
+begin;
+select plan(9);
+select has_column('public','mme_order_lines','cost_basis_unit_cents','order lines preserve historical unit cost');
+select has_column('public','mme_order_lines','cost_basis_status','order lines disclose missing cost');
+select has_trigger('public','mme_order_lines','mme_order_line_cost_basis_snapshot','cost basis snapshot runs on order line creation');
+select has_view('public','mme_paid_product_performance_v','paid product performance view exists');
+select ok(position('average_unit_cost_cents' in pg_get_functiondef('public.mme_snapshot_order_line_cost_basis()'::regprocedure))>0,'cost basis comes from location weighted-average cost');
+select ok(position('o.status=''paid''' in replace(lower(pg_get_viewdef('public.mme_paid_product_performance_v'::regclass)),' ',''))>0,'only paid orders enter realized performance');
+select ok(position('cost_basis_status=''missing''' in replace(lower(pg_get_viewdef('public.mme_paid_product_performance_v'::regclass)),' ',''))>0,'missing cost basis is disclosed');
+select ok(not has_table_privilege('authenticated','public.mme_order_lines','update'),'browser cannot rewrite historical order line costs');
+select ok(has_table_privilege('service_role','public.mme_paid_product_performance_v','select'),'trusted backend can read product performance');
+select * from finish();
+rollback;

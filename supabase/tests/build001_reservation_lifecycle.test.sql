@@ -1,0 +1,15 @@
+begin;
+select plan(11);
+select has_function('public','mme_release_order_reservation',array['uuid','text'],'release function exists');
+select has_function('public','mme_expire_inventory_reservations',array['integer'],'expiry worker exists');
+select has_function('public','mme_process_verified_payment_event',array['text','text','text','uuid','bigint','text','text'],'payment event processor exists');
+select ok(has_function_privilege('service_role','public.mme_release_order_reservation(uuid,text)','execute'),'service role can release');
+select ok(not has_function_privilege('anon','public.mme_release_order_reservation(uuid,text)','execute'),'anon cannot release');
+select ok(not has_function_privilege('authenticated','public.mme_release_order_reservation(uuid,text)','execute'),'authenticated cannot release');
+select ok(has_function_privilege('service_role','public.mme_expire_inventory_reservations(integer)','execute'),'service role can expire');
+select ok(not has_function_privilege('authenticated','public.mme_expire_inventory_reservations(integer)','execute'),'authenticated cannot expire');
+select ok(has_function_privilege('service_role','public.mme_process_verified_payment_event(text,text,text,uuid,bigint,text,text)','execute'),'service role can process payment events');
+select ok(not has_function_privilege('anon','public.mme_process_verified_payment_event(text,text,text,uuid,bigint,text,text)','execute'),'anon cannot process payment events');
+select ok(not has_function_privilege('authenticated','public.mme_process_verified_payment_event(text,text,text,uuid,bigint,text,text)','execute'),'authenticated cannot process payment events');
+select * from finish();
+rollback;

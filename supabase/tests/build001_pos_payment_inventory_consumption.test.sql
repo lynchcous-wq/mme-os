@@ -1,0 +1,13 @@
+begin;
+select plan(9);
+select has_table('public','mme_order_payment_intents','Stripe intent binding table exists');
+select has_function('public','mme_bind_order_payment_intent',array['uuid','text','uuid'],'payment intent binding RPC exists');
+select has_function('public','mme_process_aggregate_order_payment_event',array['text','text','text','uuid','bigint','text','text'],'aggregate payment event RPC exists');
+select ok(not has_table_privilege('anon','public.mme_order_payment_intents','select'),'anon cannot read payment intent bindings');
+select ok(not has_table_privilege('authenticated','public.mme_order_payment_intents','insert'),'authenticated cannot create payment intent bindings');
+select ok(not has_function_privilege('authenticated','public.mme_bind_order_payment_intent(uuid,text,uuid)','execute'),'browser cannot bind PaymentIntents');
+select ok(not has_function_privilege('authenticated','public.mme_process_aggregate_order_payment_event(text,text,text,uuid,bigint,text,text)','execute'),'browser cannot process payment events');
+select has_column('public','mme_inventory_balances','on_hand_quantity','aggregate on-hand balance exists');
+select has_column('public','mme_inventory_reservations','status','reservation lifecycle exists');
+select * from finish();
+rollback;

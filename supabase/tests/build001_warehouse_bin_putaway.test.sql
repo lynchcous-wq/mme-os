@@ -1,0 +1,14 @@
+begin;
+select plan(10);
+select has_table('public','mme_warehouse_bins','warehouse bin directory exists');
+select has_table('public','mme_warehouse_bin_balances','bin stock balances exist');
+select has_table('public','mme_warehouse_bin_movements','bin movement ledger exists');
+select has_function('public','mme_putaway_inventory',array['uuid','uuid','integer','text','uuid','text'],'putaway RPC exists');
+select has_function('public','mme_move_warehouse_bin_stock',array['uuid','uuid','uuid','integer','text','uuid','text'],'bin move RPC exists');
+select ok(not has_table_privilege('anon','public.mme_warehouse_bins','select'),'anon cannot read warehouse layout');
+select ok(not has_table_privilege('authenticated','public.mme_warehouse_bin_balances','insert'),'browser cannot directly alter bin quantities');
+select ok(not has_function_privilege('authenticated','public.mme_putaway_inventory(uuid,uuid,integer,text,uuid,text)','execute'),'browser cannot execute putaway');
+select ok(not has_function_privilege('authenticated','public.mme_move_warehouse_bin_stock(uuid,uuid,uuid,integer,text,uuid,text)','execute'),'browser cannot execute bin moves');
+select has_column('public','mme_warehouse_bins','capacity_units','bin capacity is configurable');
+select * from finish();
+rollback;

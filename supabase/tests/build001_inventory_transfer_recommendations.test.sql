@@ -1,0 +1,14 @@
+begin;
+select plan(10);
+select has_function('public','mme_get_inventory_transfer_recommendations',array['uuid','uuid','integer','integer'],'transfer recommendation function exists');
+select ok(not has_function_privilege('anon','mme_get_inventory_transfer_recommendations(uuid,uuid,integer,integer)','execute'),'anon cannot query transfer recommendations');
+select ok(not has_function_privilege('authenticated','mme_get_inventory_transfer_recommendations(uuid,uuid,integer,integer)','execute'),'authenticated cannot query privileged transfer recommendations');
+select ok(has_function_privilege('service_role','mme_get_inventory_transfer_recommendations(uuid,uuid,integer,integer)','execute'),'trusted service can query recommendations');
+select ok(position('s.reorder_enabled' in pg_get_functiondef('public.mme_get_inventory_transfer_recommendations(uuid,uuid,integer,integer)'::regprocedure))>0,'source must have an explicitly configured reorder target');
+select ok(position('s.aggregate_available>s.target_available_quantity' in replace(lower(pg_get_functiondef('public.mme_get_inventory_transfer_recommendations(uuid,uuid,integer,integer)'::regprocedure)),' ',''))>0,'source must have surplus above its target');
+select ok(position('suggested_purchase_quantity' in pg_get_functiondef('public.mme_get_inventory_transfer_recommendations(uuid,uuid,integer,integer)'::regprocedure))>0,'destination demand uses forecast output');
+select ok(position('inbound_open_quantity' in pg_get_functiondef('public.mme_get_inventory_transfer_recommendations(uuid,uuid,integer,integer)'::regprocedure))>0,'destination need is net of committed inbound purchase orders');
+select ok(position('least(c.donor_surplus,c.net_need)' in pg_get_functiondef('public.mme_get_inventory_transfer_recommendations(uuid,uuid,integer,integer)'::regprocedure))>0,'suggested transfer is capped by donor surplus and destination need');
+select ok(position('mme_transfer_inventory' in pg_get_functiondef('public.mme_get_inventory_transfer_recommendations(uuid,uuid,integer,integer)'::regprocedure))=0,'recommendation never moves inventory automatically');
+select * from finish();
+rollback;

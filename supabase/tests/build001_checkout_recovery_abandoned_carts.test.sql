@@ -1,0 +1,17 @@
+begin;
+select plan(13);
+select has_table('public','mme_cart_sessions','cart session storage exists');
+select has_table('public','mme_cart_items','saved cart items exist');
+select has_table('public','mme_cart_recovery_events','recovery attribution events exist');
+select has_function('public','mme_mark_abandoned_carts',array['integer','integer'],'abandonment worker exists');
+select has_function('public','mme_issue_cart_recovery_token',array['uuid','text','timestamp with time zone'],'recovery token issue function exists');
+select has_function('public','mme_restore_abandoned_cart',array['uuid','text'],'cart restore function exists');
+select ok(not has_table_privilege('anon','public.mme_cart_sessions','select'),'anon cannot read saved carts');
+select ok(not has_table_privilege('authenticated','public.mme_cart_items','insert'),'browser cannot write cart rows directly');
+select ok(not has_function_privilege('authenticated','mme_mark_abandoned_carts(integer,integer)','execute'),'browser cannot run abandonment worker');
+select ok(not has_function_privilege('authenticated','mme_issue_cart_recovery_token(uuid,text,timestamp with time zone)','execute'),'browser cannot issue recovery tokens');
+select ok(not has_function_privilege('authenticated','mme_restore_abandoned_cart(uuid,text)','execute'),'browser cannot restore carts without trusted verification');
+select has_column('public','mme_cart_sessions','marketing_consent','explicit marketing consent is retained');
+select has_column('public','mme_cart_sessions','recovery_token_sha256','only a recovery token digest is stored');
+select * from finish();
+rollback;

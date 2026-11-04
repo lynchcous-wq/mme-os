@@ -1,0 +1,11 @@
+begin;
+select plan(7);
+select has_function('public','mme_guard_order_payment_event_binding',array[]::text[],'PaymentIntent binding guard exists');
+select has_trigger('public','mme_payment_events','mme_payment_event_intent_binding_guard','payment events require order intent binding');
+select ok(not has_function_privilege('anon','public.mme_guard_order_payment_event_binding()','execute'),'anon cannot execute internal guard');
+select ok(not has_function_privilege('authenticated','public.mme_guard_order_payment_event_binding()','execute'),'authenticated cannot execute internal guard');
+select has_table('public','mme_order_payment_intents','server-side PaymentIntent binding ledger exists');
+select has_column('public','mme_payment_events','provider_object_id','payment event retains provider object ID');
+select has_column('public','mme_payment_events','order_id','payment event retains order ID');
+select * from finish();
+rollback;

@@ -1,0 +1,15 @@
+begin;
+select plan(11);
+select has_table('public','mme_inventory_transfer_requests','transfer approval request table exists');
+select has_function('public','mme_request_inventory_transfer',array['text','text','uuid','uuid','uuid','integer','uuid[]','text','uuid'],'transfer request RPC exists');
+select has_function('public','mme_decide_inventory_transfer_request',array['uuid','uuid','boolean','text'],'transfer approval decision RPC exists');
+select ok(not has_table_privilege('authenticated','public.mme_inventory_transfer_requests','select'),'browser cannot read transfer request records directly');
+select ok(not has_function_privilege('authenticated','mme_request_inventory_transfer(text,text,uuid,uuid,uuid,integer,uuid[],text,uuid)','execute'),'browser cannot create privileged transfer requests');
+select ok(not has_function_privilege('authenticated','mme_decide_inventory_transfer_request(uuid,uuid,boolean,text)','execute'),'browser cannot approve transfers directly');
+select ok(position('requester cannot approve their own transfer' in lower(pg_get_functiondef('public.mme_decide_inventory_transfer_request(uuid,uuid,boolean,text)'::regprocedure)))>0,'self-approval is blocked');
+select ok(position('mme_transfer_inventory' in pg_get_functiondef('public.mme_decide_inventory_transfer_request(uuid,uuid,boolean,text)'::regprocedure))>0,'aggregate approval invokes atomic stock transfer');
+select ok(position('mme_transfer_serialized_units' in pg_get_functiondef('public.mme_decide_inventory_transfer_request(uuid,uuid,boolean,text)'::regprocedure))>0,'serialized approval invokes serialized transfer');
+select ok(position('v.request_status<>''pending_approval''' in lower(pg_get_functiondef('public.mme_decide_inventory_transfer_request(uuid,uuid,boolean,text)'::regprocedure)))>0,'only pending requests can be decided');
+select ok(has_function_privilege('service_role','mme_decide_inventory_transfer_request(uuid,uuid,boolean,text)','execute'),'trusted backend can process transfer approval');
+select * from finish();
+rollback;
