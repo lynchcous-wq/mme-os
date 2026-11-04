@@ -48,7 +48,7 @@ Deno.serve(async (req) => {
 
   const contentLengthHeader = req.headers.get("content-length");
   if (contentLengthHeader !== null) {
-    if (!/^\\d+$/.test(contentLengthHeader)) {
+    if (!/^\d+$/.test(contentLengthHeader)) {
       return reply({ error: "invalid_content_length" }, 400, origin);
     }
     if (Number(contentLengthHeader) > 64_000) {
