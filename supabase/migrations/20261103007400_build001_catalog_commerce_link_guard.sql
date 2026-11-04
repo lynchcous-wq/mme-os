@@ -141,4 +141,12 @@ comment on column public.mme_products.catalog_product_id is
 comment on table public.mme_product_catalog_link_events is
   'Append-only-by-convention audit trail of catalog-to-commerce product link changes.';
 
+
+revoke all on function public.mme_validate_catalog_product_link() from public, anon, authenticated;
+revoke all on function public.mme_require_published_catalog_product() from public, anon, authenticated;
+revoke all on function public.mme_catalog_link_events_immutable() from public, anon, authenticated;
+grant execute on function public.mme_validate_catalog_product_link() to service_role;
+grant execute on function public.mme_require_published_catalog_product() to service_role;
+grant execute on function public.mme_catalog_link_events_immutable() to service_role;
+
 commit;
