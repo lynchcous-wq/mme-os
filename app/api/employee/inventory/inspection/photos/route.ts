@@ -73,12 +73,12 @@ export async function POST(request: Request) {
     }
 
     const inspectionQuery = new URLSearchParams({
-      select: "id,product_id,location_id,inspected_by_identity_id",
+      select: "id,product_id,location_id,inspected_by_identity_id,disposition",
       id: `eq.${inspectionId}`,
       limit: "1",
     });
     const inspection = await jsonRequest<Array<{
-      id: string; product_id: string; location_id: string; inspected_by_identity_id: string;
+      id: string; product_id: string; location_id: string; inspected_by_identity_id: string; disposition: string;
     }>>(`${baseUrl}/rest/v1/mme_inventory_inspections?${inspectionQuery}`, serviceKey, "GET");
     const record = inspection.data?.[0];
     if (!inspection.ok || !record) {
@@ -87,8 +87,8 @@ export async function POST(request: Request) {
 
     // The submit API currently stores the validated Auth subject as the
     // inspection identity UUID. Only the submitting employee may attach photos.
-    if (record.inspected_by_identity_id !== authUser.id) {
-      return NextResponse.json({ error: "Only the employee who submitted this inspection may attach its photos." }, { status: 403 });
+    if (record.inspected_by_identity_id !== authUser.id || record.disposition !== "pending") {
+      return NextResponse.json({ error: "Only the submitting employee may attach photos while the inspection is pending." }, { status: 403 });
     }
 
     const authorization = await jsonRequest<boolean>(
