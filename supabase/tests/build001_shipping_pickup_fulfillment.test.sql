@@ -1,5 +1,5 @@
 begin;
-select plan(13);
+select plan(12);
 select has_table('public','mme_order_fulfillments','order fulfillment record exists');
 select has_table('public','mme_fulfillment_events','carrier and pickup event ledger exists');
 select has_function('public','mme_create_order_fulfillment',array['uuid','uuid','uuid','text','text','jsonb'],'paid order fulfillment creation exists');
@@ -10,7 +10,7 @@ select ok(not has_table_privilege('authenticated','public.mme_fulfillment_events
 select ok(not has_function_privilege('authenticated','public.mme_create_order_fulfillment(uuid,uuid,uuid,text,text,jsonb)','execute'),'browser cannot create fulfillment');
 select ok(not has_function_privilege('authenticated','public.mme_update_order_fulfillment(uuid,text,uuid,text,text,text,text,text,integer,text,text)','execute'),'browser cannot update fulfillment');
 select ok(not has_function_privilege('authenticated','public.mme_record_carrier_fulfillment_event(uuid,text,text,text,text,text,text,text,timestamp with time zone)','execute'),'browser cannot ingest carrier events');
-select ok(has_column('public','mme_order_fulfillments','tracking_number'),'tracking reference is retained');
-select ok(has_column('public','mme_fulfillment_events','proof_sha256'),'completion proof digest is retained');
+select has_column('public','mme_order_fulfillments','tracking_number','tracking reference is retained');
+select has_column('public','mme_fulfillment_events','proof_sha256','completion proof digest is retained');
 select * from finish();
 rollback;

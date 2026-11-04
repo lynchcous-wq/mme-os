@@ -11,6 +11,6 @@ select ok(not has_table_privilege('anon','public.mme_supplier_payment_schedules'
 select ok(not has_table_privilege('authenticated','public.mme_supplier_payment_events','insert'),'authenticated cannot write payment events');
 select ok(not has_function_privilege('authenticated','public.mme_approve_supplier_invoice(uuid,uuid,uuid,text,text)','execute'),'browser cannot approve invoices');
 select ok(not has_function_privilege('authenticated','public.mme_record_supplier_payment_event(uuid,text,text,text,bigint,text,uuid,text)','execute'),'browser cannot record payment events');
-select ok(has_trigger('public','mme_purchase_orders','mme_purchase_order_budget_guard'),'PO approval budget guard is installed');
+select has_trigger('public','mme_purchase_orders','mme_purchase_order_budget_guard','PO approval budget guard is installed');
 select * from finish();
 rollback;

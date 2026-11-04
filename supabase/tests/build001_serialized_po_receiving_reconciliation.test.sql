@@ -1,5 +1,5 @@
 begin;
-select plan(10);
+select plan(9);
 select has_table('public','mme_purchase_order_serialized_receipts','serialized PO receipt ledger exists');
 select has_function('public','mme_receive_scanned_serialized_po_unit',array['uuid','uuid','uuid','text','text','text','bigint','bigint','bigint','bigint','bigint','text','uuid','uuid'],'serialized PO intake RPC exists');
 select ok(not has_function_privilege('authenticated','public.mme_receive_scanned_serialized_po_unit(uuid,uuid,uuid,text,text,text,bigint,bigint,bigint,bigint,bigint,text,uuid,uuid)','execute'),'browser cannot receive serialized units directly');
