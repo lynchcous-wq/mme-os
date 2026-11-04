@@ -45,6 +45,12 @@ export default function InspectionStationPage() {
   const [history, setHistory] = useState<Array<Record<string, unknown>>>([]);
   const [historyMessage, setHistoryMessage] = useState("");
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [resolutionId, setResolutionId] = useState("");
+  const [resolution, setResolution] = useState("return_to_stock");
+  const [conditionAfter, setConditionAfter] = useState("refurbished");
+  const [resolutionReason, setResolutionReason] = useState("");
+  const [resolutionMessage, setResolutionMessage] = useState("");
+  const [resolving, setResolving] = useState(false);
 
   const previews = useMemo(
     () => photos.map(file => ({ file, url: URL.createObjectURL(file) })),
@@ -108,6 +114,37 @@ export default function InspectionStationPage() {
       setHistoryMessage(error instanceof Error ? error.message : "Inspection history unavailable.");
     } finally {
       setHistoryLoading(false);
+    }
+  }
+
+  async function resolveInspection(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setResolutionMessage("");
+    setResolving(true);
+    try {
+      const { data, error } = await getSupabaseBrowserClient().auth.getSession();
+      const token = data.session?.access_token;
+      if (error || !token) throw new Error("Sign in again before resolving an inspection.");
+      const response = await fetch("/api/employee/inventory/inspection/resolve", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          inspection_id: resolutionId.trim(),
+          resolution,
+          condition_after: resolution === "return_to_stock" ? conditionAfter : null,
+          reason: resolutionReason.trim(),
+        }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.error ?? "Inspection resolution failed.");
+      setResolutionMessage(`Inspection ${result.inspection_id} resolved as ${String(result.resolution).replaceAll("_", " ")}.`);
+      setResolutionId("");
+      setResolutionReason("");
+      await loadHistory();
+    } catch (error) {
+      setResolutionMessage(error instanceof Error ? error.message : "Inspection resolution failed.");
+    } finally {
+      setResolving(false);
     }
   }
 
@@ -298,6 +335,33 @@ export default function InspectionStationPage() {
               <small style={{ color: "#586579" }}>Created {item.created_at ? new Date(String(item.created_at)).toLocaleString() : "date unavailable"}</small>
             </article>)}
           </div>
+        </section>
+
+        <section style={{ background: "white", border: "1px solid #e5e9f0", borderRadius: 14, padding: 22, marginBottom: 20 }}>
+          <h2 style={{ marginTop: 0 }}>Manager review and quarantine resolution</h2>
+          <p style={{ color: "#586579", lineHeight: 1.5 }}>Only accounts with both inventory approval and resolution permissions can complete this action. Use the inspection record ID from history. The server rechecks permissions and pending status before changing inventory.</p>
+          <form onSubmit={resolveInspection} style={{ display: "grid", gap: 12, maxWidth: 620 }}>
+            <label style={{ display: "grid", gap: 6, fontWeight: 650 }}>Inspection record ID
+              <input required value={resolutionId} onChange={e => setResolutionId(e.target.value)} placeholder="Paste inspection UUID" style={{ padding: 11, border: "1px solid #cbd3df", borderRadius: 8 }} />
+            </label>
+            <label style={{ display: "grid", gap: 6, fontWeight: 650 }}>Resolution
+              <select value={resolution} onChange={e => setResolution(e.target.value)} style={{ padding: 11, border: "1px solid #cbd3df", borderRadius: 8 }}>
+                <option value="return_to_stock">Approve return to stock</option>
+                <option value="write_off">Write off</option>
+                <option value="return_to_supplier">Return to supplier</option>
+              </select>
+            </label>
+            {resolution === "return_to_stock" && <label style={{ display: "grid", gap: 6, fontWeight: 650 }}>Saleable condition grade
+              <select value={conditionAfter} onChange={e => setConditionAfter(e.target.value)} style={{ padding: 11, border: "1px solid #cbd3df", borderRadius: 8 }}>
+                <option value="new">New</option><option value="open_box">Open box</option><option value="refurbished">Refurbished</option><option value="used">Used</option>
+              </select>
+            </label>}
+            <label style={{ display: "grid", gap: 6, fontWeight: 650 }}>Manager decision reason
+              <textarea required minLength={5} maxLength={1000} value={resolutionReason} onChange={e => setResolutionReason(e.target.value)} rows={3} placeholder="Record the basis for this decision…" style={{ padding: 11, border: "1px solid #cbd3df", borderRadius: 8 }} />
+            </label>
+            <button type="submit" disabled={!sessionEmail || resolving || resolutionId.trim().length < 36 || resolutionReason.trim().length < 5} style={{ padding: 13, border: 0, borderRadius: 8, background: "#173b70", color: "white", fontWeight: 750, opacity: !sessionEmail || resolving ? .55 : 1 }}>{resolving ? "Processing…" : "Approve and resolve inspection"}</button>
+            {resolutionMessage && <p role="status" style={{ padding: 12, background: "#eef3fa", borderRadius: 8 }}>{resolutionMessage}</p>}
+          </form>
         </section>
 
         <form onSubmit={submitInspection} style={{ display: "grid", gap: 20 }}>
