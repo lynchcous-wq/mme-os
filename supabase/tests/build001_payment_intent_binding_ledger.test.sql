@@ -1,7 +1,8 @@
 begin;
-select plan(8);
+select plan(9);
 select has_table('public','mme_order_payment_intents','PaymentIntent ledger exists');
 select has_column('public','mme_order_payment_intents','bound_customer_identity_id','ledger captures bound customer identity');
+select ok(not (select attnotnull from pg_attribute where attrelid='public.mme_order_payment_intents'::regclass and attname='bound_customer_identity_id'),'legacy guest POS bindings remain migratable');
 select ok(not has_table_privilege('authenticated','public.mme_order_payment_intents','select'),'browser cannot read ledger');
 select ok(not has_table_privilege('anon','public.mme_order_payment_intents','insert'),'anonymous cannot create bindings');
 select has_function('public','mme_bind_order_payment_intent',array['uuid','text','bigint','text','uuid'],'binding RPC exists');
