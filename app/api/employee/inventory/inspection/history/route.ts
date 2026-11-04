@@ -42,7 +42,27 @@ export async function GET(request: Request) {
       });
       if (permission.ok && await permission.json() === true) authorized.push(item);
     }
-    return NextResponse.json({ inspections: authorized }, { headers: { "Cache-Control": "no-store, private" } });
+    const inspectionIds = authorized.map((item) => String(item.id));
+    let dispositions: Array<Record<string, unknown>> = [];
+    if (inspectionIds.length > 0) {
+      const dispositionQuery = new URLSearchParams({
+        select: "id,inspection_id,unit_id,product_id,location_id,resolution,prior_unit_status,resulting_unit_status,condition_before,condition_after,reason,actor_identity_id,approved_by_identity_id,created_at",
+        inspection_id: `in.(${inspectionIds.join(",")})`,
+        order: "created_at.desc",
+      });
+      const dispositionResponse = await fetch(`${base}/rest/v1/mme_serialized_unit_dispositions?${dispositionQuery}`, {
+        headers: { apikey: service, Authorization: `Bearer ${service}` },
+        cache: "no-store",
+      });
+      if (!dispositionResponse.ok) {
+        return NextResponse.json({ error: "Disposition history could not be loaded." }, { status: 502 });
+      }
+      dispositions = await dispositionResponse.json() as Array<Record<string, unknown>>;
+    }
+    return NextResponse.json(
+      { inspections: authorized, dispositions },
+      { headers: { "Cache-Control": "no-store, private" } },
+    );
   } catch {
     return NextResponse.json({ error: "Inspection history unavailable." }, { status: 502 });
   }
