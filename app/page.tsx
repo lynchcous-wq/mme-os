@@ -1,3 +1,5 @@
+import HomeLiveProducts from "@/components/home-live-products";
+
 const categories = ["Televisions", "Computers", "Phones & tablets", "Wearables", "Accessories", "Services"];
 export default function HomePage() {
   return <main>
