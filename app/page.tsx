@@ -1,3 +1,5 @@
+"use client";
+
 const categories = ["Televisions", "Computers", "Phones & tablets", "Wearables", "Accessories", "Services"];
 const products = [
   { name: "MacBook Air 13-inch", description: "M2 · 8GB memory · 256GB SSD", condition: "Refurbished · Excellent", price: "$749", oldPrice: "$999", art: "▰", color: "peach" },
