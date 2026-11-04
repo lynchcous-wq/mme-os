@@ -106,7 +106,7 @@ export async function GET() {
 
     const catalogById = new Map(catalogProducts.map((product) => [product.id, product]));
     const categoryById = new Map(categories.map((category) => [category.id, category]));
-    const locationsById = new Map(locations.map((location) => [location.id, location]));
+    const locationsById = new Map(locations.map((location) => [location.id, location]));\n    const serializedStock = new Map<string, number>();\n    for (const unit of serializedUnits) {\n      const key = `${unit.product_id}:${unit.location_id}`;\n      serializedStock.set(key, (serializedStock.get(key) ?? 0) + 1);\n    }
 
     const products = commerceProducts.flatMap((commerce) => {
       if (!commerce.catalog_product_id) return [];
