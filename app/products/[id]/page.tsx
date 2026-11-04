@@ -128,7 +128,7 @@ export default function ProductDetailPage() {
             ? <p>Specifications will be added as product details are completed.</p>
             : <dl className="product-specifications">{Object.entries(product.specifications).map(([key, value]) => <div key={key}><dt>{label(key)}</dt><dd>{displayValue(value)}</dd></div>)}</dl>}
         </section>
-        {product.available_quantity > 0 && <section className="product-detail-section cart-add-panel">
+        {product.available_quantity > 0 && !product.serialized && <section className="product-detail-section cart-add-panel">
           <h2>Add to your bag</h2>
           <label className="cart-select-label">Pickup / fulfillment location
             <select value={selectedLocation} onChange={(event) => { setSelectedLocation(event.target.value); setAdded(false); }}>
@@ -149,6 +149,7 @@ export default function ProductDetailPage() {
           {added && <p className="cart-added-message" role="status">Added to your bag. <Link href="/cart">View bag ({count})</Link></p>}
         </section>}
         {product.available_quantity === 0 && <button className="catalog-disabled-button" type="button" disabled>Currently unavailable</button>}
+        {product.available_quantity > 0 && product.serialized && <section className="product-detail-section"><h2>Individual device verification required</h2><p>This item is tracked by serial number or IMEI. It cannot be added to the standard quantity-based bag until its individual unit record and device checks are verified.</p><button className="catalog-disabled-button" type="button" disabled>Individual device checkout coming soon</button></section>}
         <p className="product-detail-note">Adding to your bag does not reserve inventory or charge you. Current price and availability are rechecked before checkout.</p>
       </div>
     </section>}
