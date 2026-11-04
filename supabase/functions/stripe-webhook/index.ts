@@ -127,6 +127,45 @@ Deno.serve(async (request) => {
     return json({ received: true, refund_outcome: refundOutcome, refund_status: refund.status });
   }
 
+  if (["charge.dispute.created", "charge.dispute.updated", "charge.dispute.closed"].includes(event.type)) {
+    const dispute = event.data.object as Stripe.Dispute;
+    const paymentIntentId = typeof dispute.payment_intent === "string"
+      ? dispute.payment_intent
+      : dispute.payment_intent?.id;
+    const systemActorId = Deno.env.get("MME_STRIPE_SYSTEM_ACTOR_ID");
+    const allowedStatuses = ["warning_needs_response", "needs_response", "under_review", "won", "lost"];
+    const disputeStatus = allowedStatuses.includes(dispute.status)
+      ? dispute.status
+      : dispute.status === "warning_under_review"
+      ? "under_review"
+      : "unknown";
+
+    if (!dispute.id || !paymentIntentId || dispute.currency !== "usd" ||
+        !Number.isSafeInteger(dispute.amount) || dispute.amount <= 0) {
+      return json({ error: "unsupported_dispute_payload" }, 400);
+    }
+    if (!systemActorId) return json({ error: "dispute_adapter_actor_not_configured" }, 503);
+
+    const { data: disputeOutcome, error: disputeProcessingError } = await supabase.rpc(
+      "mme_record_stripe_dispute_event",
+      {
+        p_event_id: event.id,
+        p_dispute_id: dispute.id,
+        p_payment_intent_id: paymentIntentId,
+        p_status: disputeStatus,
+        p_reason: dispute.reason ?? null,
+        p_amount_cents: dispute.amount,
+        p_currency: dispute.currency,
+        p_payload_sha256: payloadHash,
+        p_actor_identity_id: systemActorId,
+      },
+    );
+    if (disputeProcessingError) {
+      return json({ error: "dispute_event_processing_failed" }, 500);
+    }
+    return json({ received: true, dispute_outcome: disputeOutcome, dispute_status: disputeStatus });
+  }
+
   if (![ "payment_intent.succeeded", "payment_intent.payment_failed" ].includes(event.type)) {
     return json({ received: true, ignored: true });
   }
