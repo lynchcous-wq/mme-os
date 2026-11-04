@@ -18,12 +18,12 @@ create table public.mme_payment_disputes (
 );
 create or replace function public.mme_prevent_payment_dispute_mutation()
 returns trigger language plpgsql security definer set search_path=''
-as $
+as $$
 begin
  raise exception 'Stripe dispute events are immutable; record a new provider event instead'
   using errcode='55000';
 end;
-$;
+$$;
 revoke all on function public.mme_prevent_payment_dispute_mutation() from public,anon,authenticated;
 create trigger mme_payment_disputes_immutable
 before update or delete on public.mme_payment_disputes
