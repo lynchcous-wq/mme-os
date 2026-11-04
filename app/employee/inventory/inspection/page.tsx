@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
 
 type TestStatus = "not_tested" | "pass" | "fail" | "not_applicable";
 const checks = [
@@ -12,13 +13,20 @@ const checks = [
   ["buttons_audio_test", "Buttons and audio"],
   ["connectivity_test", "Wi-Fi, Bluetooth and cellular"],
   ["imei_serial_verification", "IMEI / serial match"],
-  ["activation_lock_status", "Activation lock"],
 ] as const;
 
 export default function InspectionStationPage() {
   const [unitCode, setUnitCode] = useState("");
   const [battery, setBattery] = useState("");
   const [notes, setNotes] = useState("");
+  const [reason, setReason] = useState("");
+  const [inspectionType, setInspectionType] = useState("quality_check");
+  const [activationLock, setActivationLock] = useState("not_tested");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [sessionEmail, setSessionEmail] = useState("");
+  const [authMessage, setAuthMessage] = useState("");
+  const [submitting, setSubmitting] = useState(false);
   const [results, setResults] = useState<Record<string, TestStatus>>(
     Object.fromEntries(checks.map(([key]) => [key, "not_tested"])),
   );
@@ -28,8 +36,8 @@ export default function InspectionStationPage() {
   const previews = useMemo(() => photos.map(file => ({ file, url: URL.createObjectURL(file) })), [photos]);
   useEffect(() => () => previews.forEach(item => URL.revokeObjectURL(item.url)), [previews]);
 
-  const allChecked = checks.every(([key]) => results[key] !== "not_tested");
-  const hasFailure = Object.values(results).some(value => value === "fail");
+  const allChecked = checks.every(([key]) => results[key] !== "not_tested") && activationLock !== "not_tested";
+  const hasFailure = Object.values(results).some(value => value === "fail") || activationLock === "locked";
   const validBattery = battery === "" || (/^\d{1,3}$/.test(battery) && Number(battery) >= 0 && Number(battery) <= 100);
 
   function addPhotos(files: FileList | null) {
@@ -63,7 +71,7 @@ export default function InspectionStationPage() {
         </div>
         <form onSubmit={prepareDraft} style={{ display: "grid", gap: 20 }}>
           <section style={{ background: "white", border: "1px solid #e5e9f0", borderRadius: 14, padding: 22 }}>
-            <h2 style={{ marginTop: 0 }}>01 · Identify device</h2>
+            <h2 style={{ marginTop: 0 }}>01 · Identify device</h2>\n            <label style={{ display: "grid", gap: 8, fontWeight: 650, marginBottom: 14 }}>Inspection type\n              <select value={inspectionType} onChange={e => setInspectionType(e.target.value)} style={{ padding: 12, border: "1px solid #cbd3df", borderRadius: 8 }}><option value="quality_check">Quality check</option><option value="customer_return">Customer return</option><option value="receiving_damage">Receiving damage</option><option value="warehouse_damage">Warehouse damage</option><option value="repair_intake">Repair intake</option><option value="warranty_return">Warranty return</option></select>\n            </label>
             <label style={{ display: "grid", gap: 8, fontWeight: 650 }}>Scan or enter IMEI / serial / unit barcode
               <input required value={unitCode} onChange={e => setUnitCode(e.target.value.trimStart())} placeholder="Scan barcode or enter device identifier" autoComplete="off" style={{ padding: 14, border: "1px solid #cbd3df", borderRadius: 9, fontSize: 16 }} />
             </label>
@@ -78,14 +86,14 @@ export default function InspectionStationPage() {
                 </select>
               </label>)}
             </div>
-            <label style={{ display: "grid", gap: 8, marginTop: 18, fontWeight: 650 }}>Battery health (%)
+            <label style={{ display: "grid", gap: 8, marginTop: 18, fontWeight: 650 }}>Activation lock status\n              <select value={activationLock} onChange={e => setActivationLock(e.target.value)} style={{ padding: 12, border: "1px solid #cbd3df", borderRadius: 8, maxWidth: 260 }}><option value="not_tested">Not tested</option><option value="clear">Clear</option><option value="locked">Locked</option><option value="not_applicable">Not applicable</option></select>\n            </label>\n            <label style={{ display: "grid", gap: 8, marginTop: 18, fontWeight: 650 }}>Battery health (%)
               <input inputMode="numeric" value={battery} onChange={e => setBattery(e.target.value)} placeholder="0–100" style={{ padding: 12, border: "1px solid #cbd3df", borderRadius: 8, maxWidth: 220 }} />
             </label>
             {!validBattery && <p role="alert" style={{ color: "#b42318" }}>Enter a whole-number battery percentage from 0 to 100.</p>}
           </section>
           <section style={{ background: "white", border: "1px solid #e5e9f0", borderRadius: 14, padding: 22 }}>
             <h2 style={{ marginTop: 0 }}>03 · Condition and evidence</h2>
-            <label style={{ display: "grid", gap: 8, fontWeight: 650 }}>Defects, cosmetic condition and test notes
+            <label style={{ display: "grid", gap: 8, fontWeight: 650 }}>Inspection reason (required)\n              <textarea required minLength={5} maxLength={4000} value={reason} onChange={e => setReason(e.target.value)} rows={2} placeholder="Why is this device being inspected?" style={{ padding: 12, border: "1px solid #cbd3df", borderRadius: 8, resize: "vertical" }} />\n            </label>\n            <label style={{ display: "grid", gap: 8, fontWeight: 650 }}>Defects, cosmetic condition and test notes
               <textarea value={notes} onChange={e => setNotes(e.target.value)} maxLength={4000} rows={5} placeholder="Describe scratches, cracks, missing parts, intermittent faults or other findings…" style={{ padding: 12, border: "1px solid #cbd3df", borderRadius: 8, resize: "vertical" }} />
             </label>
             <label style={{ display: "grid", gap: 8, marginTop: 16, fontWeight: 650 }}>Inspection photos (up to 8; 10 MB each)
@@ -98,12 +106,12 @@ export default function InspectionStationPage() {
                 <button type="button" onClick={() => setPhotos(current => current.filter((_, i) => i !== index))} style={{ border: 0, background: "transparent", color: "#a12b2b", padding: "4px 0" }}>Remove</button>
               </figure>)}
             </div>
-            <p style={{ color: "#68758a", fontSize: 13 }}>Only approved image formats are accepted. Photo previews stay in this browser session and are not uploaded.</p>
+            <p style={{ color: "#68758a", fontSize: 13 }}>Only approved image formats are accepted. Photo previews stay in this browser session and are not uploaded or attached to the submitted record.</p>
           </section>
           <section style={{ background: "white", border: "1px solid #e5e9f0", borderRadius: 14, padding: 22 }}>
             <h2 style={{ marginTop: 0 }}>04 · Review disposition</h2>
             <p style={{ color: "#586579" }}>{!allChecked ? "Complete every checklist item before preparing the draft." : hasFailure ? "One or more checks failed. This unit should be routed for manager review and possible quarantine." : "Checklist is complete. A manager must still review the inspection before the device can return to sale inventory."}</p>
-            <button disabled={!unitCode.trim() || !allChecked || !validBattery} type="submit" style={{ border: 0, borderRadius: 9, padding: "14px 20px", background: !unitCode.trim() || !allChecked || !validBattery ? "#aeb8c7" : "#173b70", color: "white", fontWeight: 750, cursor: "pointer" }}>Prepare inspection draft</button>
+            <button disabled={!sessionEmail || submitting || !unitCode.trim() || !allChecked || !validBattery || reason.trim().length < 5} type="submit" style={{ border: 0, borderRadius: 9, padding: "14px 20px", background: !unitCode.trim() || !allChecked || !validBattery ? "#aeb8c7" : "#173b70", color: "white", fontWeight: 750, cursor: "pointer" }}>Prepare inspection draft</button>
             {draftMessage && <p role="status" style={{ marginTop: 14, padding: 14, background: "#eef3fa", borderRadius: 9, lineHeight: 1.55 }}>{draftMessage}</p>}
           </section>
         </form>
