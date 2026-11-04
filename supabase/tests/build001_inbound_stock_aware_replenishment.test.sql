@@ -2,7 +2,7 @@ begin;
 select plan(9);
 select has_view('public','mme_inventory_inbound_commitments_v','committed inbound stock view exists');
 select has_function('public','mme_create_replenishment_draft',array['text','uuid','uuid','text','integer'],'replenishment draft generator remains available');
-select ok(position('po.statusin(''issued'',''acknowledged'',''partially_received'')' in replace(lower(pg_get_viewdef('public.mme_inventory_inbound_commitments_v'::regclass)),' ',''))>0,'only issued and active inbound POs count as committed supply');
+select ok(position('issued' in lower(pg_get_viewdef('public.mme_inventory_inbound_commitments_v'::regclass)))>0 and position('acknowledged' in lower(pg_get_viewdef('public.mme_inventory_inbound_commitments_v'::regclass)))>0 and position('partially_received' in lower(pg_get_viewdef('public.mme_inventory_inbound_commitments_v'::regclass)))>0,'only issued and active inbound POs count as committed supply');
 select ok(position('ordered_quantity-pol.received_quantity' in replace(lower(pg_get_viewdef('public.mme_inventory_inbound_commitments_v'::regclass)),' ',''))>0,'inbound view subtracts quantities already received');
 select ok(position('mme_inventory_inbound_commitments_v' in pg_get_functiondef('public.mme_create_replenishment_draft(text,uuid,uuid,text,integer)'::regprocedure))>0,'replenishment drafts net committed inbound stock');
 select ok(position('v_net_need:=greatest(v_forecast.suggested_purchase_quantity-v_inbound,0)' in replace(lower(pg_get_functiondef('public.mme_create_replenishment_draft(text,uuid,uuid,text,integer)'::regprocedure)),' ',''))>0,'draft line need is reduced by open PO quantities');

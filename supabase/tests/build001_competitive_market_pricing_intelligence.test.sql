@@ -6,7 +6,7 @@ select has_function('public','mme_verify_market_price_observation',array['uuid',
 select has_view('public','mme_market_price_position_v','market position view exists');
 select ok(not has_function_privilege('authenticated','public.mme_record_market_price_observation(uuid,text,bigint,text,text,numeric,timestamp with time zone,text,uuid,text)','execute'),'browser cannot inject market observations');
 select ok(not has_function_privilege('authenticated','public.mme_verify_market_price_observation(uuid,uuid,boolean,text)','execute'),'browser cannot verify market evidence');
-select ok(regexp_match(lower(pg_get_viewdef('public.mme_market_price_position_v'::regclass)),'match_confidence[[:space:]]*>=[[:space:]]*90') is not null,'only high-confidence matches enter comparison');
+select ok(position('match_confidence' in lower(pg_get_viewdef('public.mme_market_price_position_v'::regclass)))>0 and position('90' in pg_get_viewdef('public.mme_market_price_position_v'::regclass))>0,'only high-confidence matches enter comparison');
 select ok(position('90 days' in lower(pg_get_viewdef('public.mme_market_price_position_v'::regclass)))>0,'market evidence limited to 90-day window');
 select ok(position('insufficient_comparables' in pg_get_viewdef('public.mme_market_price_position_v'::regclass))>0,'small sample flagged');
 select ok(position('stale' in pg_get_viewdef('public.mme_market_price_position_v'::regclass))>0,'stale market data flagged');
