@@ -41,7 +41,7 @@ export async function GET(
   }
 
   try {
-    const [commerceRows, catalogRows, locations, balances, media] = await Promise.all([
+    const [commerceRows, catalogRows, locations, balances, serializedUnits, media] = await Promise.all([
       readTable<Row>(
         baseUrl,
         serviceKey,
@@ -69,6 +69,12 @@ export async function GET(
       readTable<Row>(
         baseUrl,
         serviceKey,
+        "mme_serialized_units",
+        `select=product_id,location_id,unit_status&product_id=eq.${id}&unit_status=eq.in_stock`,
+      ),
+      readTable<Row>(
+        baseUrl,
+        serviceKey,
         "product_media",
         "select=id,product_id,media_type,storage_key,external_url,alt_text,sort_order,is_primary&order=sort_order.asc",
       ),
@@ -83,7 +89,18 @@ export async function GET(
     if (!catalog) return NextResponse.json({ error: "Product not found." }, { status: 404 });
 
     const locationById = new Map(locations.map((location) => [String(location.id), location]));
-    const availability = balances
+    const availability = commerce.serialized === true
+      ? [...new Set(serializedUnits.map((unit) => String(unit.location_id)))].flatMap((locationId) => {
+          const location = locationById.get(locationId);
+          if (!location) return [];
+          return [{
+            location_id: location.id,
+            location_code: location.location_code,
+            location_name: location.display_name,
+            available_quantity: serializedUnits.filter((unit) => unit.location_id === locationId).length,
+          }];
+        })
+      : balances
       .filter((balance) => balance.product_id === commerce.id)
       .flatMap((balance) => {
         const location = locationById.get(String(balance.location_id));
