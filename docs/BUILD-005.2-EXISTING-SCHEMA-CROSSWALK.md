@@ -154,3 +154,59 @@ order by table_name, ordinal_position;
 ## 7. Next stage
 
 **Build 005.3 — Database schema discovery and reconciliation.** First obtain the read-only SQL outputs above. Then produce an object-by-object reconciliation and migration plan. Only after review should Build 005.4 define additive SQL migrations, constraints, indexes, RLS policies, grants, rollback strategy and tests. No production changes are authorized by this document.
+
+
+## 8. Development database discovery results (user-run, read-only)
+
+**Inspection date:** 2026-11-03  
+**Environment:** Development Supabase project  
+**Execution:** User ran the SQL statements in the Supabase SQL Editor and supplied the returned rows.
+
+### 8.1 Relation-name discovery
+
+The first relation-name query completed successfully with **zero rows returned**. It searched the `public` schema for relation names matching product, catalog, SKU, inventory, stock, location, warehouse, receiving, reservation, order, sale, transfer, count and movement patterns.
+
+Interpretation: no matching public-schema relation names were found by those patterns. This result alone does not prove that similarly purposed objects with unrelated names do not exist.
+
+### 8.2 Public column inventory
+
+The second query returned columns for exactly these ten public tables:
+
+- `mme_customer_relationships`
+- `mme_employee_relationships`
+- `mme_identity_audit_events`
+- `mme_integration_entitlements`
+- `mme_permission_grants`
+- `mme_person_identities`
+- `mme_profile_appearance_preferences`
+- `mme_role_assignments`
+- `mme_role_color_registry`
+- `mme_roles`
+
+The returned columns correspond to the Build 004 identity domain. No catalog, SKU, inventory, stock, location, receiving, reservation, order, sale, transfer, count or movement table appeared in this public column inventory.
+
+### 8.3 Additional schema table listing
+
+The third query listed all tables in schemas other than the standard Supabase/system schemas explicitly excluded by the query. Its returned rows were the same ten `public` identity tables above. No additional table rows appeared in the result.
+
+**Scope qualification:** this was an information_schema table listing with explicit schema exclusions. It is not a complete inspection of every system-managed schema, foreign data source, external service, or object outside the query's scope. The query also did not inspect views, functions, triggers, policies, grants, constraints or indexes.
+
+### 8.4 Current reconciliation decision
+
+| Domain | Evidence from supplied database results | Current decision |
+|---|---|---|
+| Build 004 identity | Ten existing public tables confirmed | Preserve unchanged; reference identity only through approved server-side authorization |
+| Catalog / products | No matching public relation or public table identified | Treat as not yet present in inspected public schema; design only after remaining checks |
+| SKU / sellable variants | No matching public relation or public table identified | Treat as not yet present in inspected public schema |
+| Inventory units / stock / movement ledger | No matching public relation or public table identified | Treat as not yet present in inspected public schema |
+| Locations / warehouses | No matching public relation or public table identified | Treat as not yet present in inspected public schema |
+| Receiving / acquisition / reservations / orders | No matching public relation or public table identified | Treat as not yet present in inspected public schema |
+| Other custom schemas | No additional tables appeared in the supplied listing | No additional tables were returned within that query's scope; do not claim every Supabase schema was exhaustively inspected |
+
+No schema changes were made by these discovery queries. No inventory migration has been authored or applied. No production environment was inspected or changed.
+
+## 9. Remaining pre-migration checks
+
+Before Build 005.4 authors an additive migration, inspect the existing identity table constraints, indexes, triggers, RLS policies and grants, and reconcile the Supabase migration history with the Git repository. Also inspect relevant non-system custom schemas if the project uses them. These checks help confirm the authorization and audit integration boundary; they do not authorize modifying Build 004 identity objects.
+
+**Next:** Build 005.4 — security and migration preflight. Remain read-only until its findings are reviewed.
