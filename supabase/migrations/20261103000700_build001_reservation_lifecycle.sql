@@ -76,7 +76,6 @@ begin
      or p_amount_received_cents is null or p_amount_received_cents<0
      or lower(coalesce(p_currency,''))<>'usd'
      or p_payload_sha256 is null or p_payload_sha256 !~ '^[0-9a-fA-F]{64}
-  end if;
 
   -- Keep aggregate and serialized payment handlers disjoint. Return before
   -- inserting the event so the correct serialized handler can process it.
