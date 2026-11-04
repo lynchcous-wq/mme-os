@@ -12,6 +12,7 @@ export type CartLine = {
   currency: string;
   location_name: string;
   available_quantity: number;
+  serialized_unit_id?: string;
 };
 
 type CartContextValue = {
@@ -54,7 +55,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const addLine = useCallback((line: CartLine) => {
     setLines((current) => {
-      const existing = current.find((item) => item.product_id === line.product_id && item.location_id === line.location_id);
+      const existing = current.find((item) => item.product_id === line.product_id && item.location_id === line.location_id && item.serialized_unit_id === line.serialized_unit_id);
       if (!existing) return [...current, line];
       return current.map((item) => item === existing
         ? { ...item, quantity: Math.min(item.available_quantity, item.quantity + line.quantity) }
