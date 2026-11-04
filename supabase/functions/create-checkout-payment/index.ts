@@ -140,7 +140,7 @@ Deno.serve(async (req) => {
     return reply({ error: "order_not_payable" }, 409, origin);
   }
 
-  const stripe = new Stripe(stripeKey, { apiVersion: "2024-12-18.acacia" });
+  const stripe = new Stripe(stripeKey, { apiVersion: "2025-02-24.acacia" });
   let intent: Stripe.PaymentIntent;
   try {
     intent = await stripe.paymentIntents.create(
