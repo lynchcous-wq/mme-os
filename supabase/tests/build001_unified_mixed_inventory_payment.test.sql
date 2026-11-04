@@ -14,8 +14,8 @@ select ok(position('expected_amount_cents<>p_amount_received_cents' in lower(pg_
 select ok(position('v_intent.expected_amount_cents<>v_order.total_cents' in lower(pg_get_functiondef('public.mme_process_unified_order_payment_event(text,text,text,uuid,bigint,text,text)'::regprocedure)))>0,'intent amount must match authoritative order total');
 select ok(position('for update' in lower(pg_get_functiondef('public.mme_process_unified_order_payment_event(text,text,text,uuid,bigint,text,text)'::regprocedure)))>0,'order and stock records are locked');
 select ok(position('payload_sha256' in lower(pg_get_functiondef('public.mme_process_unified_order_payment_event(text,text,text,uuid,bigint,text,text)'::regprocedure)))>0,'verified event payload hash is retained');
-select ok(position("p_event_type not in ('payment_intent.succeeded','payment_intent.payment_failed')" in lower(pg_get_functiondef('public.mme_process_unified_order_payment_event(text,text,text,uuid,bigint,text,text)'::regprocedure)))>0,'only supported PaymentIntent event types are accepted');
-select ok(position("lower(coalesce(p_currency,''))<>'usd'" in lower(pg_get_functiondef('public.mme_process_unified_order_payment_event(text,text,text,uuid,bigint,text,text)'::regprocedure)))>0,'currency is restricted to USD');
-select ok(position("v_order.status<>'pending_payment'" in lower(pg_get_functiondef('public.mme_process_unified_order_payment_event(text,text,text,uuid,bigint,text,text)'::regprocedure)))>0,'non-payable orders cannot be consumed');
+select ok(position($q$p_event_type not in ('payment_intent.succeeded','payment_intent.payment_failed')$q$ in lower(pg_get_functiondef('public.mme_process_unified_order_payment_event(text,text,text,uuid,bigint,text,text)'::regprocedure)))>0,'only supported PaymentIntent event types are accepted');
+select ok(position($q$lower(coalesce(p_currency,''))<>'usd'$q$ in lower(pg_get_functiondef('public.mme_process_unified_order_payment_event(text,text,text,uuid,bigint,text,text)'::regprocedure)))>0,'currency is restricted to USD');
+select ok(position($q$v_order.status<>'pending_payment'$q$ in lower(pg_get_functiondef('public.mme_process_unified_order_payment_event(text,text,text,uuid,bigint,text,text)'::regprocedure)))>0,'non-payable orders cannot be consumed');
 select * from finish();
 rollback;
