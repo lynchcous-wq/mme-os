@@ -15,6 +15,7 @@ type ValidatedLine = {
   location_name: string;
   line_total_cents: number;
   available_quantity: number;
+  serialized_unit_id?: string;
 };
 
 function money(cents: number, currency: string) {
@@ -40,7 +41,7 @@ export default function CartPage() {
         headers: { "Content-Type": "application/json" },
         cache: "no-store",
         body: JSON.stringify({
-          items: lines.map(({ product_id, location_id, quantity }) => ({ product_id, location_id, quantity })),
+          items: lines.map(({ product_id, location_id, quantity, serialized_unit_id }) => ({ product_id, location_id, quantity, ...(serialized_unit_id ? { serialized_unit_id } : {}) })),
         }),
       });
       const payload = await response.json();
@@ -55,7 +56,7 @@ export default function CartPage() {
     }
   }, [lines]);
 
-  const validatedByKey = new Map((validated ?? []).map((item) => [`${item.product_id}:${item.location_id}`, item]));
+  const validatedByKey = new Map((validated ?? []).map((item) => [`${item.product_id}:${item.location_id}:${item.serialized_unit_id ?? "aggregate"}`, item]));
 
   return <main className="simple-page catalog-page">
     <header className="header">
@@ -77,20 +78,21 @@ export default function CartPage() {
       {ready && lines.length > 0 && <>
         <div className="cart-lines">
           {lines.map((line) => {
-            const current = validatedByKey.get(`${line.product_id}:${line.location_id}`);
+            const current = validatedByKey.get(`${line.product_id}:${line.location_id}:${line.serialized_unit_id ?? "aggregate"}`);
             return <article className="cart-line" key={`${line.product_id}:${line.location_id}`}>
               <div className="cart-line-mark">MME</div>
               <div className="cart-line-details">
                 <h2>{current?.title ?? line.title}</h2>
                 <p>SKU {current?.sku ?? line.sku}</p>
                 <p>Location: {current?.location_name ?? line.location_name}</p>
+                {line.serialized_unit_id && <p>Individual device: {line.serialized_unit_id}</p>}
                 <p>{current ? money(current.unit_price_cents, current.currency) : "Price will be rechecked"}</p>
                 <div className="cart-quantity">
                   <label>Quantity
-                    <input type="number" min="1" max={line.available_quantity} value={line.quantity}
-                      onChange={(event) => updateQuantity(line.product_id, line.location_id, Number(event.target.value))} />
+                    <input type="number" min="1" max={line.serialized_unit_id ? 1 : line.available_quantity} disabled={Boolean(line.serialized_unit_id)} value={line.quantity}
+                      onChange={(event) => updateQuantity(line.product_id, line.location_id, Number(event.target.value), line.serialized_unit_id)} />
                   </label>
-                  <button type="button" onClick={() => removeLine(line.product_id, line.location_id)}>Remove</button>
+                  <button type="button" onClick={() => removeLine(line.product_id, line.location_id, line.serialized_unit_id)}>Remove</button>
                 </div>
               </div>
               <div className="cart-line-total">{current ? money(current.line_total_cents, current.currency) : "—"}</div>
