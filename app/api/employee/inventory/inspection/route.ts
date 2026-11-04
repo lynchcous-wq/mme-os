@@ -56,6 +56,11 @@ async function supabaseRequest<T>(
 }
 
 export async function POST(request: Request) {
+  const contentLength = Number(request.headers.get("content-length") ?? "0");
+  if (Number.isFinite(contentLength) && contentLength > 64_000) {
+    return NextResponse.json({ error: "Inspection request is too large." }, { status: 413 });
+  }
+
   const authorization = request.headers.get("authorization") ?? "";
   const match = authorization.match(/^Bearer ([^\s]+)$/);
   if (!match) {
@@ -88,7 +93,7 @@ export async function POST(request: Request) {
   const reason = body.reason?.trim();
   const inspectionType = body.inspection_type;
   const battery = body.battery_health_percent ?? null;
-  if (!reference || reference.length > 128 || !reason || reason.length < 5 || reason.length > 4000 ||
+  if (!reference || reference.length > 100 || !reason || reason.length < 5 || reason.length > 4000 ||
       !inspectionTypes.includes(inspectionType as (typeof inspectionTypes)[number]) ||
       !body.findings || typeof body.findings !== "object" || Array.isArray(body.findings) ||
       (battery !== null && (!Number.isInteger(battery) || battery < 0 || battery > 100)) ||
