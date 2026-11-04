@@ -1,0 +1,11 @@
+begin;
+select plan(7);
+select has_table('public','mme_return_refund_provider_bindings','explicit Stripe refund binding registry exists');
+select ok((select relrowsecurity from pg_class where oid='public.mme_return_refund_provider_bindings'::regclass),'refund binding registry has RLS enabled');
+select ok(not has_table_privilege('authenticated','public.mme_return_refund_provider_bindings','select'),'browser cannot read refund bindings');
+select ok(not has_function_privilege('authenticated','public.mme_bind_approved_stripe_refund(uuid,text,text,bigint,text,uuid)','execute'),'browser cannot create refund bindings');
+select ok(position('decision<>''approved''' in pg_get_functiondef('public.mme_bind_approved_stripe_refund(uuid,text,text,bigint,text,uuid)'::regprocedure))>0,'only approved MME refunds can be bound');
+select ok(position('provider_object_id' in pg_get_functiondef('public.mme_bind_approved_stripe_refund(uuid,text,text,bigint,text,uuid)'::regprocedure))>0,'PaymentIntent must already be bound to the return order');
+select ok(position('provider_refund_id' in pg_get_functiondef('public.mme_bind_approved_stripe_refund(uuid,text,text,bigint,text,uuid)'::regprocedure))>0,'Stripe refund ID is explicitly recorded');
+select * from finish();
+rollback;
