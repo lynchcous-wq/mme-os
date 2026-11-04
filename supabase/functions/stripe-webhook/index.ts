@@ -69,7 +69,7 @@ Deno.serve(async (request) => {
 
   // Refund events are accepted only when the refund ID and original PaymentIntent
   // match a server-created binding to an approved MME return case.
-  if (event.type === "refund.created" || event.type === "refund.updated") {
+  if (["refund.created", "refund.updated", "refund.failed"].includes(event.type)) {
     const refund = event.data.object as Stripe.Refund;
     const paymentIntentId = typeof refund.payment_intent === "string"
       ? refund.payment_intent
@@ -100,10 +100,10 @@ Deno.serve(async (request) => {
 
     const refundEventType = event.type === "refund.created"
       ? "refund_submitted"
+      : event.type === "refund.failed" || refund.status === "failed" || refund.status === "canceled"
+      ? "refund_failed"
       : refund.status === "succeeded"
       ? "refund_succeeded"
-      : refund.status === "failed" || refund.status === "canceled"
-      ? "refund_failed"
       : "refund_submitted";
 
     const { data: refundOutcome, error: refundProcessingError } = await supabase.rpc(
