@@ -1,5 +1,5 @@
 begin;
-select plan(14);
+select plan(16);
 
 select has_column(
   'public','mme_products','catalog_product_id',
@@ -16,6 +16,10 @@ select has_index(
 select has_trigger(
   'public','mme_products','mme_products_validate_catalog_link',
   'catalog link and SKU validation trigger exists'
+);
+select has_trigger(
+  'public','products','products_prevent_linked_sku_change',
+  'catalog SKU cannot drift after commerce link'
 );
 select has_trigger(
   'public','mme_order_lines','mme_order_lines_require_published_catalog',
@@ -53,6 +57,10 @@ select ok(
   'service role can record link audit events'
 );
 
+select ok(
+  position('Cannot change catalog SKU while a commerce product is linked' in pg_get_functiondef('public.mme_prevent_linked_catalog_sku_change()'::regprocedure)) > 0,
+  'catalog SKU mutation is blocked after a commerce link exists'
+);
 select ok(
   position('catalog_status' in pg_get_functiondef('public.mme_require_published_catalog_product()'::regprocedure)) > 0
   and position('published' in pg_get_functiondef('public.mme_require_published_catalog_product()'::regprocedure)) > 0,
