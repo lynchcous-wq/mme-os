@@ -122,7 +122,7 @@ export default function ProductsPage() {
           <div className="live-product-art"><span className="live-product-mark">MME</span><span className="live-product-symbol">◇</span></div>
           <div className="live-product-info">
             <small>{product.category} · {conditionLabel(product.catalog_condition)}</small>
-            <h2>{product.title}</h2>
+            <h2><Link href={`/products/${product.id}`}>{product.title}</Link></h2>
             {product.brand && <span className="live-brand">{product.brand}</span>}
             {product.description && <p>{product.description}</p>}
             <div className="live-price">{money(product.price_cents, product.currency)}</div>
