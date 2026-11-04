@@ -49,7 +49,7 @@ Deno.serve(async (request) => {
   if (rawBody === null) return json({ error: "webhook_payload_too_large_or_empty" }, 413);
   let event: Stripe.Event;
   try {
-    event = await verifyStripeWebhook(rawBody, signature, webhookSecret);
+    event = await verifyStripeWebhook(rawBody, signature, webhookSecret, stripeSecret);
   } catch {
     return json({ error: "invalid_webhook_signature" }, 400);
   }
