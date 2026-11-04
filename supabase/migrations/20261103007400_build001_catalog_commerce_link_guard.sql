@@ -35,12 +35,17 @@ set search_path = ''
 as $$
 declare
   v_catalog_sku text;
-  v_old_catalog_id uuid;
   v_actor uuid;
+  v_previous_catalog_id uuid;
 begin
-  if new.catalog_product_id is not distinct from old.catalog_product_id
-     and new.sku is not distinct from old.sku then
-    return new;
+  if tg_op = 'UPDATE' then
+    v_previous_catalog_id := old.catalog_product_id;
+    if new.catalog_product_id is not distinct from old.catalog_product_id
+       and new.sku is not distinct from old.sku then
+      return new;
+    end if;
+  else
+    v_previous_catalog_id := null;
   end if;
 
   if new.catalog_product_id is not null then
@@ -58,29 +63,43 @@ begin
     end if;
   end if;
 
-  if tg_op = 'UPDATE' then
-    v_old_catalog_id := old.catalog_product_id;
-    if old.catalog_product_id is distinct from new.catalog_product_id then
-      v_actor := nullif(current_setting('request.jwt.claim.sub', true), '')::uuid;
-      insert into public.mme_product_catalog_link_events(
-        commerce_product_id, catalog_product_id, event_type, actor_user_id
-      )
-      values (
-        new.id,
-        coalesce(new.catalog_product_id, old.catalog_product_id),
-        case
-          when old.catalog_product_id is null then 'linked'
-          when new.catalog_product_id is null then 'unlinked'
-          else 'relinked'
-        end,
-        v_actor
-      );
-    end if;
+  if v_previous_catalog_id is distinct from new.catalog_product_id
+     and new.catalog_product_id is not null then
+    v_actor := nullif(current_setting('request.jwt.claim.sub', true), '')::uuid;
+    insert into public.mme_product_catalog_link_events(
+      commerce_product_id, catalog_product_id, event_type, actor_user_id
+    )
+    values (
+      new.id, new.catalog_product_id,
+      case when v_previous_catalog_id is null then 'linked' else 'relinked' end,
+      v_actor
+    );
+  elsif v_previous_catalog_id is not null
+        and new.catalog_product_id is null then
+    v_actor := nullif(current_setting('request.jwt.claim.sub', true), '')::uuid;
+    insert into public.mme_product_catalog_link_events(
+      commerce_product_id, catalog_product_id, event_type, actor_user_id
+    )
+    values (new.id, v_previous_catalog_id, 'unlinked', v_actor);
   end if;
 
   return new;
 end;
 $$;
+
+create or replace function public.mme_catalog_link_events_immutable()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+begin
+  raise exception 'Catalog-commerce link events are append-only';
+end;
+$$;
+
+create trigger mme_product_catalog_link_events_immutable
+before update or delete on public.mme_product_catalog_link_events
+for each row execute function public.mme_catalog_link_events_immutable();
 
 create trigger mme_products_validate_catalog_link
 before insert or update of catalog_product_id, sku on public.mme_products
