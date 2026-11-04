@@ -41,6 +41,7 @@ export default function InspectionStationPage() {
     Object.fromEntries(checks.map(([key]) => [key, "not_tested"])),
   );
   const [photos, setPhotos] = useState<File[]>([]);
+  const [pendingPhotoInspectionId, setPendingPhotoInspectionId] = useState("");
 
   const previews = useMemo(
     () => photos.map(file => ({ file, url: URL.createObjectURL(file) })),
@@ -107,6 +108,49 @@ export default function InspectionStationPage() {
     setPhotos(current => [...current, ...accepted].slice(0, 8));
   }
 
+  async function uploadInspectionPhotos(accessToken: string, inspectionId: string, selected: File[]) {
+    const failed: File[] = [];
+    for (const file of selected) {
+      const form = new FormData();
+      form.append("inspection_id", inspectionId);
+      form.append("caption", file.name.slice(0, 500));
+      form.append("file", file);
+      try {
+        const response = await fetch("/api/employee/inventory/inspection/photos", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${accessToken}` },
+          body: form,
+        });
+        if (!response.ok) failed.push(file);
+      } catch {
+        failed.push(file);
+      }
+    }
+    return failed;
+  }
+
+  async function retryPhotoUploads() {
+    if (!pendingPhotoInspectionId || photos.length === 0) return;
+    setSubmitting(true);
+    try {
+      const { data, error } = await getSupabaseBrowserClient().auth.getSession();
+      const accessToken = data.session?.access_token;
+      if (error || !accessToken) throw new Error("Your employee session has expired. Sign in again.");
+      const failed = await uploadInspectionPhotos(accessToken, pendingPhotoInspectionId, photos);
+      setPhotos(failed);
+      if (failed.length === 0) {
+        setPendingPhotoInspectionId("");
+        setMessage("All inspection photos were uploaded to private storage.");
+      } else {
+        setMessage(`${failed.length} photo(s) could not be uploaded. You can retry the remaining photos.`);
+      }
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Photo upload failed.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
   async function submitInspection(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setMessage("");
@@ -157,12 +201,21 @@ export default function InspectionStationPage() {
       const result = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(result.error ?? "Inspection submission failed.");
 
-      setMessage(`Inspection submitted. Record ID: ${result.inspection_id}. Device quarantined pending manager review. Photos were not uploaded.`);
+      const failedPhotos = photos.length > 0
+        ? await uploadInspectionPhotos(accessToken, result.inspection_id, photos)
+        : [];
+      setPhotos(failedPhotos);
+      setPendingPhotoInspectionId(failedPhotos.length > 0 ? result.inspection_id : "");
+      setMessage(
+        `Inspection submitted. Record ID: ${result.inspection_id}. Device quarantined pending manager review. ` +
+        (photos.length === 0 ? "No photos were attached." :
+          failedPhotos.length === 0 ? `${photos.length} photo(s) uploaded to private storage.` :
+          `${failedPhotos.length} photo(s) still need upload; retry below.`)
+      );
       setUnitCode("");
       setBattery("");
       setNotes("");
       setReason("");
-      setPhotos([]);
       setResults(Object.fromEntries(checks.map(([key]) => [key, "not_tested"])));
       setActivationLock("not_tested");
     } catch (error) {
@@ -265,6 +318,11 @@ export default function InspectionStationPage() {
               {submitting ? "Submitting…" : "Submit inspection and quarantine device"}
             </button>
             {message && <p role="status" style={{ marginTop: 14, padding: 14, background: "#eef3fa", borderRadius: 9, lineHeight: 1.55 }}>{message}</p>}
+            {pendingPhotoInspectionId && photos.length > 0 && (
+              <button type="button" onClick={retryPhotoUploads} disabled={submitting} style={{ marginTop: 12, border: 0, borderRadius: 9, padding: "12px 16px", background: "#8a5a12", color: "white", fontWeight: 700 }}>
+                {submitting ? "Uploading…" : `Retry ${photos.length} remaining photo(s)`}
+              </button>
+            )}
           </section>
         </form>
       </section>
