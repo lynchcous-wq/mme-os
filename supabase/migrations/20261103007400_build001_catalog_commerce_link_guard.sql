@@ -105,6 +105,30 @@ create trigger mme_products_validate_catalog_link
 before insert or update of catalog_product_id, sku on public.mme_products
 for each row execute function public.mme_validate_catalog_product_link();
 
+-- Keep linked SKUs consistent if catalog metadata is edited after linking.
+create or replace function public.mme_prevent_linked_catalog_sku_change()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $
+begin
+  if new.sku is distinct from old.sku
+     and exists (
+       select 1 from public.mme_products mp
+       where mp.catalog_product_id = old.id
+     ) then
+    raise exception 'Cannot change catalog SKU while a commerce product is linked'
+      using errcode = '23514';
+  end if;
+  return new;
+end;
+$;
+
+create trigger products_prevent_linked_sku_change
+before update of sku on public.products
+for each row execute function public.mme_prevent_linked_catalog_sku_change();
+
 -- This guard runs inside every order-line insert path, including aggregate
 -- and mixed/serialized carts. A failed guard rolls back the order transaction.
 create or replace function public.mme_require_published_catalog_product()
@@ -142,10 +166,10 @@ comment on table public.mme_product_catalog_link_events is
   'Append-only-by-convention audit trail of catalog-to-commerce product link changes.';
 
 
-revoke all on function public.mme_validate_catalog_product_link() from public, anon, authenticated;
+revoke all on function public.mme_validate_catalog_product_link() from public, anon, authenticated;\nrevoke all on function public.mme_prevent_linked_catalog_sku_change() from public, anon, authenticated;
 revoke all on function public.mme_require_published_catalog_product() from public, anon, authenticated;
 revoke all on function public.mme_catalog_link_events_immutable() from public, anon, authenticated;
-grant execute on function public.mme_validate_catalog_product_link() to service_role;
+grant execute on function public.mme_validate_catalog_product_link() to service_role;\ngrant execute on function public.mme_prevent_linked_catalog_sku_change() to service_role;
 grant execute on function public.mme_require_published_catalog_product() to service_role;
 grant execute on function public.mme_catalog_link_events_immutable() to service_role;
 
