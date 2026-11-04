@@ -1,5 +1,5 @@
 begin;
-select plan(8);
+select plan(9);
 select has_table('public','mme_payment_disputes','Stripe dispute ledger exists');
 select ok(exists(select 1 from pg_trigger where tgrelid='public.mme_payment_disputes'::regclass and tgname='mme_payment_disputes_immutable' and not tgisinternal),'dispute ledger rows are immutable');
 select ok((select relrowsecurity from pg_class where oid='public.mme_payment_disputes'::regclass),'dispute ledger has RLS');
@@ -7,6 +7,7 @@ select ok(not has_table_privilege('authenticated','public.mme_payment_disputes',
 select ok(not has_function_privilege('authenticated','public.mme_record_stripe_dispute_event(text,text,text,text,text,bigint,text,text,uuid)','execute'),'browser cannot record dispute events');
 select ok(position('provider_object_id' in pg_get_functiondef('public.mme_record_stripe_dispute_event(text,text,text,text,text,bigint,text,text,uuid)'::regprocedure))>0,'dispute requires bound PaymentIntent');
 select ok(position('on conflict(provider,provider_event_id) do nothing' in lower(pg_get_functiondef('public.mme_record_stripe_dispute_event(text,text,text,text,text,bigint,text,text,uuid)'::regprocedure)))>0,'provider event replay is idempotent');
+select ok(position('p_amount_cents>v_binding.expected_amount_cents' in replace(pg_get_functiondef('public.mme_record_stripe_dispute_event(text,text,text,text,text,bigint,text,text,uuid)'::regprocedure),' ',''))>0,'dispute amount cannot exceed the bound payment');
 select ok(position('p_amount_cents' in pg_get_functiondef('public.mme_record_stripe_dispute_event(text,text,text,text,text,bigint,text,text,uuid)'::regprocedure))>0,'actual dispute amount is persisted');
 select * from finish();
 rollback;
