@@ -1,5 +1,6 @@
 import Stripe from "npm:stripe@17.7.0";
 import { createClient } from "npm:@supabase/supabase-js@2.49.1";
+import { readBoundedBody, sha256Hex, verifyStripeWebhook } from "../_shared/stripe-webhook-security.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "null",
@@ -14,40 +15,6 @@ function json(body: unknown, status = 200) {
   });
 }
 
-async function sha256Hex(value: string): Promise<string> {
-  const bytes = new TextEncoder().encode(value);
-  const digest = await crypto.subtle.digest("SHA-256", bytes);
-  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
-}
-
-async function readBoundedBody(request: Request, maxBytes: number): Promise<string | null> {
-  if (!request.body) return null;
-  const reader = request.body.getReader();
-  const chunks: Uint8Array[] = [];
-  let total = 0;
-  try {
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      total += value.byteLength;
-      if (total > maxBytes) {
-        await reader.cancel();
-        return null;
-      }
-      chunks.push(value);
-    }
-  } catch {
-    return null;
-  }
-  if (total === 0) return null;
-  const bytes = new Uint8Array(total);
-  let offset = 0;
-  for (const chunk of chunks) {
-    bytes.set(chunk, offset);
-    offset += chunk.byteLength;
-  }
-  return new TextDecoder("utf-8", { fatal: true }).decode(bytes);
-}
 
 Deno.serve(async (request) => {
   if (request.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -80,16 +47,9 @@ Deno.serve(async (request) => {
     return json({ error: "webhook_payload_invalid_encoding" }, 400);
   }
   if (rawBody === null) return json({ error: "webhook_payload_too_large_or_empty" }, 413);
-  const stripe = new Stripe(stripeSecret, { apiVersion: "2025-02-24.acacia" });
   let event: Stripe.Event;
   try {
-    event = await stripe.webhooks.constructEventAsync(
-      rawBody,
-      signature,
-      webhookSecret,
-      undefined,
-      Stripe.createSubtleCryptoProvider(),
-    );
+    event = await verifyStripeWebhook(rawBody, signature, webhookSecret);
   } catch {
     return json({ error: "invalid_webhook_signature" }, 400);
   }
