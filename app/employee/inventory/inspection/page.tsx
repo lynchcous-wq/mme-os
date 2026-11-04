@@ -15,6 +15,15 @@ const checks = [
   ["imei_serial_verification", "IMEI / serial match"],
 ] as const;
 
+const inspectionTypes = [
+  ["quality_check", "Quality check"],
+  ["customer_return", "Customer return"],
+  ["receiving_damage", "Receiving damage"],
+  ["warehouse_damage", "Warehouse damage"],
+  ["repair_intake", "Repair intake"],
+  ["warranty_return", "Warranty return"],
+];
+
 export default function InspectionStationPage() {
   const [unitCode, setUnitCode] = useState("");
   const [battery, setBattery] = useState("");
@@ -26,33 +35,141 @@ export default function InspectionStationPage() {
   const [password, setPassword] = useState("");
   const [sessionEmail, setSessionEmail] = useState("");
   const [authMessage, setAuthMessage] = useState("");
+  const [message, setMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [results, setResults] = useState<Record<string, TestStatus>>(
     Object.fromEntries(checks.map(([key]) => [key, "not_tested"])),
   );
   const [photos, setPhotos] = useState<File[]>([]);
-  const [draftMessage, setDraftMessage] = useState("");
 
-  const previews = useMemo(() => photos.map(file => ({ file, url: URL.createObjectURL(file) })), [photos]);
+  const previews = useMemo(
+    () => photos.map(file => ({ file, url: URL.createObjectURL(file) })),
+    [photos],
+  );
   useEffect(() => () => previews.forEach(item => URL.revokeObjectURL(item.url)), [previews]);
 
-  const allChecked = checks.every(([key]) => results[key] !== "not_tested") && activationLock !== "not_tested";
-  const hasFailure = Object.values(results).some(value => value === "fail") || activationLock === "locked";
-  const validBattery = battery === "" || (/^\d{1,3}$/.test(battery) && Number(battery) >= 0 && Number(battery) <= 100);
+  useEffect(() => {
+    try {
+      const supabase = getSupabaseBrowserClient();
+      void supabase.auth.getSession().then(({ data, error }) => {
+        if (error) setAuthMessage(error.message);
+        setSessionEmail(data.session?.user.email ?? "");
+      });
+      const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+        setSessionEmail(session?.user.email ?? "");
+      });
+      return () => listener.subscription.unsubscribe();
+    } catch (error) {
+      setAuthMessage(error instanceof Error ? error.message : "Authentication is not configured.");
+    }
+  }, []);
+
+  const allChecked =
+    checks.every(([key]) => results[key] !== "not_tested") &&
+    activationLock !== "not_tested";
+  const hasFailure =
+    Object.values(results).some(value => value === "fail") ||
+    activationLock === "locked";
+  const validBattery =
+    battery === "" ||
+    (/^\d{1,3}$/.test(battery) && Number(battery) >= 0 && Number(battery) <= 100);
+
+  async function signIn(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setAuthMessage("");
+    try {
+      const supabase = getSupabaseBrowserClient();
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) throw error;
+      setPassword("");
+    } catch (error) {
+      setAuthMessage(error instanceof Error ? error.message : "Employee sign-in failed.");
+    }
+  }
+
+  async function signOut() {
+    try {
+      const { error } = await getSupabaseBrowserClient().auth.signOut();
+      if (error) throw error;
+      setAuthMessage("Signed out.");
+    } catch (error) {
+      setAuthMessage(error instanceof Error ? error.message : "Sign-out failed.");
+    }
+  }
 
   function addPhotos(files: FileList | null) {
     if (!files) return;
     const accepted = Array.from(files).filter(file =>
-      ["image/jpeg", "image/png", "image/webp", "image/heic"].includes(file.type) && file.size <= 10 * 1024 * 1024,
+      ["image/jpeg", "image/png", "image/webp", "image/heic"].includes(file.type) &&
+      file.size > 0 &&
+      file.size <= 10 * 1024 * 1024,
     );
     setPhotos(current => [...current, ...accepted].slice(0, 8));
   }
 
-  function prepareDraft(event: React.FormEvent<HTMLFormElement>) {
+  async function submitInspection(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setDraftMessage(
-      "Draft reviewed locally. It has not been saved or submitted. Secure employee-session verification, inspection authorization and private photo upload must be connected before this station can write inspection records.",
-    );
+    setMessage("");
+    if (!sessionEmail) {
+      setMessage("Sign in with your employee account before submitting.");
+      return;
+    }
+    if (reason.trim().length < 5 || !allChecked || !validBattery) {
+      setMessage("Complete the required reason, checklist and battery fields.");
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const { data, error } = await getSupabaseBrowserClient().auth.getSession();
+      const accessToken = data.session?.access_token;
+      if (error || !accessToken) {
+        throw new Error("Your employee session has expired. Sign in again.");
+      }
+
+      const response = await fetch("/api/employee/inventory/inspection", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
+          reference: unitCode.trim(),
+          inspection_type: inspectionType,
+          reason: reason.trim(),
+          findings: {
+            checklist: results,
+            activation_lock_status: activationLock,
+            has_failed_test: hasFailure,
+          },
+          battery_health_percent: battery === "" ? null : Number(battery),
+          battery_test: results.battery_test,
+          screen_test: results.screen_test,
+          camera_test: results.camera_test,
+          charging_port_test: results.charging_port_test,
+          buttons_audio_test: results.buttons_audio_test,
+          connectivity_test: results.connectivity_test,
+          imei_serial_verification: results.imei_serial_verification,
+          activation_lock_status: activationLock,
+          notes,
+        }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.error ?? "Inspection submission failed.");
+
+      setMessage(`Inspection submitted. Record ID: ${result.inspection_id}. Device quarantined pending manager review. Photos were not uploaded.`);
+      setUnitCode("");
+      setBattery("");
+      setNotes("");
+      setReason("");
+      setPhotos([]);
+      setResults(Object.fromEntries(checks.map(([key]) => [key, "not_tested"])));
+      setActivationLock("not_tested");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Inspection submission failed.");
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -64,19 +181,43 @@ export default function InspectionStationPage() {
       <section style={{ maxWidth: 980, margin: "0 auto", padding: "42px 20px 80px" }}>
         <p style={{ color: "#526b91", fontSize: 12, fontWeight: 800, letterSpacing: ".14em" }}>BUILD 001 / INVENTORY CONTROL</p>
         <h1 style={{ fontSize: "clamp(30px,5vw,46px)", margin: "8px 0" }}>Device inspection station</h1>
-        <p style={{ color: "#586579", lineHeight: 1.6, maxWidth: 720 }}>Prepare an inspection record for one serialized device. Record the identity match, functional checks, condition notes and photo evidence before a manager reviews the unit.</p>
-        <div style={{ margin: "24px 0", padding: 16, border: "1px solid #e4c98a", background: "#fff8e8", borderRadius: 12, color: "#704d12" }}>
-          <b>Draft workspace — not connected to live submission.</b>
-          <p style={{ margin: "6px 0 0", lineHeight: 1.5 }}>This interface does not save records or upload photos yet. Do not enter real customer data or rely on it for inventory decisions until secure employee authentication and server-side submission are enabled.</p>
+        <p style={{ color: "#586579", lineHeight: 1.6, maxWidth: 720 }}>Submit a serialized-device inspection. Successful submissions are checked by the server and place the unit in quarantine pending manager review.</p>
+
+        <section style={{ background: "white", border: "1px solid #e5e9f0", borderRadius: 14, padding: 22, margin: "24px 0" }}>
+          <h2 style={{ marginTop: 0 }}>Employee sign-in</h2>
+          {sessionEmail ? (
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+              <span>Signed in as <b>{sessionEmail}</b></span>
+              <button type="button" onClick={signOut} style={{ padding: "9px 14px", borderRadius: 8 }}>Sign out</button>
+            </div>
+          ) : (
+            <form onSubmit={signIn} style={{ display: "grid", gap: 10, maxWidth: 420 }}>
+              <input required type="email" autoComplete="username" value={email} onChange={e => setEmail(e.target.value)} placeholder="Employee email" style={{ padding: 12, border: "1px solid #cbd3df", borderRadius: 8 }} />
+              <input required type="password" autoComplete="current-password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Password" style={{ padding: 12, border: "1px solid #cbd3df", borderRadius: 8 }} />
+              <button type="submit" style={{ padding: 12, border: 0, borderRadius: 8, background: "#173b70", color: "white", fontWeight: 700 }}>Sign in</button>
+            </form>
+          )}
+          {authMessage && <p role="status">{authMessage}</p>}
+        </section>
+
+        <div style={{ margin: "20px 0", padding: 16, border: "1px solid #e4c98a", background: "#fff8e8", borderRadius: 12, color: "#704d12" }}>
+          <b>Photo upload is not enabled.</b>
+          <p style={{ margin: "6px 0 0", lineHeight: 1.5 }}>Photos selected below remain local to this browser and are not attached to the submitted inspection. Do not treat local previews as stored evidence.</p>
         </div>
-        <form onSubmit={prepareDraft} style={{ display: "grid", gap: 20 }}>
+
+        <form onSubmit={submitInspection} style={{ display: "grid", gap: 20 }}>
           <section style={{ background: "white", border: "1px solid #e5e9f0", borderRadius: 14, padding: 22 }}>
-            <h2 style={{ marginTop: 0 }}>01 · Identify device</h2>\n            <label style={{ display: "grid", gap: 8, fontWeight: 650, marginBottom: 14 }}>Inspection type\n              <select value={inspectionType} onChange={e => setInspectionType(e.target.value)} style={{ padding: 12, border: "1px solid #cbd3df", borderRadius: 8 }}><option value="quality_check">Quality check</option><option value="customer_return">Customer return</option><option value="receiving_damage">Receiving damage</option><option value="warehouse_damage">Warehouse damage</option><option value="repair_intake">Repair intake</option><option value="warranty_return">Warranty return</option></select>\n            </label>
-            <label style={{ display: "grid", gap: 8, fontWeight: 650 }}>Scan or enter IMEI / serial / unit barcode
-              <input required value={unitCode} onChange={e => setUnitCode(e.target.value.trimStart())} placeholder="Scan barcode or enter device identifier" autoComplete="off" style={{ padding: 14, border: "1px solid #cbd3df", borderRadius: 9, fontSize: 16 }} />
+            <h2 style={{ marginTop: 0 }}>01 · Identify device</h2>
+            <label style={{ display: "grid", gap: 8, fontWeight: 650, marginBottom: 14 }}>Inspection type
+              <select value={inspectionType} onChange={e => setInspectionType(e.target.value)} style={{ padding: 12, border: "1px solid #cbd3df", borderRadius: 8 }}>
+                {inspectionTypes.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+              </select>
             </label>
-            <p style={{ color: "#68758a", fontSize: 13 }}>Use a connected barcode scanner or the device camera’s barcode scanner when that integration is enabled.</p>
+            <label style={{ display: "grid", gap: 8, fontWeight: 650 }}>Scan or enter IMEI / serial / unit barcode
+              <input required value={unitCode} onChange={e => setUnitCode(e.target.value.trimStart())} placeholder="Device identifier" autoComplete="off" style={{ padding: 14, border: "1px solid #cbd3df", borderRadius: 9, fontSize: 16 }} />
+            </label>
           </section>
+
           <section style={{ background: "white", border: "1px solid #e5e9f0", borderRadius: 14, padding: 22 }}>
             <h2 style={{ marginTop: 0 }}>02 · Functional checklist</h2>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(230px,1fr))", gap: 14 }}>
@@ -86,15 +227,24 @@ export default function InspectionStationPage() {
                 </select>
               </label>)}
             </div>
-            <label style={{ display: "grid", gap: 8, marginTop: 18, fontWeight: 650 }}>Activation lock status\n              <select value={activationLock} onChange={e => setActivationLock(e.target.value)} style={{ padding: 12, border: "1px solid #cbd3df", borderRadius: 8, maxWidth: 260 }}><option value="not_tested">Not tested</option><option value="clear">Clear</option><option value="locked">Locked</option><option value="not_applicable">Not applicable</option></select>\n            </label>\n            <label style={{ display: "grid", gap: 8, marginTop: 18, fontWeight: 650 }}>Battery health (%)
+            <label style={{ display: "grid", gap: 8, marginTop: 18, fontWeight: 650 }}>Activation lock status
+              <select value={activationLock} onChange={e => setActivationLock(e.target.value)} style={{ padding: 12, border: "1px solid #cbd3df", borderRadius: 8, maxWidth: 260 }}>
+                <option value="not_tested">Not tested</option><option value="clear">Clear</option><option value="locked">Locked</option><option value="not_applicable">Not applicable</option>
+              </select>
+            </label>
+            <label style={{ display: "grid", gap: 8, marginTop: 18, fontWeight: 650 }}>Battery health (%)
               <input inputMode="numeric" value={battery} onChange={e => setBattery(e.target.value)} placeholder="0–100" style={{ padding: 12, border: "1px solid #cbd3df", borderRadius: 8, maxWidth: 220 }} />
             </label>
             {!validBattery && <p role="alert" style={{ color: "#b42318" }}>Enter a whole-number battery percentage from 0 to 100.</p>}
           </section>
+
           <section style={{ background: "white", border: "1px solid #e5e9f0", borderRadius: 14, padding: 22 }}>
             <h2 style={{ marginTop: 0 }}>03 · Condition and evidence</h2>
-            <label style={{ display: "grid", gap: 8, fontWeight: 650 }}>Inspection reason (required)\n              <textarea required minLength={5} maxLength={4000} value={reason} onChange={e => setReason(e.target.value)} rows={2} placeholder="Why is this device being inspected?" style={{ padding: 12, border: "1px solid #cbd3df", borderRadius: 8, resize: "vertical" }} />\n            </label>\n            <label style={{ display: "grid", gap: 8, fontWeight: 650 }}>Defects, cosmetic condition and test notes
-              <textarea value={notes} onChange={e => setNotes(e.target.value)} maxLength={4000} rows={5} placeholder="Describe scratches, cracks, missing parts, intermittent faults or other findings…" style={{ padding: 12, border: "1px solid #cbd3df", borderRadius: 8, resize: "vertical" }} />
+            <label style={{ display: "grid", gap: 8, fontWeight: 650 }}>Inspection reason (required)
+              <textarea required minLength={5} maxLength={4000} value={reason} onChange={e => setReason(e.target.value)} rows={2} placeholder="Why is this device being inspected?" style={{ padding: 12, border: "1px solid #cbd3df", borderRadius: 8, resize: "vertical" }} />
+            </label>
+            <label style={{ display: "grid", gap: 8, marginTop: 14, fontWeight: 650 }}>Defects, cosmetic condition and test notes
+              <textarea value={notes} onChange={e => setNotes(e.target.value)} maxLength={4000} rows={5} placeholder="Describe scratches, cracks, missing parts or faults…" style={{ padding: 12, border: "1px solid #cbd3df", borderRadius: 8, resize: "vertical" }} />
             </label>
             <label style={{ display: "grid", gap: 8, marginTop: 16, fontWeight: 650 }}>Inspection photos (up to 8; 10 MB each)
               <input type="file" accept="image/jpeg,image/png,image/webp,image/heic" capture="environment" multiple onChange={e => addPhotos(e.target.files)} />
@@ -106,13 +256,15 @@ export default function InspectionStationPage() {
                 <button type="button" onClick={() => setPhotos(current => current.filter((_, i) => i !== index))} style={{ border: 0, background: "transparent", color: "#a12b2b", padding: "4px 0" }}>Remove</button>
               </figure>)}
             </div>
-            <p style={{ color: "#68758a", fontSize: 13 }}>Only approved image formats are accepted. Photo previews stay in this browser session and are not uploaded or attached to the submitted record.</p>
           </section>
+
           <section style={{ background: "white", border: "1px solid #e5e9f0", borderRadius: 14, padding: 22 }}>
-            <h2 style={{ marginTop: 0 }}>04 · Review disposition</h2>
-            <p style={{ color: "#586579" }}>{!allChecked ? "Complete every checklist item before preparing the draft." : hasFailure ? "One or more checks failed. This unit should be routed for manager review and possible quarantine." : "Checklist is complete. A manager must still review the inspection before the device can return to sale inventory."}</p>
-            <button disabled={!sessionEmail || submitting || !unitCode.trim() || !allChecked || !validBattery || reason.trim().length < 5} type="submit" style={{ border: 0, borderRadius: 9, padding: "14px 20px", background: !unitCode.trim() || !allChecked || !validBattery ? "#aeb8c7" : "#173b70", color: "white", fontWeight: 750, cursor: "pointer" }}>Prepare inspection draft</button>
-            {draftMessage && <p role="status" style={{ marginTop: 14, padding: 14, background: "#eef3fa", borderRadius: 9, lineHeight: 1.55 }}>{draftMessage}</p>}
+            <h2 style={{ marginTop: 0 }}>04 · Review and submit</h2>
+            <p style={{ color: "#586579" }}>{!allChecked ? "Complete every functional test and activation-lock status." : hasFailure ? "One or more checks failed or the device is locked. Submission will quarantine the unit for manager review." : "Submission will quarantine the unit pending manager review; it cannot return to sale inventory through this form."}</p>
+            <button disabled={!sessionEmail || submitting || !unitCode.trim() || !allChecked || !validBattery || reason.trim().length < 5} type="submit" style={{ border: 0, borderRadius: 9, padding: "14px 20px", background: !sessionEmail || submitting || !unitCode.trim() || !allChecked || !validBattery || reason.trim().length < 5 ? "#aeb8c7" : "#173b70", color: "white", fontWeight: 750, cursor: "pointer" }}>
+              {submitting ? "Submitting…" : "Submit inspection and quarantine device"}
+            </button>
+            {message && <p role="status" style={{ marginTop: 14, padding: 14, background: "#eef3fa", borderRadius: 9, lineHeight: 1.55 }}>{message}</p>}
           </section>
         </form>
       </section>
