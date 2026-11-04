@@ -20,6 +20,35 @@ async function sha256Hex(value: string): Promise<string> {
   return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
+async function readBoundedBody(request: Request, maxBytes: number): Promise<string | null> {
+  if (!request.body) return null;
+  const reader = request.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      total += value.byteLength;
+      if (total > maxBytes) {
+        await reader.cancel();
+        return null;
+      }
+      chunks.push(value);
+    }
+  } catch {
+    return null;
+  }
+  if (total === 0) return null;
+  const bytes = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+}
+
 Deno.serve(async (request) => {
   if (request.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (request.method !== "POST") return json({ error: "method_not_allowed" }, 405);
@@ -44,10 +73,13 @@ Deno.serve(async (request) => {
   if (Number.isFinite(declaredLength) && declaredLength > 1_048_576) {
     return json({ error: "webhook_payload_too_large" }, 413);
   }
-  const rawBody = await request.text();
-  if (!rawBody || new TextEncoder().encode(rawBody).byteLength > 1_048_576) {
-    return json({ error: "webhook_payload_too_large_or_empty" }, 413);
+  let rawBody: string | null;
+  try {
+    rawBody = await readBoundedBody(request, 1_048_576);
+  } catch {
+    return json({ error: "webhook_payload_invalid_encoding" }, 400);
   }
+  if (rawBody === null) return json({ error: "webhook_payload_too_large_or_empty" }, 413);
   const stripe = new Stripe(stripeSecret, { apiVersion: "2025-02-24.acacia" });
   let event: Stripe.Event;
   try {
