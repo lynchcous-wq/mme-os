@@ -77,11 +77,6 @@ export async function POST(request: Request) {
     if (!record || record.disposition !== "pending") {
       return NextResponse.json({ error: "Inspection is missing or no longer pending review." }, { status: 409 });
     }
-    if (record.serialized_unit_id && input.resolution !== "return_to_stock") {
-      return NextResponse.json({
-        error: "Serialized-device write-off and supplier-return workflows require a dedicated unit-ledger transaction and are not enabled yet. The device remains quarantined.",
-      }, { status: 409 });
-    }
 
     for (const permissionKey of ["inventory.inspection.approve", "inventory.inspection.resolve"]) {
       const permission = await rpc<boolean>(base, service, "mme_employee_authorize_inventory_action", {
