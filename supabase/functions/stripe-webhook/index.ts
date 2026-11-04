@@ -62,7 +62,72 @@ Deno.serve(async (request) => {
     return json({ error: "stripe_account_mismatch" }, 400);
   }
 
-  if (!["payment_intent.succeeded", "payment_intent.payment_failed"].includes(event.type)) {
+  const supabase = createClient(supabaseUrl, serviceRoleKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+  const payloadHash = await sha256Hex(rawBody);
+
+  // Refund events are accepted only when the refund ID and original PaymentIntent
+  // match a server-created binding to an approved MME return case.
+  if (event.type === "refund.created" || event.type === "refund.updated") {
+    const refund = event.data.object as Stripe.Refund;
+    const paymentIntentId = typeof refund.payment_intent === "string"
+      ? refund.payment_intent
+      : refund.payment_intent?.id;
+    const systemActorId = Deno.env.get("MME_STRIPE_SYSTEM_ACTOR_ID");
+
+    if (!refund.id || !paymentIntentId || refund.currency !== "usd" ||
+        !Number.isSafeInteger(refund.amount) || refund.amount <= 0) {
+      return json({ error: "unsupported_refund_payload" }, 400);
+    }
+    if (!systemActorId) return json({ error: "refund_adapter_actor_not_configured" }, 503);
+
+    const { data: refundBinding, error: refundBindingError } = await supabase
+      .from("mme_return_refund_provider_bindings")
+      .select("approval_id, provider_payment_intent_id, provider_refund_id, amount_cents, currency")
+      .eq("provider", "stripe")
+      .eq("provider_refund_id", refund.id)
+      .maybeSingle();
+
+    if (refundBindingError) return json({ error: "refund_binding_lookup_failed" }, 500);
+    if (!refundBinding) return json({ error: "unbound_stripe_refund" }, 409);
+    if (refundBinding.provider_payment_intent_id !== paymentIntentId ||
+        refundBinding.provider_refund_id !== refund.id ||
+        refundBinding.amount_cents !== refund.amount ||
+        refundBinding.currency !== "USD") {
+      return json({ error: "stripe_refund_binding_mismatch" }, 409);
+    }
+
+    const refundEventType = event.type === "refund.created"
+      ? "refund_submitted"
+      : refund.status === "succeeded"
+      ? "refund_succeeded"
+      : refund.status === "failed" || refund.status === "canceled"
+      ? "refund_failed"
+      : "refund_submitted";
+
+    const { data: refundOutcome, error: refundProcessingError } = await supabase.rpc(
+      "mme_record_return_refund_event",
+      {
+        p_approval_id: refundBinding.approval_id,
+        p_provider: "stripe",
+        p_provider_event_id: event.id,
+        p_provider_refund_id: refund.id,
+        p_event_type: refundEventType,
+        p_amount_cents: refund.amount,
+        p_currency: refund.currency,
+        p_payload_sha256: payloadHash,
+        p_actor_identity_id: systemActorId,
+      },
+    );
+
+    if (refundProcessingError) {
+      return json({ error: "refund_event_processing_failed" }, 500);
+    }
+    return json({ received: true, refund_outcome: refundOutcome, refund_status: refund.status });
+  }
+
+  if (![ "payment_intent.succeeded", "payment_intent.payment_failed" ].includes(event.type)) {
     return json({ received: true, ignored: true });
   }
 
@@ -70,10 +135,6 @@ Deno.serve(async (request) => {
   if (!intent.id || intent.currency !== "usd") {
     return json({ error: "unsupported_payment_intent" }, 400);
   }
-
-  const supabase = createClient(supabaseUrl, serviceRoleKey, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
 
   const { data: binding, error: bindingError } = await supabase
     .from("mme_order_payment_intents")
@@ -101,21 +162,18 @@ Deno.serve(async (request) => {
       p_order_id: binding.order_id,
       p_amount_received_cents: amountForProcessor,
       p_currency: intent.currency,
-      p_payload_sha256: await sha256Hex(rawBody),
+      p_payload_sha256: payloadHash,
     },
   );
 
   if (processingError) {
-    // Non-2xx prompts Stripe to retry; database event deduplication protects replays.
     return json({ error: "payment_event_processing_failed" }, 500);
   }
 
   const refundReview = typeof outcome === "string" &&
     (outcome.includes("refund_review") || outcome.includes("mismatch"));
   if (refundReview) {
-    // Acknowledge only after the database has durably recorded the review state.
     return json({ received: true, outcome, requires_review: true });
   }
-
   return json({ received: true, outcome });
 });
