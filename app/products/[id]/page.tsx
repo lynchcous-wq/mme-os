@@ -5,6 +5,8 @@ import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useCart } from "../../../components/cart-provider";
 
+type AvailableSerializedUnit = { unit_id: string; location_id: string; location_name: string; condition_grade: string };
+
 type ProductDetail = {
   id: string;
   sku: string;
@@ -63,6 +65,9 @@ export default function ProductDetailPage() {
   const [selectedLocation, setSelectedLocation] = useState("");
   const [quantity, setQuantity] = useState(1);
   const [added, setAdded] = useState(false);
+  const [serializedUnits, setSerializedUnits] = useState<AvailableSerializedUnit[]>([]);
+  const [selectedUnitId, setSelectedUnitId] = useState("");
+  const [unitError, setUnitError] = useState("");
   const { addLine, count } = useCart();
 
   useEffect(() => {
@@ -80,6 +85,26 @@ export default function ProductDetailPage() {
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [id]);
+
+  useEffect(() => {
+    if (!product?.serialized) return;
+    let active = true;
+    fetch(`/api/catalog/${encodeURIComponent(product.id)}/units`, { cache: "no-store" })
+      .then(async (response) => {
+        const payload = await response.json();
+        if (!response.ok) throw new Error(payload.error || "Individual device availability is unavailable.");
+        return payload as { units: AvailableSerializedUnit[] };
+      })
+      .then((payload) => {
+        if (!active) return;
+        setSerializedUnits(payload.units);
+        setSelectedUnitId(payload.units[0]?.unit_id ?? "");
+      })
+      .catch((reason: unknown) => {
+        if (active) setUnitError(reason instanceof Error ? reason.message : "Individual device availability is unavailable.");
+      });
+    return () => { active = false; };
+  }, [product?.id, product?.serialized]);
 
   return <main className="simple-page catalog-page">
     <header className="header">
@@ -149,7 +174,25 @@ export default function ProductDetailPage() {
           {added && <p className="cart-added-message" role="status">Added to your bag. <Link href="/cart">View bag ({count})</Link></p>}
         </section>}
         {product.available_quantity === 0 && <button className="catalog-disabled-button" type="button" disabled>Currently unavailable</button>}
-        {product.available_quantity > 0 && product.serialized && <section className="product-detail-section"><h2>Individual device verification required</h2><p>This item is tracked by serial number or IMEI. It cannot be added to the standard quantity-based bag until its individual unit record and device checks are verified.</p><button className="catalog-disabled-button" type="button" disabled>Individual device checkout coming soon</button></section>}
+        {product.available_quantity > 0 && product.serialized && <section className="product-detail-section cart-add-panel">
+          <h2>Select an individual device</h2>
+          <p>Each device is tracked separately. Selecting a unit adds only that exact device to your bag; inventory is rechecked before reservation.</p>
+          {unitError && <p role="alert">{unitError}</p>}
+          {serializedUnits.length > 0 ? <>
+            <label className="cart-select-label">Available device
+              <select value={selectedUnitId} onChange={(event) => { setSelectedUnitId(event.target.value); setAdded(false); }}>
+                {serializedUnits.map((unit) => <option key={unit.unit_id} value={unit.unit_id}>{unit.location_name} · {label(unit.condition_grade)} · Unit {unit.unit_id.slice(0, 8)}</option>)}
+              </select>
+            </label>
+            <button className="button" type="button" disabled={!selectedUnitId} onClick={() => {
+              const unit = serializedUnits.find((item) => item.unit_id === selectedUnitId);
+              if (!unit) return;
+              addLine({ product_id: product.id, location_id: unit.location_id, quantity: 1, serialized_unit_id: unit.unit_id, title: product.title, sku: product.sku, price_cents: product.price_cents, currency: product.currency, location_name: unit.location_name, available_quantity: 1 });
+              setAdded(true);
+            }}>Add selected device to bag</button>
+            {added && <p className="cart-added-message" role="status">Selected device added. <Link href="/cart">View bag ({count})</Link></p>}
+          </> : <p>No individually available units were returned. Refresh the page and try again.</p>}
+        </section>}
         <p className="product-detail-note">Adding to your bag does not reserve inventory or charge you. Current price and availability are rechecked before checkout.</p>
       </div>
     </section>}
