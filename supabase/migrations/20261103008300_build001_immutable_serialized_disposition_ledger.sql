@@ -13,4 +13,4 @@ create trigger mme_serialized_unit_dispositions_immutable
 before update or delete on public.mme_serialized_unit_dispositions
 for each row execute function public.mme_prevent_serialized_disposition_mutation();
 
-revoke all on function public.mme_prevent_serialized_disposition_mutation() from public,anon,authenticated;
+revoke all on function public.mme_prevent_serialized_disposition_mutation() from public,anon,authenticated;\n\n-- Only the SECURITY DEFINER resolver may append ledger events.\nrevoke insert,update,delete,truncate on public.mme_serialized_unit_dispositions from service_role;\ngrant select on public.mme_serialized_unit_dispositions to service_role;
