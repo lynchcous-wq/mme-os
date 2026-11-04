@@ -42,6 +42,9 @@ export default function InspectionStationPage() {
   );
   const [photos, setPhotos] = useState<File[]>([]);
   const [pendingPhotoInspectionId, setPendingPhotoInspectionId] = useState("");
+  const [history, setHistory] = useState<Array<Record<string, unknown>>>([]);
+  const [historyMessage, setHistoryMessage] = useState("");
+  const [historyLoading, setHistoryLoading] = useState(false);
 
   const previews = useMemo(
     () => photos.map(file => ({ file, url: URL.createObjectURL(file) })),
@@ -85,6 +88,26 @@ export default function InspectionStationPage() {
       setPassword("");
     } catch (error) {
       setAuthMessage(error instanceof Error ? error.message : "Employee sign-in failed.");
+    }
+  }
+
+  async function loadHistory() {
+    setHistoryLoading(true);
+    setHistoryMessage("");
+    try {
+      const { data, error } = await getSupabaseBrowserClient().auth.getSession();
+      const token = data.session?.access_token;
+      if (error || !token) throw new Error("Sign in again to view inspection history.");
+      const response = await fetch("/api/employee/inventory/inspection/history", {
+        headers: { Authorization: `Bearer ${token}` }, cache: "no-store",
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.error ?? "Could not load inspection history.");
+      setHistory(Array.isArray(result.inspections) ? result.inspections : []);
+    } catch (error) {
+      setHistoryMessage(error instanceof Error ? error.message : "Inspection history unavailable.");
+    } finally {
+      setHistoryLoading(false);
     }
   }
 
@@ -257,6 +280,25 @@ export default function InspectionStationPage() {
           <b>Photo upload is not enabled.</b>
           <p style={{ margin: "6px 0 0", lineHeight: 1.5 }}>Photos selected below remain local to this browser and are not attached to the submitted inspection. Do not treat local previews as stored evidence.</p>
         </div>
+
+        <section style={{ background: "white", border: "1px solid #e5e9f0", borderRadius: 14, padding: 22, marginBottom: 20 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+            <div><h2 style={{ margin: 0 }}>Inspection history</h2><p style={{ margin: "6px 0 0", color: "#586579" }}>Authorized records available to your employee account, newest first.</p></div>
+            <button type="button" onClick={loadHistory} disabled={!sessionEmail || historyLoading} style={{ padding: "10px 14px", border: 0, borderRadius: 8, background: "#173b70", color: "white", fontWeight: 700 }}>{historyLoading ? "Loading…" : "Refresh history"}</button>
+          </div>
+          {historyMessage && <p role="status">{historyMessage}</p>}
+          {!history.length && !historyMessage && <p style={{ color: "#586579" }}>Select Refresh history to view records.</p>}
+          <div style={{ display: "grid", gap: 10, marginTop: 14 }}>
+            {history.map(item => <article key={String(item.id)} style={{ border: "1px solid #e5e9f0", borderRadius: 10, padding: 14 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+                <b>{String(item.inspection_reference ?? item.id)}</b>
+                <span style={{ textTransform: "capitalize" }}>{String(item.disposition ?? "unknown").replaceAll("_", " ")}</span>
+              </div>
+              <p style={{ margin: "7px 0", color: "#586579" }}>{String(item.inspection_type ?? "").replaceAll("_", " ")} · {String(item.reason ?? "")}</p>
+              <small style={{ color: "#586579" }}>Created {item.created_at ? new Date(String(item.created_at)).toLocaleString() : "date unavailable"}</small>
+            </article>)}
+          </div>
+        </section>
 
         <form onSubmit={submitInspection} style={{ display: "grid", gap: 20 }}>
           <section style={{ background: "white", border: "1px solid #e5e9f0", borderRadius: 14, padding: 22 }}>
