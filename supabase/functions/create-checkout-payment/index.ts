@@ -164,8 +164,10 @@ Deno.serve(async (req) => {
     return reply({ error: "payment_intent_creation_failed", order_id: order.id }, 502, origin);
   }
   if (intent.livemode !== (expectedLiveMode === "true") ||
-      intent.amount !== order.total_cents || intent.currency !== "usd" || !intent.client_secret) {
-    return reply({ error: "payment_intent_validation_failed", order_id: order.id }, 502, origin);
+      intent.amount !== order.total_cents || intent.currency !== "usd" ||
+      intent.metadata.mme_order_id !== order.id || !intent.client_secret ||
+      intent.status === "succeeded" || intent.status === "canceled") {
+    return reply({ error: "payment_intent_validation_failed_reconciliation_required", order_id: order.id }, 502, origin);
   }
 
   const { error: bindError } = await admin.rpc("mme_bind_order_payment_intent", {
