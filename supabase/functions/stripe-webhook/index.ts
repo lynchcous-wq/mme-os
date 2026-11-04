@@ -41,7 +41,7 @@ Deno.serve(async (request) => {
 
   // Verify the exact raw request bytes before parsing or trusting event fields.
   const rawBody = await request.text();
-  const stripe = new Stripe(stripeSecret, { apiVersion: "2024-12-18.acacia" });
+  const stripe = new Stripe(stripeSecret, { apiVersion: "2025-02-24.acacia" });
   let event: Stripe.Event;
   try {
     event = await stripe.webhooks.constructEventAsync(
