@@ -22,10 +22,11 @@ Deno.serve(async(req)=>{
   priced=await response.json();
  }catch{return reply({error:"trusted_pricing_unavailable"},503)}
  if(!priced||typeof priced.customer_identity_id!=="string"||!Array.isArray(priced.items)||priced.items.length<1||!Number.isSafeInteger(priced.tax_cents)||priced.tax_cents<0||!Number.isSafeInteger(priced.fulfillment_cents)||priced.fulfillment_cents<0||!Number.isSafeInteger(priced.discount_cents)||priced.discount_cents<0||!priced.fulfillment_snapshot||typeof priced.fulfillment_snapshot!=="object") return reply({error:"trusted_pricing_response_invalid"},502);
- if(priced.items.some((x:any)=>!x||typeof x.product_id!=="string"||typeof x.location_id!=="string"||!Number.isInteger(x.quantity)||x.quantity<1||x.quantity>20)) return reply({error:"invalid_priced_items"},502);
+ const uuidPattern=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+ if(priced.items.some((x:any)=>!x||typeof x.product_id!=="string"||!uuidPattern.test(x.product_id)||typeof x.location_id!=="string"||!uuidPattern.test(x.location_id)||!Number.isInteger(x.quantity)||x.quantity<1||x.quantity>20||(x.serialized_unit_id!=null&&(!uuidPattern.test(x.serialized_unit_id)||x.quantity!==1)))) return reply({error:"invalid_priced_items"},502);
  const admin=createClient(url,service,{auth:{persistSession:false,autoRefreshToken:false}});
  const expires=new Date(Date.now()+15*60*1000).toISOString();
- const {data:orderId,error:orderError}=await admin.rpc("mme_create_order_and_reserve",{p_idempotency_key:key,p_customer_identity_id:priced.customer_identity_id,p_fulfillment_method:body.fulfillment_method,p_fulfillment_snapshot:priced.fulfillment_snapshot,p_tax_cents:priced.tax_cents,p_fulfillment_cents:priced.fulfillment_cents,p_discount_cents:priced.discount_cents,p_items:priced.items,p_expires_at:expires});
+ const {data:orderId,error:orderError}=await admin.rpc("mme_create_mixed_order_and_reserve",{p_idempotency_key:key,p_customer_identity_id:priced.customer_identity_id,p_fulfillment_method:body.fulfillment_method,p_fulfillment_snapshot:priced.fulfillment_snapshot,p_tax_cents:priced.tax_cents,p_fulfillment_cents:priced.fulfillment_cents,p_discount_cents:priced.discount_cents,p_items:priced.items,p_expires_at:expires});
  if(orderError||!orderId)return reply({error:"order_creation_or_reservation_failed"},409);
  const {data:order,error:readError}=await admin.from("mme_orders").select("id,total_cents,currency,status,customer_identity_id").eq("id",orderId).single();
  if(readError||!order||order.status!=="pending_payment"||order.customer_identity_id!==priced.customer_identity_id)return reply({error:"order_not_payable"},409);
