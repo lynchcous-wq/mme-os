@@ -56,3 +56,9 @@ begin
 end; $$;
 revoke all on function public.mme_bind_order_payment_intent(uuid,text,bigint,text,uuid) from public,anon,authenticated;
 grant execute on function public.mme_bind_order_payment_intent(uuid,text,bigint,text,uuid) to service_role;
+
+-- Retire the legacy overload that accepted an arbitrary actor identity and
+-- copied the order total without validating customer ownership or request amount.
+-- The checkout Edge Function now uses the five-argument, customer-bound RPC.
+revoke all on function public.mme_bind_order_payment_intent(uuid,text,uuid) from public,anon,authenticated,service_role;
+drop function public.mme_bind_order_payment_intent(uuid,text,uuid);
