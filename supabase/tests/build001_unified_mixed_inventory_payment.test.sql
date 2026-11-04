@@ -1,5 +1,5 @@
 begin;
-select plan(17);
+select plan(20);
 select has_function('public','mme_process_unified_order_payment_event',array['text','text','text','uuid','bigint','text','text'],'unified Stripe event processor exists');
 select ok(not has_function_privilege('authenticated','public.mme_process_unified_order_payment_event(text,text,text,uuid,bigint,text,text)','execute'),'browser cannot process payment events');
 select ok(not has_function_privilege('anon','public.mme_process_unified_order_payment_event(text,text,text,uuid,bigint,text,text)','execute'),'anonymous cannot process payment events');
@@ -17,5 +17,8 @@ select ok(position('payload_sha256' in lower(pg_get_functiondef('public.mme_proc
 select ok(position($q$p_event_type not in ('payment_intent.succeeded','payment_intent.payment_failed')$q$ in lower(pg_get_functiondef('public.mme_process_unified_order_payment_event(text,text,text,uuid,bigint,text,text)'::regprocedure)))>0,'only supported PaymentIntent event types are accepted');
 select ok(position($q$lower(coalesce(p_currency,''))<>'usd'$q$ in lower(pg_get_functiondef('public.mme_process_unified_order_payment_event(text,text,text,uuid,bigint,text,text)'::regprocedure)))>0,'currency is restricted to USD');
 select ok(position($q$v_order.status<>'pending_payment'$q$ in lower(pg_get_functiondef('public.mme_process_unified_order_payment_event(text,text,text,uuid,bigint,text,text)'::regprocedure)))>0,'non-payable orders cannot be consumed');
+select ok(position("if v_event_id is null then return 'duplicate'" in lower(pg_get_functiondef('public.mme_process_unified_order_payment_event(text,text,text,uuid,bigint,text,text)'::regprocedure)))>0,'replayed event IDs return duplicate without consuming stock twice');
+select ok(position("return 'amount_or_currency_mismatch_refund_review'" in lower(pg_get_functiondef('public.mme_process_unified_order_payment_event(text,text,text,uuid,bigint,text,text)'::regprocedure)))>0,'payment amount mismatches are routed to refund review');
+select ok(position("return 'reservation_expired_refund_review_stock_released'" in lower(pg_get_functiondef('public.mme_process_unified_order_payment_event(text,text,text,uuid,bigint,text,text)'::regprocedure)))>0,'late payment success after reservation expiry releases stock and flags refund review');
 select * from finish();
 rollback;
