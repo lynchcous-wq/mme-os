@@ -43,6 +43,7 @@ export default function InspectionStationPage() {
   const [photos, setPhotos] = useState<File[]>([]);
   const [pendingPhotoInspectionId, setPendingPhotoInspectionId] = useState("");
   const [history, setHistory] = useState<Array<Record<string, unknown>>>([]);
+  const [dispositions, setDispositions] = useState<Array<Record<string, unknown>>>([]);
   const [historyMessage, setHistoryMessage] = useState("");
   const [historyLoading, setHistoryLoading] = useState(false);
   const [resolutionId, setResolutionId] = useState("");
@@ -110,6 +111,7 @@ export default function InspectionStationPage() {
       const result = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(result.error ?? "Could not load inspection history.");
       setHistory(Array.isArray(result.inspections) ? result.inspections : []);
+      setDispositions(Array.isArray(result.dispositions) ? result.dispositions : []);
     } catch (error) {
       setHistoryMessage(error instanceof Error ? error.message : "Inspection history unavailable.");
     } finally {
@@ -325,6 +327,19 @@ export default function InspectionStationPage() {
           </div>
           {historyMessage && <p role="status">{historyMessage}</p>}
           {!history.length && !historyMessage && <p style={{ color: "#586579" }}>Select Refresh history to view records.</p>}
+          {dispositions.length > 0 && <section style={{ marginTop: 20 }}>
+            <h3 style={{ margin: "0 0 10px" }}>Serialized-device disposition ledger</h3>
+            <div style={{ display: "grid", gap: 10 }}>
+              {dispositions.map(item => <article key={String(item.id)} style={{ border: "1px solid #d8e0eb", borderRadius: 10, padding: 14 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
+                  <b>{String(item.resolution ?? "").replaceAll("_", " ")}</b>
+                  <span>{String(item.prior_unit_status ?? "")} → {String(item.resulting_unit_status ?? "")}</span>
+                </div>
+                <p style={{ margin: "7px 0" }}>{String(item.reason ?? "")}</p>
+                <small style={{ color: "#586579" }}>Unit {String(item.unit_id)} · {item.created_at ? new Date(String(item.created_at)).toLocaleString() : "date unavailable"}</small>
+              </article>)}
+            </div>
+          </section>}
           <div style={{ display: "grid", gap: 10, marginTop: 14 }}>
             {history.map(item => <article key={String(item.id)} style={{ border: "1px solid #e5e9f0", borderRadius: 10, padding: 14 }}>
               <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
