@@ -1,23 +1,25 @@
 # Build 001 — Stripe Webhook Adapter
 
-**Status:** Edge Function source committed; deployment and live payment testing not performed.
+**Status:** Webhook and authenticated mixed-cart checkout Edge Function source committed; deployment and real payment testing not performed.
 
-## Endpoint
-Deploy as the Supabase Edge Function named stripe-webhook. Configure these secrets in the Supabase project:
-- STRIPE_SECRET_KEY
-- STRIPE_WEBHOOK_SECRET
-- SUPABASE_URL
-- SUPABASE_SERVICE_ROLE_KEY
-- STRIPE_LIVEMODE (exactly true or false)
-- STRIPE_EXPECTED_ACCOUNT_ID (required when processing connected-account events; omit for a platform account)
+## Endpoint and secrets
 
-Subscribe the Stripe endpoint to payment_intent.succeeded and payment_intent.payment_failed.
+Deploy as the Supabase Edge Function named `stripe-webhook`. Configure:
+- `STRIPE_SECRET_KEY`
+- `STRIPE_WEBHOOK_SECRET`
+- `SUPABASE_URL`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `STRIPE_LIVEMODE` (exactly `true` or `false`)
+- `STRIPE_EXPECTED_ACCOUNT_ID` when processing connected-account events
 
-## Security and processing
-The function reads the raw body and verifies the Stripe signature before trusting event data. It enforces the configured live/test mode and optional connected-account ID, resolves the PaymentIntent through the server-only order binding table, checks amount and USD currency, hashes the raw payload, and calls the unified mixed-inventory payment RPC using the service role. It never accepts an order ID supplied by the browser.
+Subscribe to `payment_intent.succeeded` and `payment_intent.payment_failed`.
 
-## Remaining checkout integration
-This endpoint is the webhook half of checkout. A separately authenticated server checkout route must create the order, create the Stripe PaymentIntent using the authoritative order total, and bind the PaymentIntent with mme_bind_order_payment_intent before returning a client secret. The binding RPC requires a trusted actor identity UUID; the application must resolve that from its verified session, never accept it from an untrusted request body. Do not enable live checkout until that route, webhook deployment, database migrations and end-to-end tests are complete.
+## Processing and safeguards
 
-## Operational note
-The function returns a retryable 500 when database processing fails. Recorded amount/currency/reservation mismatches return a successful acknowledgement with a review outcome, preventing endless Stripe retries while leaving the order unpaid and stock protected according to the database processor's result.
+The function verifies the exact raw request body with Stripe's signature before trusting event data. It enforces configured live/test mode and optional connected-account identity, resolves the PaymentIntent through the server-only order binding table, checks amount and USD currency, hashes the raw payload, and calls the unified mixed-inventory payment RPC using the service role. It never trusts an order ID supplied by the browser.
+
+The checkout counterpart, `create-checkout-payment`, validates the Supabase user, obtains canonical prices and item identifiers from the trusted MME pricing service, atomically reserves aggregate and serialized stock through the mixed-cart order RPC, creates one PaymentIntent for the authoritative order total, and binds it before returning a client secret. Both functions remain source-only until deployed and configured.
+
+## Required verification
+
+Run Stripe test-mode scenarios for aggregate, serialized and mixed carts; insufficient inventory rollback; duplicate checkout idempotency; successful and failed payments; webhook replay; amount/currency mismatch; and late success after reservation expiration. Verify that mismatches are durably recorded for review and that retryable database failures return non-2xx. Do not enable live checkout until migrations, secrets, deployment, SQL tests and end-to-end verification are complete.
