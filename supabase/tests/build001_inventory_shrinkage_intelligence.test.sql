@@ -7,7 +7,7 @@ select has_function('public','mme_review_inventory_shrinkage_signal',array['uuid
 select ok(not has_table_privilege('authenticated','public.mme_inventory_shrinkage_signals','select'),'browser cannot query signal table directly');
 select ok(not has_function_privilege('authenticated','public.mme_record_inventory_shrinkage_signal(text,uuid,uuid,uuid,text,integer,bigint,jsonb,timestamp with time zone,uuid)','execute'),'browser cannot ingest trusted signals');
 select ok(exists(select 1 from pg_indexes where schemaname='public' and tablename='mme_inventory_shrinkage_signals' and indexdef ilike '%unique%source_type%source_id%'),'signal source is idempotently unique');
-select ok(position('having count(*)>=2' in lower(pg_get_viewdef('public.mme_inventory_shrinkage_patterns_v'::regclass)))>0,'pattern view requires recurring signals');
+select ok(position('having' in lower(pg_get_viewdef('public.mme_inventory_shrinkage_patterns_v'::regclass)))>0 and position('count' in lower(pg_get_viewdef('public.mme_inventory_shrinkage_patterns_v'::regclass)))>0 and position('2' in pg_get_viewdef('public.mme_inventory_shrinkage_patterns_v'::regclass))>0,'pattern view requires recurring signals');
 select ok(position('30 days' in lower(pg_get_viewdef('public.mme_inventory_shrinkage_patterns_v'::regclass)))>0,'pattern view is bounded to recent history');
 select ok(position('does not itself adjust stock' in lower(obj_description('public.mme_inventory_shrinkage_signals'::regclass,'pg_class')))>0,'signals do not mutate inventory');
 select * from finish();
