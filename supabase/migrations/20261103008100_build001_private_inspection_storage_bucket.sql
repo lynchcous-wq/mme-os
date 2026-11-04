@@ -26,7 +26,5 @@ drop policy if exists mme_inspection_evidence_authenticated_insert on storage.ob
 drop policy if exists mme_inspection_evidence_authenticated_update on storage.objects;
 drop policy if exists mme_inspection_evidence_authenticated_delete on storage.objects;
 
-comment on table storage.buckets is
-  'Supabase Storage bucket configuration; mme-inspection-evidence is private and server-mediated.';
 
 commit;
