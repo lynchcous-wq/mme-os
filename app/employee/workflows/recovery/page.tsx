@@ -32,9 +32,9 @@ type RecoveryReview = {
 };
 
 type Decision = "confirmed_succeeded" | "safe_to_retry" | "abandoned";
-type Draft = { resolution: Decision; reason: string; evidence: string };
+type Draft = { resolution: Decision | ""; reason: string; evidence: string };
 
-const initialDraft: Draft = { resolution: "safe_to_retry", reason: "", evidence: "{}" };
+const initialDraft: Draft = { resolution: "", reason: "", evidence: "{}" };
 
 export default function WorkflowRecoveryPage() {
   const [email, setEmail] = useState("");
@@ -130,6 +130,7 @@ export default function WorkflowRecoveryPage() {
       const { data, error: sessionError } = await getSupabaseBrowserClient().auth.getSession();
       const token = data.session?.access_token;
       if (sessionError || !token) throw new Error("Your employee session has expired. Sign in again.");
+      if (!draft.resolution) throw new Error("Choose a recovery decision before submitting.");
       if (draft.reason.trim().length < 3) throw new Error("Enter a review reason of at least 3 characters.");
       let evidence: unknown;
       try {
@@ -139,6 +140,9 @@ export default function WorkflowRecoveryPage() {
       }
       if (!evidence || typeof evidence !== "object" || Array.isArray(evidence)) {
         throw new Error("Evidence must be a JSON object.");
+      }
+      if (draft.resolution !== "abandoned" && Object.keys(evidence as Record<string, unknown>).length === 0) {
+        throw new Error("Non-empty evidence is required to confirm success or authorize a retry.");
       }
       const response = await fetch("/api/employee/workflows/recovery", {
         method: "POST",
@@ -248,7 +252,8 @@ export default function WorkflowRecoveryPage() {
               </details>
               <form onSubmit={event => void submitDecision(event, review)} style={{ borderTop: "1px solid #e5eaf1", paddingTop: 16, display: "grid", gap: 12 }}>
                 <label>Decision
-                  <select value={draft.resolution} onChange={event => updateDraft(review.step_run_id, { resolution: event.target.value as Decision })} style={field}>
+                  <select required value={draft.resolution} onChange={event => updateDraft(review.step_run_id, { resolution: event.target.value as Decision | "" })} style={field}>
+                    <option value="" disabled>Choose a decision…</option>
                     <option value="confirmed_succeeded">Confirm step succeeded (evidence required)</option>
                     <option value="safe_to_retry">Authorize safe retry</option>
                     <option value="abandoned">Abandon workflow step</option>
