@@ -57,6 +57,9 @@ begin
  select * into v_binding from public.mme_order_payment_intents
   where provider='stripe' and provider_object_id=btrim(p_payment_intent_id);
  if not found then raise exception 'Dispute PaymentIntent is not bound to an MME order' using errcode='23514'; end if;
+ if v_binding.currency<>'USD' or p_amount_cents>v_binding.expected_amount_cents then
+  raise exception 'Dispute amount exceeds the bound captured payment' using errcode='23514';
+ end if;
  select * into v_order from public.mme_orders where id=v_binding.order_id for update;
  if not found then raise exception 'Dispute order not found' using errcode='23503'; end if;
  insert into public.mme_payment_disputes(provider,provider_dispute_id,provider_event_id,
