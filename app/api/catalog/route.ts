@@ -72,7 +72,7 @@ export async function GET() {
   }
 
   try {
-    const [commerceProducts, catalogProducts, balances, locations, categories] = await Promise.all([
+    const [commerceProducts, catalogProducts, balances, locations, categories, serializedUnits] = await Promise.all([
       readTable<CommerceProduct>(
         baseUrl,
         serviceKey,
