@@ -22,6 +22,6 @@ Deno.test("sha256Hex returns a stable SHA-256 digest", async () => {
 
 Deno.test("verifyStripeWebhook rejects an invalid signature", async () => {
   await assertRejects(
-    () => verifyStripeWebhook("{}", "t=1,v1=invalid", "whsec_test_invalid"),
+    () => verifyStripeWebhook("{}", "t=1,v1=invalid", "whsec_test_invalid", "sk_test_unit_test"),
   );
 });
