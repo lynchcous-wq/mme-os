@@ -200,7 +200,7 @@ select s.id as supplier_id,s.supplier_code,s.display_name,s.status,
 from public.mme_suppliers s left join public.mme_supplier_deliveries d on d.supplier_id=s.id
 group by s.id,s.supplier_code,s.display_name,s.status;
 
-revoke all on view public.mme_supplier_scorecard_v from public,anon,authenticated;
+revoke all on table public.mme_supplier_scorecard_v from public,anon,authenticated;
 grant select on public.mme_supplier_scorecard_v to service_role;
 
 revoke all on function public.mme_upsert_supplier(text,text,text,text,text,text,text,text,integer,text,uuid) from public,anon,authenticated;
