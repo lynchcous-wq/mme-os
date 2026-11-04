@@ -8,6 +8,6 @@ select ok(position('mme_order_lines' in pg_get_functiondef('public.mme_create_mi
 select ok(position('serialized_unit_id' in pg_get_functiondef('public.mme_create_mixed_order_and_reserve(text,uuid,text,jsonb,bigint,bigint,bigint,jsonb,timestamptz)'::regprocedure))>0,'serialized units are individually identified');
 select ok(position('request_fingerprint' in pg_get_functiondef('public.mme_create_mixed_order_and_reserve(text,uuid,text,jsonb,bigint,bigint,bigint,jsonb,timestamptz)'::regprocedure))>0,'idempotency fingerprint is enforced');
 select ok(position('for update' in lower(pg_get_functiondef('public.mme_create_mixed_order_and_reserve(text,uuid,text,jsonb,bigint,bigint,bigint,jsonb,timestamptz)'::regprocedure)))>0,'inventory rows are locked during reservation');
-select ok(position('grant execute' in lower(pg_get_functiondef('public.mme_create_mixed_order_and_reserve(text,uuid,text,jsonb,bigint,bigint,bigint,jsonb,timestamptz)'::regprocedure)))>=0,'function definition is present');
+select ok(has_function_privilege('service_role','public.mme_create_mixed_order_and_reserve(text,uuid,text,jsonb,bigint,bigint,bigint,jsonb,timestamptz)','execute'),'service role can execute mixed order RPC');
 select * from finish();
 rollback;
