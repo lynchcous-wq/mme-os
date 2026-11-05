@@ -1,6 +1,6 @@
 -- Build 009 schema contract checks on disposable local Supabase CI.
 begin;
-select plan(39);
+select plan(53);
 
 select has_table('public', 'mme_pos_transactions', 'POS transaction envelope exists');
 select has_table('public', 'mme_pos_transaction_events', 'POS append-only event history exists');
@@ -68,6 +68,21 @@ select ok(has_function_privilege('service_role', 'public.mme_pos_import_settleme
 select ok(not has_function_privilege('authenticated', 'public.mme_pos_import_settlement_record(text,text,text,text,text,text,bigint,text,timestamp with time zone,text)', 'EXECUTE'), 'authenticated cannot import settlement records');
 select ok(has_function_privilege('service_role', 'public.mme_pos_reconcile_settlement_record(uuid)', 'EXECUTE'), 'service_role can reconcile settlement records');
 select ok(not has_function_privilege('authenticated', 'public.mme_pos_reconcile_settlement_record(uuid)', 'EXECUTE'), 'authenticated cannot reconcile settlement records');
+
+select has_table('public','mme_pos_refund_requests','Refund and void request ledger exists');
+select has_function('public','mme_pos_request_refund_or_void',array['uuid','uuid','text','bigint','text','text','text'],'Refund and void request function exists');
+select has_function('public','mme_pos_decide_refund_request',array['uuid','uuid','text','text'],'Second-person refund approval function exists');
+select has_function('public','mme_pos_claim_refund_dispatch',array['integer','integer'],'Leased refund dispatch claim function exists');
+select has_function('public','mme_pos_finish_refund_dispatch',array['uuid','uuid','text','text','text','text'],'Trusted refund outcome function exists');
+select ok((select c.relrowsecurity from pg_class c where c.oid='public.mme_pos_refund_requests'::regclass),'Refund request ledger has RLS enabled');
+select ok(has_function_privilege('service_role','public.mme_pos_request_refund_or_void(uuid,uuid,text,bigint,text,text,text)','EXECUTE'),'service_role can request refunds and voids');
+select ok(not has_function_privilege('authenticated','public.mme_pos_request_refund_or_void(uuid,uuid,text,bigint,text,text,text)','EXECUTE'),'authenticated cannot directly request refunds and voids');
+select ok(has_function_privilege('service_role','public.mme_pos_decide_refund_request(uuid,uuid,text,text)','EXECUTE'),'service_role can record refund approval decisions');
+select ok(not has_function_privilege('authenticated','public.mme_pos_decide_refund_request(uuid,uuid,text,text)','EXECUTE'),'authenticated cannot directly approve refunds');
+select ok(has_function_privilege('service_role','public.mme_pos_claim_refund_dispatch(integer,integer)','EXECUTE'),'service_role can claim refund dispatch work');
+select ok(not has_function_privilege('authenticated','public.mme_pos_claim_refund_dispatch(integer,integer)','EXECUTE'),'authenticated cannot claim refund dispatch work');
+select ok(has_function_privilege('service_role','public.mme_pos_finish_refund_dispatch(uuid,uuid,text,text,text,text)','EXECUTE'),'service_role can record trusted refund outcomes');
+select ok(not has_function_privilege('authenticated','public.mme_pos_finish_refund_dispatch(uuid,uuid,text,text,text,text)','EXECUTE'),'authenticated cannot record refund outcomes');
 
 select * from finish();
 rollback;
