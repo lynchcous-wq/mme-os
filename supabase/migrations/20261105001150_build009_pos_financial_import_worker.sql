@@ -64,7 +64,7 @@ revoke delete,truncate on public.mme_pos_financial_import_jobs,public.mme_pos_fi
 
 create or replace function public.mme_pos_authorize_financial_worker(p_worker_person_id uuid)
 returns boolean language plpgsql security definer set search_path=pg_catalog,public
-as $
+as $$
 declare v_status text; v_ceo uuid; v_frozen boolean; v_employment text;
 begin
  select lifecycle_status into v_status from public.mme_person_identities where person_id=p_worker_person_id;
@@ -77,7 +77,7 @@ begin
   and g.permission_key='pos.finance.report.import' and g.revoked_at is null
   and (g.expires_at is null or g.expires_at>now()) and g.scope='{}'::jsonb);
 end;
-$;
+$$;
 
 create or replace function public.mme_pos_enqueue_financial_import_jobs(
  p_actor_person_id uuid,p_limit integer default 100
@@ -180,7 +180,7 @@ $$;
 
 create or replace function public.mme_pos_expire_financial_import_jobs(p_worker_person_id uuid)
 returns integer language plpgsql security definer set search_path=pg_catalog,public
-as $
+as $$
 declare v_count integer;
 begin
  if not public.mme_pos_authorize_financial_worker(p_worker_person_id) then
@@ -193,7 +193,7 @@ begin
  get diagnostics v_count=row_count;
  return v_count;
 end;
-$;
+$$;
 
 create or replace function public.mme_pos_record_financial_webhook_event(
  p_connector_id uuid,p_provider_event_id text,p_event_type text,p_account_reference text,p_payload_sha256 text
