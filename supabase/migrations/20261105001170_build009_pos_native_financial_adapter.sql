@@ -7,14 +7,14 @@ alter table public.mme_store_locations
  add column if not exists business_timezone text not null default 'America/New_York';
 create or replace function public.mme_validate_store_business_timezone()
 returns trigger language plpgsql set search_path=pg_catalog,public
-as $
+as $$
 begin
  if not exists(select 1 from pg_timezone_names where name=new.business_timezone) then
   raise exception 'Store business timezone must be a valid IANA timezone' using errcode='22023';
  end if;
  return new;
 end;
-$;
+$$;
 drop trigger if exists mme_store_business_timezone_validate on public.mme_store_locations;
 create trigger mme_store_business_timezone_validate before insert or update of business_timezone
  on public.mme_store_locations for each row execute function public.mme_validate_store_business_timezone();
@@ -465,7 +465,7 @@ create or replace function public.mme_pos_build_financial_report(
  p_location_id uuid,p_actor_person_id uuid,p_period_start date,p_period_end date,
  p_currency text,p_business_timezone text
 ) returns uuid language plpgsql security definer set search_path=pg_catalog,public
-as $
+as $$
 declare v_run uuid; v_cutoff timestamptz:=clock_timestamp(); v_count bigint; v_status text;
 begin
  if not public.mme_pos_authorize_hardware_action(p_actor_person_id,'pos.finance.report.build',p_location_id) then
@@ -573,7 +573,7 @@ commit;
      and b.settled_at<((p_period_end+1)::timestamp at time zone p_business_timezone)),0)::integer;
  return v_run;
 end;
-$;
+$$;
 
 revoke all on function public.mme_pos_build_financial_report(uuid,uuid,date,date,text,text) from public,anon,authenticated;
 grant execute on function public.mme_pos_build_financial_report(uuid,uuid,date,date,text,text) to service_role;
