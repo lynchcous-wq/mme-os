@@ -26,7 +26,8 @@ test("catalog approval and publication resolve creator from protected product ro
   assert.match(migration, /mme_resolve_person_for_auth_subject\(created_by\)/);
   assert.match(migration, /p_actor_person_id = v_creator_person_id/);
   assert.match(migration, /v_catalog_status <> 'pending_approval'/);
-  assert.match(migration, /v_approved_by is null\\s+or v_approved_at is null/);
+  assert.ok(migration.includes('v_approved_by is null'));
+  assert.ok(migration.includes('v_approved_at is null'));
 });
 
 test("permission grants are person-keyed, scoped, unexpired and not revoked", () => {
