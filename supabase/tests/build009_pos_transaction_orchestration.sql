@@ -8,11 +8,11 @@ select has_table('public', 'mme_pos_outbox', 'POS transactional outbox exists');
 
 select has_function(
   'public', 'mme_person_authorize_pos_action',
-  array['uuid','text'],
+  array['uuid','text','uuid'],
   'Person-keyed POS permission gate exists'
 );
 select ok(has_function_privilege('service_role',
-  'public.mme_person_authorize_pos_action(uuid,text)', 'EXECUTE'),
+  'public.mme_person_authorize_pos_action(uuid,text,uuid)', 'EXECUTE'),
   'service_role can evaluate POS person authorization');
 
 select has_function(
