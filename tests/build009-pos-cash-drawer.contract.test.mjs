@@ -10,6 +10,7 @@ test("Cash drawer sessions enforce one open register and one associate till", ()
   assert.ok(sql.includes("mme_pos_one_open_drawer_per_associate"));
   assert.ok(sql.includes("assigned_person_id"));
   assert.ok(sql.includes("opening_float_minor"));
+  assert.ok(sql.includes("if p_opening_float_minor>0 then"));
 });
 
 test("Cash drawer actions require active person-keyed, location-scoped permissions", () => {
@@ -25,12 +26,14 @@ test("Cash-in and cash-out entries are reason-coded, idempotent and session-boun
   assert.ok(sql.includes("unique(drawer_session_id,idempotency_key)"));
   assert.ok(sql.includes("Only assigned associate can move till cash"));
   assert.ok(sql.includes("expected_cash_minor=expected_cash_minor+case"));
+  assert.ok(sql.includes("Cash out exceeds expected drawer balance"));
 });
 
 test("Cash adjustments require a second person and produce an auditable ledger movement", () => {
   assert.ok(sql.includes("mme_pos_request_cash_adjustment"));
   assert.ok(sql.includes("mme_pos_decide_cash_adjustment"));
   assert.ok(sql.includes("Requester cannot approve own cash adjustment"));
+  assert.ok(sql.includes("Approved cash adjustment exceeds expected drawer balance"));
   assert.ok(sql.includes("'adjustment:'||v_request.id::text"));
 });
 
@@ -45,6 +48,7 @@ test("Cash sales and refunds are tied to completed cash ledger outcomes exactly 
   assert.ok(linkage.includes("v_attempt.method<>'cash' or v_attempt.status<>'captured'"));
   assert.ok(linkage.includes("mme_pos_record_drawer_cash_refund"));
   assert.ok(linkage.includes("v_request.status<>'completed'"));
+  assert.ok(linkage.includes("Cash refund exceeds expected drawer balance"));
   assert.ok(linkage.includes("mme_pos_drawer_tender_sale_once"));
   assert.ok(linkage.includes("mme_pos_drawer_refund_once"));
 });
