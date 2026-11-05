@@ -62,6 +62,7 @@ set search_path = pg_catalog, public
 as $$
 declare
   v_id uuid;
+  v_existing public.mme_pos_provider_settlement_records%rowtype;
 begin
   if p_provider is null or length(btrim(p_provider)) = 0
      or p_provider_account_reference is null or length(btrim(p_provider_account_reference)) = 0
@@ -74,13 +75,21 @@ begin
     raise exception 'Invalid provider settlement record' using errcode = '22023';
   end if;
 
-  select id into v_id
+  select * into v_existing
     from public.mme_pos_provider_settlement_records
    where provider = p_provider
      and provider_account_reference = p_provider_account_reference
      and provider_record_reference = p_provider_record_reference;
   if found then
-    return query select v_id, true;
+    if v_existing.raw_record_digest <> p_raw_record_digest
+       or v_existing.provider_payment_reference is distinct from p_provider_payment_reference
+       or v_existing.provider_operation_reference is distinct from p_provider_operation_reference
+       or v_existing.record_type <> p_record_type
+       or v_existing.amount_minor <> p_amount_minor
+       or v_existing.currency <> p_currency then
+      raise exception 'Provider record reference reused with different settlement data' using errcode = '23505';
+    end if;
+    return query select v_existing.id, true;
     return;
   end if;
 
@@ -157,7 +166,6 @@ begin
          and x.provider_account_reference = v_record.provider_account_reference
          and x.provider_operation_reference is not distinct from v_record.provider_operation_reference
          and x.record_type = v_record.record_type
-         and x.reconciliation_status in ('matched','pending')
          and v_record.provider_operation_reference is not null
     ) then
       v_status := 'duplicate'; v_code := 'duplicate_provider_operation_record';
