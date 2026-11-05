@@ -91,3 +91,13 @@ jobs:
         run: supabase db reset
       - name: Run pgTAP database tests
         run: supabase test db
+      - name: Run live Supabase Auth and Build 004 authorization integration test
+        shell: bash
+        run: |
+          set -a
+          source <(supabase status -o env)
+          set +a
+          SUPABASE_URL="$API_URL" \
+          NEXT_PUBLIC_SUPABASE_ANON_KEY="$ANON_KEY" \
+          SUPABASE_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY" \
+          npm run test:build004-auth-live
