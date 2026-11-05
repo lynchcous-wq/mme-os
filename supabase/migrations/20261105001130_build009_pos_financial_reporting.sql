@@ -321,11 +321,11 @@ comment on table public.mme_pos_financial_report_summaries is 'Settlement, bank 
 -- Immutable source facts and report snapshots. Corrections require a new attributable source record and report run.
 create or replace function public.mme_pos_financial_reporting_prevent_mutation()
 returns trigger language plpgsql set search_path=pg_catalog,public
-as $
+as $$
 begin
  raise exception 'Financial reporting facts and snapshots are immutable; submit a correcting source record or create a new report run' using errcode='55000';
 end;
-$;
+$$;
 create trigger mme_pos_financial_facts_immutable before update or delete on public.mme_pos_financial_reporting_facts
  for each row execute function public.mme_pos_financial_reporting_prevent_mutation();
 create trigger mme_pos_financial_report_runs_immutable before update or delete on public.mme_pos_financial_report_runs
@@ -363,7 +363,7 @@ revoke update,delete,truncate on public.mme_pos_financial_forecast_runs,public.m
 create or replace function public.mme_pos_build_financial_forecast(
  p_location_id uuid,p_actor_person_id uuid,p_as_of_date date,p_currency text,p_business_timezone text
 ) returns uuid language plpgsql security definer set search_path=pg_catalog,public
-as $
+as $$
 declare v_run uuid; v_fact_count bigint;
 begin
  if not public.mme_pos_authorize_hardware_action(p_actor_person_id,'pos.finance.report.build',p_location_id) then
@@ -400,7 +400,7 @@ begin
  where w.observations>=4;
  return v_run;
 end;
-$;
+$$;
 revoke all on function public.mme_pos_build_financial_forecast(uuid,uuid,date,text,text) from public,anon,authenticated;
 grant execute on function public.mme_pos_build_financial_forecast(uuid,uuid,date,text,text) to service_role;
 comment on table public.mme_pos_financial_forecast_rows is 'Illustrative seven-day weekday baseline projections; not actual results, budgets or guaranteed forecasts.';

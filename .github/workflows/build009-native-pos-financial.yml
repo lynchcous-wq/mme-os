@@ -1,0 +1,36 @@
+name: Build 009.37 native POS financial adapter
+on:
+  push:
+    branches:
+      - implementation/build-009-37-native-pos-financial-adapter
+  pull_request:
+    branches:
+      - implementation/build-009-36-pos-financial-provider-sync
+jobs:
+  native-pos-financial:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - run: npm run lint
+      - run: npm run test:build009:native-financial
+      - run: npm run test:build009:financial-provider-sync
+      - uses: supabase/setup-cli@v1
+        id: supabase-cli
+        with:
+          version: 2.120.0
+      - name: Start isolated local Supabase stack
+        run: supabase start
+      - name: Apply all migrations to a fresh local database
+        run: supabase db reset --local
+      - name: Run PostgreSQL integration contract tests
+        run: supabase test db --local
+      - name: Lint migrated PostgreSQL schema
+        run: supabase db lint --local
+      - name: Stop isolated local Supabase stack
+        if: always() && steps.supabase-cli.outcome == 'success'
+        run: supabase stop --no-backup

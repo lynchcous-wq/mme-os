@@ -376,7 +376,7 @@ $$;
 create or replace function public.mme_pos_decide_deployment_recovery(
  p_recovery_id uuid,p_actor_person_id uuid,p_decision text
 ) returns text language plpgsql security definer set search_path=pg_catalog,public
-as $
+as $$
 declare v public.mme_pos_deployment_recovery%rowtype; v_location uuid;
 begin
  if p_recovery_id is null or p_actor_person_id is null or p_decision not in ('approve','reject') then
@@ -399,7 +399,7 @@ begin
   approved_by_person_id=case when p_decision='approve' then p_actor_person_id else null end where id=p_recovery_id;
  return case when p_decision='approve' then 'approved_pending_dispatch' else 'cancelled' end;
 end;
-$;
+$$;
 
 revoke all on function public.mme_pos_create_deployment_campaign(uuid,text,text,text,uuid,uuid,uuid[],numeric) from public,anon,authenticated;
 revoke all on function public.mme_pos_decide_deployment_approval(uuid,uuid,text) from public,anon,authenticated;

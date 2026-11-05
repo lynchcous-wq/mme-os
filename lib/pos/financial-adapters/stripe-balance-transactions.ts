@@ -38,9 +38,10 @@ export function normalizeStripeBalanceTransactions(input:{
    !/^[a-z]{3}$/.test(tx.currency)){ignored++;continue;}
   const category=tx.reporting_category||tx.type;
   let factType:string|null=null;
-  if(category==="charge"||category==="payment")factType="gross_sale";
-  else if(category==="refund")factType="refund";
-  else if(category==="dispute"||category==="dispute_reversal")factType="chargeback";
+  if(category==="charge"||category==="payment")factType="payment_capture";
+  else if(category==="refund")factType="payment_refund";
+  else if(category==="dispute")factType="chargeback";
+  else if(category==="dispute_reversal")factType="chargeback_reversal";
   if(!factType){ignored++;continue;}
   const occurred=new Date(tx.created*1000);
   const common={business_date:localBusinessDate(occurred,input.timezone),occurred_at:occurred.toISOString(),

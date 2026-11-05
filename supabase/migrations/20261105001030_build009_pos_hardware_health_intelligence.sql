@@ -145,7 +145,7 @@ create or replace function public.mme_pos_record_device_diagnostic(
  p_initiated_by text default 'health_engine'
 ) returns uuid
 language plpgsql security definer set search_path=pg_catalog,public
-as $
+as $$
 declare v_id uuid;
 begin
  if p_device_id is null
@@ -164,7 +164,7 @@ begin
  returning id into v_id;
  return v_id;
 end;
-$;
+$$;
 
 create or replace function public.mme_pos_calculate_device_health(p_device_id uuid,p_scored_at timestamptz default now())
 returns uuid
