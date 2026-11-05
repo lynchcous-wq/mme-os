@@ -22,9 +22,10 @@ The route contract tests verify Build 004 helper usage, database-derived scope, 
 
 ## CI validation record
 
-- CI run: `41962123496` (push) — success.
-- CI run: `41962118153` (pull request) — success.
-- Validated commit: `93243f1f6c7a90783ee938f5d39daaef2ff59255`.
+- CI run: `41962499123` (push) — success.
+- CI run: `41962505439` (pull request) — success.
+- Validated commit: `22c6169796bbc759d31ad30bc63a21fd703dc34d`.
+- Earlier corrected baseline runs `41962123496` and `41962118153` also passed on commit `93243f1f6c7a90783ee938f5d39daaef2ff59255`.
 - TypeScript check and optimized Next.js production build: passed.
 - Supabase Edge Function type-check: passed.
 - Complete migration chain applied to a fresh local Supabase database: passed.
