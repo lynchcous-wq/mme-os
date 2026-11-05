@@ -1,6 +1,6 @@
 -- Build 009 schema contract checks on disposable local Supabase CI.
 begin;
-select plan(117);
+select plan(133);
 
 select has_table('public', 'mme_pos_transactions', 'POS transaction envelope exists');
 select has_table('public', 'mme_pos_transaction_events', 'POS append-only event history exists');
@@ -150,6 +150,23 @@ select ok(has_function_privilege('service_role','public.mme_pos_ingest_drawer_ha
 select ok(not has_function_privilege('authenticated','public.mme_pos_ingest_drawer_hardware_event(uuid,text,text,timestamp with time zone,uuid,text)','EXECUTE'),'authenticated cannot ingest device events directly');
 select ok(has_function_privilege('service_role','public.mme_pos_update_drawer_it_incident(uuid,uuid,text,text)','EXECUTE'),'service_role can update IT incidents');
 select ok(not has_function_privilege('authenticated','public.mme_pos_update_drawer_it_incident(uuid,uuid,text,text)','EXECUTE'),'authenticated cannot update IT incidents directly');
+
+select has_table('public','mme_pos_hardware_provider_adapters','Hardware provider adapter metadata exists');
+select has_table('public','mme_pos_hardware_pairing_challenges','Hardware pairing challenge ledger exists');
+select has_function('public','mme_pos_create_hardware_pairing_challenge',array['uuid','uuid','text','timestamp with time zone'],'Hardware pairing challenge function exists');
+select has_function('public','mme_pos_complete_hardware_pairing',array['uuid','text','boolean'],'Hardware pairing completion function exists');
+select has_function('public','mme_pos_sweep_stale_hardware_devices',array['timestamp with time zone','integer'],'Hardware heartbeat sweep function exists');
+select has_function('public','mme_pos_record_hardware_heartbeat',array['uuid','text','timestamp with time zone'],'Hardware heartbeat ingestion function exists');
+select ok((select relrowsecurity from pg_class where oid='public.mme_pos_hardware_provider_adapters'::regclass),'Provider adapter metadata has RLS');
+select ok((select relrowsecurity from pg_class where oid='public.mme_pos_hardware_pairing_challenges'::regclass),'Pairing challenge ledger has RLS');
+select ok(has_function_privilege('service_role','public.mme_pos_create_hardware_pairing_challenge(uuid,uuid,text,timestamp with time zone)','EXECUTE'),'service_role can create pairing challenges');
+select ok(not has_function_privilege('authenticated','public.mme_pos_create_hardware_pairing_challenge(uuid,uuid,text,timestamp with time zone)','EXECUTE'),'authenticated cannot create pairing challenges');
+select ok(has_function_privilege('service_role','public.mme_pos_complete_hardware_pairing(uuid,text,boolean)','EXECUTE'),'service_role can complete pairing');
+select ok(not has_function_privilege('authenticated','public.mme_pos_complete_hardware_pairing(uuid,text,boolean)','EXECUTE'),'authenticated cannot complete pairing');
+select ok(has_function_privilege('service_role','public.mme_pos_sweep_stale_hardware_devices(timestamp with time zone,integer)','EXECUTE'),'service_role can run heartbeat sweep');
+select ok(not has_function_privilege('authenticated','public.mme_pos_sweep_stale_hardware_devices(timestamp with time zone,integer)','EXECUTE'),'authenticated cannot run heartbeat sweep');
+select ok(has_function_privilege('service_role','public.mme_pos_record_hardware_heartbeat(uuid,text,timestamp with time zone)','EXECUTE'),'service_role can ingest hardware heartbeat');
+select ok(not has_function_privilege('authenticated','public.mme_pos_record_hardware_heartbeat(uuid,text,timestamp with time zone)','EXECUTE'),'authenticated cannot ingest hardware heartbeat');
 
 select * from finish();
 rollback;
