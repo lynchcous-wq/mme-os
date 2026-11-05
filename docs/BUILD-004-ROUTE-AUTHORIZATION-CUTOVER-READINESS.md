@@ -1,7 +1,7 @@
 # Build 004 — Protected Route Authorization Cutover Readiness
 
 **Branch:** `integration/build004-identity-validation`  
-**Status:** Route-level Build 004 dual authorization is implemented for the four inventory-inspection endpoints below. The latest CI run passed all registered checks. The runtime route suites use mocked Supabase/Auth responses and are not equivalent to a live Supabase-backed authorization integration test. Legacy checks remain active; no permission migration or production cutover has occurred.
+**Status:** Route-level Build 004 dual authorization is implemented for the four inventory-inspection endpoints below. The latest PR and push CI workflows passed, including a live local-Supabase Auth/identity/RPC integration test. That live test covers identity creation/mapping, an unauthorized denial, and invalid-token rejection; it does not yet exercise all four HTTP routes or the full authorization matrix. Legacy checks remain active; no permission migration or production cutover has occurred.
 
 ## Route implementation status
 
@@ -22,21 +22,22 @@ The route contract tests verify Build 004 helper usage, database-derived scope, 
 
 ## CI validation record
 
-- CI run: `41962499123` (push) — success.
-- CI run: `41962505439` (pull request) — success.
-- Validated commit: `22c6169796bbc759d31ad30bc63a21fd703dc34d`.
+- CI run: [`41964457417`](https://github.com/lynchcous-wq/mme-os/actions/runs/41964457417) (push) — success.
+- CI run: [`41964461709`](https://github.com/lynchcous-wq/mme-os/actions/runs/41964461709) (pull request) — success.
+- Validated commit: `77a5c2945a08d154cd48a03713bdad2d3623ab33`.
 - Earlier corrected baseline runs `41962123496` and `41962118153` also passed on commit `93243f1f6c7a90783ee938f5d39daaef2ff59255`.
 - TypeScript check and optimized Next.js production build: passed.
 - Supabase Edge Function type-check: passed.
 - Complete migration chain applied to a fresh local Supabase database: passed.
 - Full pgTAP suite: **98 files, 1,025 tests; all successful**.
-- Registered route runtime and contract tests: passed in CI. These execute route handlers with mocked Auth/database/storage responses; they are not live Supabase-backed request tests.
+- Registered route runtime and contract tests: passed in CI. These execute route handlers with mocked Auth/database/storage responses.
+- Live local-Supabase integration test: passed. It creates a temporary Auth user, verifies one separately keyed `mme_person_identities` row, authenticates with the real access token, confirms the authorization RPC denies an employee-less identity (403), and confirms an invalid bearer token is rejected (401). The temporary user is retained only in the ephemeral CI database because the identity/audit foreign keys intentionally restrict deletion; the CI database is discarded after the job.
 - npm dependency audit: `found 0 vulnerabilities` on this validated commit.
 - The PostCSS override remains in `package.json`; the separate Next.js major-version upgrade was not applied.
 
 ## Remaining validation gates
 
-1. Add or run live Supabase-backed request-level tests for allow, deny, terminated employee, frozen access, CEO bypass, mismatched scope, malformed/missing record, and authorization-service outage for each route. Current route runtime tests mock Auth and database HTTP responses.
+1. Extend live Supabase-backed coverage from the identity/RPC smoke test to request-level behavior for all four routes: allow, deny, terminated employee, frozen access, CEO bypass, mismatched scope, malformed/missing record, and authorization-service outage. The current live test is not full route-level coverage.
 2. Confirm database RPC identity parameter contracts and transactional invariants for each route under the local Supabase test environment.
 3. Keep monitoring dependency advisories and assess the separate Next.js major-version upgrade on its own compatibility branch; do not run force upgrades.
 4. Review the combined diff and rollback plan.
