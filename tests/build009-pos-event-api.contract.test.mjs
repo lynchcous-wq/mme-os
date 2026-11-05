@@ -17,7 +17,7 @@ test("POS event API requires idempotency and optimistic revision", () => {
 });
 test("POS event API validates event types and hides upstream errors", () => {
   assert.match(eventRoute, /eventTypes/);
-  assert.doesNotMatch(eventRoute, /"tender_result"|"reconciliation_result"|"pricing_confirmed"|"finalization_confirmed"/);
+  assert.match(eventRoute, /const eventTypes = new Set\\(\\[\\s*"tender_submitted", "finalization_started", "cancelled"/);
   assert.match(eventRoute, /nextStatuses/);
   assert.match(eventRoute, /POS transaction event could not be recorded/);
   assert.doesNotMatch(eventRoute, /detail\s*\}/);
