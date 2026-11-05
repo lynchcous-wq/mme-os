@@ -1,6 +1,6 @@
 -- Build 009 schema contract checks on disposable local Supabase CI.
 begin;
-select plan(133);
+select plan(139);
 
 select has_table('public', 'mme_pos_transactions', 'POS transaction envelope exists');
 select has_table('public', 'mme_pos_transaction_events', 'POS append-only event history exists');
@@ -167,6 +167,13 @@ select ok(has_function_privilege('service_role','public.mme_pos_sweep_stale_hard
 select ok(not has_function_privilege('authenticated','public.mme_pos_sweep_stale_hardware_devices(timestamp with time zone,integer)','EXECUTE'),'authenticated cannot run heartbeat sweep');
 select ok(has_function_privilege('service_role','public.mme_pos_record_hardware_heartbeat(uuid,text,timestamp with time zone)','EXECUTE'),'service_role can ingest hardware heartbeat');
 select ok(not has_function_privilege('authenticated','public.mme_pos_record_hardware_heartbeat(uuid,text,timestamp with time zone)','EXECUTE'),'authenticated cannot ingest hardware heartbeat');
+
+select has_column('public','mme_pos_register_devices','paired_at','POS device pairing timestamp exists');
+select has_column('public','mme_pos_register_devices','last_heartbeat_at','POS device heartbeat timestamp exists');
+select has_column('public','mme_pos_register_devices','heartbeat_interval_seconds','POS heartbeat interval exists');
+select ok(to_regclass('public.mme_pos_hardware_active_incident_once') is not null,'Active hardware incidents are deduplicated');
+select ok(position('p_occurred_at<now()-interval ''5 minutes''' in pg_get_functiondef('public.mme_pos_record_hardware_heartbeat(uuid,text,timestamp with time zone)'::regprocedure))>0,'Heartbeat ingestion rejects stale events');
+select ok(position('p_occurred_at>now()+interval ''60 seconds''' in pg_get_functiondef('public.mme_pos_record_hardware_heartbeat(uuid,text,timestamp with time zone)'::regprocedure))>0,'Heartbeat ingestion rejects future-dated events');
 
 select * from finish();
 rollback;
