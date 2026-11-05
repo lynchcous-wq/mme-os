@@ -1,0 +1,21 @@
+name: Build 009.43 Stripe refund dispatch contracts
+on:
+  push:
+    branches:
+      - implementation/build-009-43-stripe-refund-dispatch-worker
+  pull_request:
+    branches:
+      - implementation/build-009-42-stripe-refund-adapter-webhook
+jobs:
+  stripe-refund-dispatch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - run: npm run lint
+      - run: npm run test:build009:stripe-refund-dispatch
+      - run: npm run test:build009:stripe-refunds
