@@ -226,6 +226,12 @@ begin
  select * into v_order from public.mme_orders where id=v_line.order_id for update;
  if not found or v_order.status not in ('paid','partially_refunded') or v_order.customer_identity_id<>p_customer_identity_id
   or v_order.paid_at is null then raise exception 'Customer is not eligible to return this paid order' using errcode='42501'; end if;
+ v_fp:=encode(digest(jsonb_build_object('order_line_id',p_order_line_id,'customer_identity_id',p_customer_identity_id,'reason',btrim(p_reason))::text,'sha256'),'hex');
+ select * into v_existing from public.mme_serialized_return_requests where idempotency_key=p_idempotency_key for update;
+ if found then
+  if v_existing.request_fingerprint<>v_fp then raise exception 'Return idempotency key reused with different request' using errcode='23505'; end if;
+  return v_existing.id;
+ end if;
  select * into v_policy from public.mme_serialized_return_policies
   where location_id=v_line.location_id and enabled=true;
  if not found then raise exception 'Serialized return policy is not configured for this store' using errcode='55000'; end if;
@@ -234,12 +240,6 @@ begin
  end if;
  select * into v_unit from public.mme_serialized_units where id=v_line.serialized_unit_id for update;
  if not found or v_unit.unit_status<>'sold' then raise exception 'Serialized unit is not currently eligible for return intake' using errcode='23514'; end if;
- v_fp:=encode(digest(jsonb_build_object('order_line_id',p_order_line_id,'customer_identity_id',p_customer_identity_id,'reason',btrim(p_reason))::text,'sha256'),'hex');
- select * into v_existing from public.mme_serialized_return_requests where idempotency_key=p_idempotency_key for update;
- if found then
-  if v_existing.request_fingerprint<>v_fp then raise exception 'Return idempotency key reused with different request' using errcode='23505'; end if;
-  return v_existing.id;
- end if;
  insert into public.mme_serialized_return_requests(idempotency_key,request_fingerprint,order_id,order_line_id,
   serialized_unit_id,location_id,customer_identity_id,reason)
  values(p_idempotency_key,v_fp,v_order.id,v_line.id,v_line.serialized_unit_id,v_line.location_id,p_customer_identity_id,btrim(p_reason))
@@ -314,7 +314,7 @@ begin
  if not found or v_order.status not in ('paid','partially_refunded') or v_order.customer_identity_id<>p_customer_identity_id
   or v_order.paid_at is null then raise exception 'Warranty registration requires the purchasing customer and paid order' using errcode='42501'; end if;
  select * into v_unit from public.mme_serialized_units where id=v_line.serialized_unit_id;
- if not found then raise exception 'Serialized unit not found' using errcode='P0002'; end if;
+ if not found or v_unit.unit_status<>'sold' then raise exception 'Serialized unit must be sold before warranty registration' using errcode='23514'; end if;
  if p_expires_at<=v_order.paid_at then raise exception 'Warranty expiry must follow the sale date' using errcode='22023'; end if;
  insert into public.mme_serialized_warranties(order_id,order_line_id,serialized_unit_id,customer_identity_id,
   provider_name,plan_name,terms_snapshot,provider_contract_reference,starts_at,expires_at)
