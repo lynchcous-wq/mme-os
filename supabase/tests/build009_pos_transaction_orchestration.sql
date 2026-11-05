@@ -1,6 +1,6 @@
 -- Build 009 schema contract checks on disposable local Supabase CI.
 begin;
-select plan(52);
+select plan(63);
 
 select has_table('public', 'mme_pos_transactions', 'POS transaction envelope exists');
 select has_table('public', 'mme_pos_transaction_events', 'POS append-only event history exists');
@@ -83,6 +83,17 @@ select ok(has_function_privilege('service_role','public.mme_pos_claim_refund_dis
 select ok(not has_function_privilege('authenticated','public.mme_pos_claim_refund_dispatch(integer,integer)','EXECUTE'),'authenticated cannot claim refund dispatch work');
 select ok(has_function_privilege('service_role','public.mme_pos_finish_refund_dispatch(uuid,uuid,text,text,text,text)','EXECUTE'),'service_role can record trusted refund outcomes');
 select ok(not has_function_privilege('authenticated','public.mme_pos_finish_refund_dispatch(uuid,uuid,text,text,text,text)','EXECUTE'),'authenticated cannot record refund outcomes');
+
+select has_table('public','mme_pos_provider_disputes','Provider dispute case ledger exists');
+select has_table('public','mme_pos_provider_dispute_events','Provider dispute event ledger exists');
+select has_function('public','mme_pos_reconcile_refund_settlement',array['uuid'],'Exact refund settlement reconciliation function exists');
+select has_function('public','mme_pos_import_dispute_event',array['text','text','text','text','text','text','bigint','text','text','timestamp with time zone','timestamp with time zone','text'],'Idempotent provider dispute event import function exists');
+select ok((select c.relrowsecurity from pg_class c where c.oid='public.mme_pos_provider_disputes'::regclass),'Provider dispute cases have RLS enabled');
+select ok((select c.relrowsecurity from pg_class c where c.oid='public.mme_pos_provider_dispute_events'::regclass),'Provider dispute events have RLS enabled');
+select ok(has_function_privilege('service_role','public.mme_pos_reconcile_refund_settlement(uuid)','EXECUTE'),'service_role can reconcile refund settlements');
+select ok(not has_function_privilege('authenticated','public.mme_pos_reconcile_refund_settlement(uuid)','EXECUTE'),'authenticated cannot reconcile refund settlements');
+select ok(has_function_privilege('service_role','public.mme_pos_import_dispute_event(text,text,text,text,text,text,bigint,text,text,timestamp with time zone,timestamp with time zone,text)','EXECUTE'),'service_role can import dispute events');
+select ok(not has_function_privilege('authenticated','public.mme_pos_import_dispute_event(text,text,text,text,text,text,bigint,text,text,timestamp with time zone,timestamp with time zone,text)','EXECUTE'),'authenticated cannot import dispute events');
 
 select * from finish();
 rollback;
