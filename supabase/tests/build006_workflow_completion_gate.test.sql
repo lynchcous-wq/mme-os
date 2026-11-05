@@ -16,7 +16,7 @@ select ok(exists (
 select ok(exists (
   select 1 from pg_proc p join pg_namespace n on n.oid=p.pronamespace
    where n.nspname='public' and p.proname='mme_finish_workflow_execution'
-     and pg_get_functiondef(p.oid) like '%execution_status=''running''%'
+     and pg_get_functiondef(p.oid) like '%execution_status<>''running''%'
 ),'completion still requires running execution');
 
 select ok(exists (
