@@ -22,9 +22,9 @@ as $$
     coalesce(s.employee_access_frozen, true),
     (s.freeze_reason is not null),
     (p.id is not null),
-    (l.employment_status = 'active'),
+    coalesce(l.employment_status = 'active', false),
     e.status,
-    (p.security_status = 'locked')
+    coalesce(p.security_status = 'locked', false)
   from public.employee_security_settings s
   left join public.mme_person_identities p on p.auth_user_id = s.ceo_user_id
   left join public.employee_relationships l on l.user_id = s.ceo_user_id
