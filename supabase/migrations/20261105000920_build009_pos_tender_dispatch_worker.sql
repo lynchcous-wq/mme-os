@@ -39,6 +39,14 @@ begin
     raise exception 'Invalid tender worker claim limits' using errcode = '22023';
   end if;
 
+  update public.mme_pos_tender_outbox
+     set delivery_status = 'dead_letter',
+         last_error_code = coalesce(last_error_code, 'max_attempts_exceeded'),
+         lease_token = null,
+         lease_expires_at = null
+   where attempts >= 8
+     and ((delivery_status = 'pending') or (delivery_status = 'processing' and lease_expires_at < now()));
+
   return query
   with candidates as (
     select o.id
@@ -93,7 +101,7 @@ declare
   v_reconciliation text;
 begin
   if p_outbox_id is null or p_lease_token is null
-     or p_outcome not in ('authorized','captured','declined','unknown_reconciliation')
+     or p_outcome is null or p_outcome not in ('authorized','captured','declined','unknown_reconciliation')
      or p_authorized_amount_minor is null or p_authorized_amount_minor < 0
      or p_captured_amount_minor is null or p_captured_amount_minor < 0 then
     raise exception 'Invalid tender dispatch outcome' using errcode = '22023';
@@ -103,7 +111,7 @@ begin
    where id = p_outbox_id for update;
   if not found or v_outbox.delivery_status <> 'processing'
      or v_outbox.lease_token is distinct from p_lease_token
-     or v_outbox.lease_expires_at < now() then
+     or v_outbox.lease_expires_at is null or v_outbox.lease_expires_at < now() then
     raise exception 'Tender dispatch lease is no longer valid' using errcode = '40001';
   end if;
 
@@ -112,7 +120,7 @@ begin
 
   if p_authorized_amount_minor > v_attempt.amount_minor
      or p_captured_amount_minor > v_attempt.amount_minor
-     or p_captured_amount_minor > p_authorized_amount_minor
+     or (v_attempt.operation <> 'sale' and p_captured_amount_minor > p_authorized_amount_minor)
      or (p_outcome = 'captured' and p_captured_amount_minor <= 0)
      or (p_outcome = 'authorized' and p_authorized_amount_minor <= 0)
      or (p_outcome in ('declined','unknown_reconciliation')
@@ -179,7 +187,7 @@ begin
    where id = p_outbox_id for update;
   if not found or v_outbox.delivery_status <> 'processing'
      or v_outbox.lease_token is distinct from p_lease_token
-     or v_outbox.lease_expires_at < now() then
+     or v_outbox.lease_expires_at is null or v_outbox.lease_expires_at < now() then
     raise exception 'Tender dispatch lease is no longer valid' using errcode = '40001';
   end if;
 
