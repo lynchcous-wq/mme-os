@@ -1,0 +1,23 @@
+name: Build 009.41 serialized return refund reconciliation
+on:
+  push:
+    branches:
+      - implementation/build-009-41-serialized-return-refund-reconciliation
+  pull_request:
+    branches:
+      - implementation/build-009-40-serialized-returns-warranty-lifecycle
+jobs:
+  serialized-return-refunds:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - run: npm run lint
+      - run: npm run test:build009:serialized-return-refunds
+      - run: npm run test:build009:serialized-returns-warranty
+      - run: npm run test:build009:serialized-checkout-cogs
+      - run: npm run test:build009:inventory-cogs
