@@ -13,7 +13,7 @@ language sql
 immutable
 set search_path = pg_catalog
 as $$
-  select case
+  select coalesce(case
     when p_grant_scope is null or jsonb_typeof(p_grant_scope) <> 'object'
       or p_requested_scope is null or jsonb_typeof(p_requested_scope) <> 'object'
       then false
@@ -72,8 +72,8 @@ as $$
       )
     when p_grant_scope = '{}'::jsonb then true
     else p_grant_scope @> p_requested_scope
-  end;
-$$;
+  end, false);
+$;
 
 revoke all on function public.mme_employee_permission_scope_allows(text,jsonb,jsonb)
   from public, anon, authenticated;
