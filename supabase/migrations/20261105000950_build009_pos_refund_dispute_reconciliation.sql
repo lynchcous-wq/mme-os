@@ -116,6 +116,7 @@ create table public.mme_pos_provider_disputes (
   status text not null default 'open'
     check(status in ('open','evidence_due','under_review','won','lost','reversed','manual_review')),
   latest_provider_event_reference text not null,
+  latest_provider_event_occurred_at timestamptz,
   raw_event_digest text not null check(raw_event_digest ~ '^[a-fA-F0-9]{64}$'),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
@@ -207,12 +208,12 @@ begin
     insert into public.mme_pos_provider_disputes(
       provider,provider_account_reference,provider_dispute_reference,
       provider_payment_reference,tender_attempt_id,amount_minor,currency,
-      reason_code,evidence_due_at,latest_provider_event_reference,raw_event_digest,status
+      reason_code,evidence_due_at,latest_provider_event_reference,latest_provider_event_occurred_at,raw_event_digest,status
     ) values (
       p_provider,p_provider_account_reference,p_provider_dispute_reference,
       p_provider_payment_reference,case when v_count=1 then v_attempt.id else null end,
       p_amount_minor,p_currency,p_reason_code,p_evidence_due_at,
-      p_provider_event_reference,p_event_digest,
+      p_provider_event_reference,p_occurred_at,p_event_digest,
       case when v_count=1 then 'open' else 'manual_review' end
     ) returning id into v_dispute_id;
   end if;
@@ -243,9 +244,23 @@ begin
   ) returning id into v_event_id;
 
   update public.mme_pos_provider_disputes
-     set status=case when status='manual_review' then 'manual_review' else v_status end,
-         latest_provider_event_reference=p_provider_event_reference,
-         raw_event_digest=p_event_digest,
+     set status=case
+           when status='manual_review' then 'manual_review'
+           when p_occurred_at is null or latest_provider_event_occurred_at is null
+             or p_occurred_at >= latest_provider_event_occurred_at then v_status
+           else status end,
+         latest_provider_event_reference=case
+           when p_occurred_at is null or latest_provider_event_occurred_at is null
+             or p_occurred_at >= latest_provider_event_occurred_at then p_provider_event_reference
+           else latest_provider_event_reference end,
+         latest_provider_event_occurred_at=case
+           when p_occurred_at is null or latest_provider_event_occurred_at is null
+             or p_occurred_at >= latest_provider_event_occurred_at then p_occurred_at
+           else latest_provider_event_occurred_at end,
+         raw_event_digest=case
+           when p_occurred_at is null or latest_provider_event_occurred_at is null
+             or p_occurred_at >= latest_provider_event_occurred_at then p_event_digest
+           else raw_event_digest end,
          evidence_due_at=coalesce(p_evidence_due_at,evidence_due_at),
          updated_at=now()
    where id=v_dispute_id;
