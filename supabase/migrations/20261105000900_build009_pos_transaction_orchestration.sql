@@ -73,6 +73,79 @@ revoke all on public.mme_pos_transactions, public.mme_pos_transaction_events, pu
 grant all on public.mme_pos_transactions, public.mme_pos_transaction_events, public.mme_pos_outbox
   to service_role;
 
+-- Build 004 person-keyed authorization gate for POS actions.
+-- Actor IDs are resolved by the trusted server from the authenticated subject;
+-- these SECURITY DEFINER functions are callable only by service_role.
+create or replace function public.mme_person_authorize_pos_action(
+  p_actor_person_id uuid,
+  p_permission_key text
+)
+returns boolean
+language plpgsql
+security definer
+set search_path = pg_catalog, public
+as $
+declare
+  v_person_status text;
+  v_ceo_person_id uuid;
+  v_frozen boolean;
+  v_employment_status text;
+begin
+  if p_actor_person_id is null
+     or p_permission_key not in (
+       'pos.transaction.create','pos.transaction.price','pos.tender.create',
+       'pos.tender.capture','pos.tender.reconcile','pos.transaction.finalize',
+       'pos.transaction.cancel'
+     ) then
+    return false;
+  end if;
+
+  select lifecycle_status into v_person_status
+    from public.mme_person_identities
+   where person_id = p_actor_person_id;
+
+  if not found or v_person_status is distinct from 'active' then
+    return false;
+  end if;
+
+  select ceo_person_id, employee_access_frozen
+    into v_ceo_person_id, v_frozen
+    from public.employee_security_settings
+   where singleton = true;
+
+  if not found or v_frozen is distinct from false or v_ceo_person_id is null then
+    return false;
+  end if;
+
+  select employment_status into v_employment_status
+    from public.employee_relationships
+   where person_id = p_actor_person_id;
+
+  if v_employment_status is distinct from 'active' then
+    return false;
+  end if;
+
+  if p_actor_person_id = v_ceo_person_id then
+    return true;
+  end if;
+
+  return exists (
+    select 1
+      from public.employee_permission_grants g
+     where g.person_id = p_actor_person_id
+       and g.permission_key = p_permission_key
+       and g.revoked_at is null
+       and (g.expires_at is null or g.expires_at > now())
+       and g.scope = '{}'::jsonb
+  );
+end;
+$;
+
+revoke all on function public.mme_person_authorize_pos_action(uuid,text)
+  from public, anon, authenticated;
+grant execute on function public.mme_person_authorize_pos_action(uuid,text)
+  to service_role;
+
 create or replace function public.mme_pos_create_transaction(
   p_order_id uuid,
   p_idempotency_key text,
@@ -93,6 +166,10 @@ begin
      or p_idempotency_key is null or length(btrim(p_idempotency_key)) < 8
      or length(p_idempotency_key) > 128 then
     raise exception 'Invalid POS transaction creation request' using errcode = '22023';
+  end if;
+
+  if not public.mme_person_authorize_pos_action(p_actor_person_id, 'pos.transaction.create') then
+    raise exception 'POS transaction creation permission denied' using errcode = '42501';
   end if;
 
   select * into v_order
@@ -163,6 +240,22 @@ begin
      or p_event_data is null or jsonb_typeof(p_event_data) <> 'object'
      or p_event_type is null or p_next_status is null then
     raise exception 'Invalid POS transaction event request' using errcode = '22023';
+  end if;
+
+  if not public.mme_person_authorize_pos_action(
+    p_actor_person_id,
+    case p_event_type
+      when 'pricing_confirmed' then 'pos.transaction.price'
+      when 'tender_submitted' then 'pos.tender.create'
+      when 'tender_result' then 'pos.tender.capture'
+      when 'reconciliation_result' then 'pos.tender.reconcile'
+      when 'finalization_started' then 'pos.transaction.finalize'
+      when 'finalization_confirmed' then 'pos.transaction.finalize'
+      when 'cancelled' then 'pos.transaction.cancel'
+      else null
+    end
+  ) then
+    raise exception 'POS transaction event permission denied' using errcode = '42501';
   end if;
 
   if p_event_data::text ~* '("?(pan|card_number|cvv|cvc|pin|track_data|raw_card_data)"?[[:space:]]*:)'
