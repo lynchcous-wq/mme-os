@@ -373,18 +373,46 @@ begin
 end;
 $$;
 
+create or replace function public.mme_pos_decide_deployment_recovery(
+ p_recovery_id uuid,p_actor_person_id uuid,p_decision text
+) returns text language plpgsql security definer set search_path=pg_catalog,public
+as $
+declare v public.mme_pos_deployment_recovery%rowtype; v_location uuid;
+begin
+ if p_recovery_id is null or p_actor_person_id is null or p_decision not in ('approve','reject') then
+  raise exception 'Invalid recovery decision' using errcode='22023';
+ end if;
+ select * into v from public.mme_pos_deployment_recovery where id=p_recovery_id for update;
+ if not found then raise exception 'Recovery request not found' using errcode='P0002'; end if;
+ select d.location_id into v_location from public.mme_pos_deployment_targets t
+  join public.mme_pos_register_devices d on d.id=t.device_id where t.id=v.target_id;
+ if not public.mme_pos_authorize_hardware_action(p_actor_person_id,'pos.hardware.approve',v_location) then
+  raise exception 'Recovery approval permission denied' using errcode='42501';
+ end if;
+ if v.status<>'pending_approval' or v.requested_by_person_id=p_actor_person_id then
+  raise exception 'Recovery must be pending and approved by a different person' using errcode='42501';
+ end if;
+ if v.recovery_type='vendor_rollback' and v.vendor_support_verified is distinct from true then
+  raise exception 'Vendor rollback support has not been verified' using errcode='55000';
+ end if;
+ update public.mme_pos_deployment_recovery set status=case when p_decision='approve' then 'approved' else 'cancelled' end,
+  approved_by_person_id=case when p_decision='approve' then p_actor_person_id else null end where id=p_recovery_id;
+ return case when p_decision='approve' then 'approved_pending_dispatch' else 'cancelled' end;
+end;
+$;
+
 revoke all on function public.mme_pos_create_deployment_campaign(uuid,text,text,text,uuid,uuid,uuid[],numeric) from public,anon,authenticated;
 revoke all on function public.mme_pos_decide_deployment_approval(uuid,uuid,text) from public,anon,authenticated;
 revoke all on function public.mme_pos_record_deployment_preflight(uuid,uuid,boolean,boolean,timestamptz) from public,anon,authenticated;
 revoke all on function public.mme_pos_authorize_deployment_dispatch(uuid) from public,anon,authenticated;
 revoke all on function public.mme_pos_pause_deployment_on_failure(uuid) from public,anon,authenticated;
-revoke all on function public.mme_pos_request_deployment_recovery(uuid,uuid,text,text,uuid,boolean) from public,anon,authenticated;
+revoke all on function public.mme_pos_request_deployment_recovery(uuid,uuid,text,text,uuid,boolean) from public,anon,authenticated;\nrevoke all on function public.mme_pos_decide_deployment_recovery(uuid,uuid,text) from public,anon,authenticated;
 grant execute on function public.mme_pos_create_deployment_campaign(uuid,text,text,text,uuid,uuid,uuid[],numeric) to service_role;
 grant execute on function public.mme_pos_decide_deployment_approval(uuid,uuid,text) to service_role;
 grant execute on function public.mme_pos_record_deployment_preflight(uuid,uuid,boolean,boolean,timestamptz) to service_role;
 grant execute on function public.mme_pos_authorize_deployment_dispatch(uuid) to service_role;
 grant execute on function public.mme_pos_pause_deployment_on_failure(uuid) to service_role;
-grant execute on function public.mme_pos_request_deployment_recovery(uuid,uuid,text,text,uuid,boolean) to service_role;
+grant execute on function public.mme_pos_request_deployment_recovery(uuid,uuid,text,text,uuid,boolean) to service_role;\ngrant execute on function public.mme_pos_decide_deployment_recovery(uuid,uuid,text) to service_role;
 
 comment on table public.mme_pos_firmware_packages is 'Firmware artifact metadata and integrity evidence; artifact bytes remain in controlled object storage.';
 comment on table public.mme_pos_deployment_campaigns is 'Approved staged rollout plans; campaign records alone do not contact hardware.';
