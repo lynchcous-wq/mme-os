@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useMemo, useState } from "react";
+import { useMemo, useState } from "react";\nimport type { FormEvent } from "react";
 import { Elements, PaymentElement, useElements, useStripe } from "@stripe/react-stripe-js";
 import { loadStripe } from "@stripe/stripe-js";
 import { useCart } from "@/components/cart-provider";
@@ -41,7 +41,7 @@ function PaymentPanel({ intent, onPaymentState }: {
       const result = await stripe.confirmPayment({
         elements,
         confirmParams: {
-          return_url: `${window.location.origin}/checkout?order_id=${encodeURIComponent(intent.order_id)}`,
+          return_url: `${window.location.origin}/checkout/complete?order_id=${encodeURIComponent(intent.order_id)}`,
         },
         redirect: "if_required",
       });
@@ -98,7 +98,7 @@ export default function CheckoutPage() {
     setCreating(true);
     setError("");
     setPaymentMessage("");
-    setIntent(null);
+    setIntent(null); setIdempotencyKey("");
 
     try {
       if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
@@ -200,30 +200,30 @@ export default function CheckoutPage() {
           <form className="checkout-details" onSubmit={createPaymentIntent}>
             <h2>Fulfillment</h2>
             <label>How would you like your order?
-              <select value={method} onChange={(event) => { setMethod(event.target.value as FulfillmentMethod); setIntent(null); setIdempotencyKey(""); }}>
+              <select value={method} onChange={(event) => { setMethod(event.target.value as FulfillmentMethod); setIntent(null); setIdempotencyKey(""); setIdempotencyKey(""); }}>
                 <option value="pickup">Local pickup</option>
                 <option value="shipping">Ship to me</option>
               </select>
             </label>
             {method === "pickup" && <label>Pickup location
-              <select required value={pickupLocation || (locations.length === 1 ? locations[0][0] : "")} onChange={(event) => { setPickupLocation(event.target.value); setIntent(null); setIdempotencyKey(""); }}>
+              <select required value={pickupLocation || (locations.length === 1 ? locations[0][0] : "")} onChange={(event) => { setPickupLocation(event.target.value); setIntent(null); setIdempotencyKey(""); setIdempotencyKey(""); }}>
                 <option value="" disabled>Select a pickup location</option>
                 {locations.map(([id, label]) => <option key={id} value={id}>{label}</option>)}
               </select>
             </label>}
             <h2>Contact details</h2>
-            <label>Full name<input required autoComplete="name" value={name} onChange={(event) => { setName(event.target.value); setIntent(null); }} /></label>
-            <label>Email<input required type="email" autoComplete="email" value={email} onChange={(event) => { setEmail(event.target.value); setIntent(null); }} /></label>
-            <label>Phone<input required type="tel" autoComplete="tel" value={phone} onChange={(event) => { setPhone(event.target.value); setIntent(null); }} /></label>
+            <label>Full name<input required autoComplete="name" value={name} onChange={(event) => { setName(event.target.value); setIntent(null); setIdempotencyKey(""); }} /></label>
+            <label>Email<input required type="email" autoComplete="email" value={email} onChange={(event) => { setEmail(event.target.value); setIntent(null); setIdempotencyKey(""); }} /></label>
+            <label>Phone<input required type="tel" autoComplete="tel" value={phone} onChange={(event) => { setPhone(event.target.value); setIntent(null); setIdempotencyKey(""); }} /></label>
             {method === "shipping" && <>
               <h2>Shipping address</h2>
-              <label>Address line 1<input required autoComplete="address-line1" value={address1} onChange={(event) => { setAddress1(event.target.value); setIntent(null); }} /></label>
-              <label>Address line 2 (optional)<input autoComplete="address-line2" value={address2} onChange={(event) => { setAddress2(event.target.value); setIntent(null); }} /></label>
+              <label>Address line 1<input required autoComplete="address-line1" value={address1} onChange={(event) => { setAddress1(event.target.value); setIntent(null); setIdempotencyKey(""); }} /></label>
+              <label>Address line 2 (optional)<input autoComplete="address-line2" value={address2} onChange={(event) => { setAddress2(event.target.value); setIntent(null); setIdempotencyKey(""); }} /></label>
               <div className="checkout-grid">
-                <label>City<input required autoComplete="address-level2" value={city} onChange={(event) => { setCity(event.target.value); setIntent(null); }} /></label>
-                <label>State<input required autoComplete="address-level1" value={region} onChange={(event) => { setRegion(event.target.value); setIntent(null); }} /></label>
-                <label>ZIP code<input required autoComplete="postal-code" value={postalCode} onChange={(event) => { setPostalCode(event.target.value); setIntent(null); }} /></label>
-                <label>Country<select value={country} onChange={(event) => { setCountry(event.target.value); setIntent(null); }}><option value="US">United States</option></select></label>
+                <label>City<input required autoComplete="address-level2" value={city} onChange={(event) => { setCity(event.target.value); setIntent(null); setIdempotencyKey(""); }} /></label>
+                <label>State<input required autoComplete="address-level1" value={region} onChange={(event) => { setRegion(event.target.value); setIntent(null); setIdempotencyKey(""); }} /></label>
+                <label>ZIP code<input required autoComplete="postal-code" value={postalCode} onChange={(event) => { setPostalCode(event.target.value); setIntent(null); setIdempotencyKey(""); }} /></label>
+                <label>Country<select value={country} onChange={(event) => { setCountry(event.target.value); setIntent(null); setIdempotencyKey(""); }}><option value="US">United States</option></select></label>
               </div>
             </>}
             {error && <p className="cart-error" role="alert">{error}</p>}
