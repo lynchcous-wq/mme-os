@@ -9,7 +9,7 @@ test("checkout-ready receiving links legacy serialized identities to actual-cost
  assert.match(bridge,/mme_receive_serialized_unit/);
  assert.match(bridge,/serial_digest=v_serial_digest/);
  assert.match(bridge,/legacy_serialized_unit_id=v_legacy_unit_id/);
- assert.match(bridge,/actor_person_id<>approved_by_identity_id|p_actor_person_id=p_approved_by_person_id/);
+ assert.match(costing,/p_actor_person_id=p_approved_by_person_id/);
 });
 test("serialized order line reservation also reserves exactly one matching cost unit",()=>{
  assert.match(bridge,/after insert on public\.mme_order_lines/);
