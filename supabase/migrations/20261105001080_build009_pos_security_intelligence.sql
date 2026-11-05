@@ -203,6 +203,39 @@ begin
 end;
 $$;
 
+-- Extend the existing shared authorization gate without weakening identity, employment,
+-- CEO freeze, expiry or location checks.
+create or replace function public.mme_pos_authorize_hardware_action(
+ p_actor_person_id uuid,p_permission_key text,p_location_id uuid
+) returns boolean
+language plpgsql security definer set search_path=pg_catalog,public
+as $
+declare v_person_status text; v_ceo_person_id uuid; v_frozen boolean; v_employment_status text;
+begin
+ if p_actor_person_id is null or p_location_id is null or p_permission_key not in (
+  'pos.hardware.register','pos.hardware.command','pos.hardware.incident.view',
+  'pos.hardware.incident.acknowledge','pos.hardware.incident.resolve',
+  'pos.hardware.admin','pos.hardware.assign','pos.hardware.configure',
+  'pos.hardware.approve','pos.hardware.retire','pos.network.view',
+  'pos.network.manage','pos.network.certificates','pos.network.incidents',
+  'pos.security.view','pos.security.manage','pos.security.investigate',
+  'pos.security.contain','pos.security.rules.manage'
+ ) then return false; end if;
+ select lifecycle_status into v_person_status from public.mme_person_identities where person_id=p_actor_person_id;
+ if not found or v_person_status is distinct from 'active' then return false; end if;
+ select ceo_person_id,employee_access_frozen into v_ceo_person_id,v_frozen
+  from public.employee_security_settings where singleton=true;
+ if not found or v_frozen is distinct from false or v_ceo_person_id is null then return false; end if;
+ select employment_status into v_employment_status from public.employee_relationships where person_id=p_actor_person_id;
+ if v_employment_status is distinct from 'active' then return false; end if;
+ if p_actor_person_id=v_ceo_person_id then return true; end if;
+ return exists(select 1 from public.employee_permission_grants g
+  where g.person_id=p_actor_person_id and g.permission_key=p_permission_key
+   and g.revoked_at is null and (g.expires_at is null or g.expires_at>now())
+   and (g.scope='{}'::jsonb or g.scope->>'location_id'=p_location_id::text));
+end;
+$;
+
 create or replace function public.mme_pos_ingest_security_event(
  p_event_key text,p_location_id uuid,p_device_id uuid,p_category text,p_event_type text,p_severity text,
  p_source_system text,p_observed_at timestamptz,p_external_event_reference text,p_correlation_reference text,
