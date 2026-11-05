@@ -175,8 +175,8 @@ begin
   insert into public.mme_pos_stripe_settlement_exception_cases(
    location_id,settlement_batch_id,refund_request_id,exception_type,severity,amount_minor,currency,
    discrepancy_code,description,due_at
-  ) values(v_batch.location_id,p_batch_id,v_match.refund_request_id,v_type,v_severity,
-   v_match.amount_minor,v_match.currency,v_code,v_description,now()+interval '4 hours')
+  ) values(v_batch.location_id,p_batch_id,v_refund.refund_request_id,v_type,v_severity,
+   v_refund.amount_minor,v_refund.currency,v_code,v_description,now()+interval '4 hours')
   on conflict do nothing returning id into v_case;
   if v_case is not null then
    insert into public.mme_pos_stripe_settlement_exception_events(case_id,actor_person_id,event_type,detail_code)
