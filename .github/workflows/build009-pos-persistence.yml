@@ -26,6 +26,7 @@ jobs:
       - run: npm run test:build009:events
       - run: npm run test:build009:tenders
       - run: npm run test:build009:tender-api
+      - run: npm run test:build009:worker
       - uses: supabase/setup-cli@v1
         id: supabase-cli
         with:
