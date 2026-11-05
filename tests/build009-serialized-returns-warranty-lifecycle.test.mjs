@@ -14,7 +14,8 @@ test("inspection intake removes available unit from aggregate stock and records 
  assert.match(migration,/prior_cost_status/);
  assert.match(migration,/movement_type,quantity_delta/);
  assert.match(migration,/adjustment_decrease/);
- assert.match(migration,/on_hand_quantity-v_before/);
+ assert.match(migration,/v_after:=v_before-1/);
+ assert.match(migration,/set on_hand_quantity=v_after/);
 });
 test("saleable disposition restores one costed unit and preserves sale-time COGS history",()=>{
  assert.match(disposition,/mme_serialized_unit_dispositions/);
