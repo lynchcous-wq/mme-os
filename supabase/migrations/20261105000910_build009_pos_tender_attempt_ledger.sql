@@ -94,6 +94,7 @@ declare
   v_id uuid;
 begin
   if p_transaction_id is null or p_actor_person_id is null
+     or p_method is null or p_operation is null
      or p_method not in ('card_present','card_not_present','cash','gift_card','financing','store_credit','other_approved')
      or p_operation not in ('authorize','capture','sale')
      or p_amount_minor is null or p_amount_minor <= 0
@@ -149,10 +150,12 @@ begin
     return;
   end if;
 
-  select coalesce(sum(amount_minor),0) into v_reserved
+  select coalesce(sum(case
+      when status in ('created','pending','authorized','unknown_reconciliation') then amount_minor
+      when status in ('partially_captured','captured') then captured_amount_minor
+      else 0 end),0) into v_reserved
     from public.mme_pos_tender_attempts
-   where transaction_id = p_transaction_id
-     and status in ('created','pending','authorized','partially_captured','captured','unknown_reconciliation');
+   where transaction_id = p_transaction_id;
 
   if v_reserved + p_amount_minor > v_tx.total_cents then
     raise exception 'Tender amount exceeds remaining transaction balance' using errcode = '23514';
