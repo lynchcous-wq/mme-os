@@ -17,7 +17,8 @@
     "test:identity-authorization-runtime": "node --test tests/identity-authorization-helper.runtime.test.mjs",
     "test:build004-inspection-resolve-runtime": "node --test tests/build004-inspection-resolve.runtime.test.mjs",
     "test:build004-inspection-submit-runtime": "node --test tests/build004-inspection-submit.runtime.test.mjs",
-    "test:build004-inspection-history-runtime": "node --test tests/build004-inspection-history.runtime.test.mjs"
+    "test:build004-inspection-history-runtime": "node --test tests/build004-inspection-history.runtime.test.mjs",
+    "test:build004-inspection-photos-runtime": "node --test tests/build004-inspection-photos.runtime.test.mjs"
   },
   "dependencies": {
     "next": "^15.2.4",
