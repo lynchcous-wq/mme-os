@@ -16,7 +16,9 @@ export async function fetchStripeBalanceTransactions(input:{
  const url=new URL("https://api.stripe.com/v1/balance_transactions");
  url.searchParams.set("limit","100");url.searchParams.set("created[gte]",String(input.createdGte));
  if(input.startingAfter)url.searchParams.set("starting_after",input.startingAfter);
- const requestHeaders:Record<string,string>={Authorization:"Bearer "+input.secretKey,Accept:"application/json"};\n if(input.accountId)requestHeaders["Stripe-Account"]=input.accountId;\n const response=await fetch(url,{headers:requestHeaders,cache:"no-store"});
+ const requestHeaders:Record<string,string>={Authorization:"Bearer "+input.secretKey,Accept:"application/json"};
+ if(input.accountId)requestHeaders["Stripe-Account"]=input.accountId;
+ const response=await fetch(url,{headers:requestHeaders,cache:"no-store"});
  if(!response.ok)throw new Error("STRIPE_BALANCE_TRANSACTION_FETCH_FAILED");
  const body=await response.json() as StripePage;
  if(!Array.isArray(body.data)||typeof body.has_more!=="boolean")throw new Error("STRIPE_BALANCE_TRANSACTION_RESPONSE_INVALID");
