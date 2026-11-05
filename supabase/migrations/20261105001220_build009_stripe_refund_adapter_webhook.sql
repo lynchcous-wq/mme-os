@@ -3,6 +3,42 @@
 -- records outcomes after signature verification and exact request matching.
 begin;
 
+
+-- Provider-scoped claim prevents the Stripe worker from leasing another
+-- processor's requests from the shared refund queue.
+create or replace function public.mme_pos_claim_stripe_refund_dispatch(
+ p_limit integer default 10,p_lease_seconds integer default 90
+) returns table(refund_request_id uuid,tender_attempt_id uuid,amount_minor bigint,
+ currency text,provider_account_reference text,provider_payment_reference text,
+ idempotency_key text,lease_token uuid)
+language plpgsql security definer set search_path=pg_catalog,public
+as $
+begin
+ if p_limit is null or p_limit<1 or p_limit>25 or p_lease_seconds is null
+  or p_lease_seconds<15 or p_lease_seconds>300 then
+  raise exception 'Invalid Stripe refund worker limits' using errcode='22023';
+ end if;
+ return query
+ with candidates as (
+  select r.id from public.mme_pos_refund_requests r
+  join public.mme_pos_tender_attempts a on a.id=r.tender_attempt_id
+  where a.provider='stripe' and r.request_type='refund' and r.attempts<8
+   and (r.status='approved' or (r.status='processing' and r.lease_expires_at<now()))
+  order by r.created_at for update of r skip locked limit p_limit
+ ), claimed as (
+  update public.mme_pos_refund_requests r set status='processing',
+   attempts=r.attempts+1,lease_token=gen_random_uuid(),
+   lease_expires_at=now()+make_interval(secs=>p_lease_seconds),updated_at=now()
+  from candidates c where r.id=c.id returning r.*
+ )
+ select c.id,a.id,c.amount_minor,c.currency,a.provider_account_reference,
+  a.provider_payment_reference,c.idempotency_key,c.lease_token
+ from claimed c join public.mme_pos_tender_attempts a on a.id=c.tender_attempt_id;
+end;
+$;
+revoke all on function public.mme_pos_claim_stripe_refund_dispatch(integer,integer) from public,anon,authenticated;
+grant execute on function public.mme_pos_claim_stripe_refund_dispatch(integer,integer) to service_role;
+
 create table public.mme_pos_stripe_refund_webhook_events (
  id uuid primary key default gen_random_uuid(),
  provider_event_id text not null unique,
