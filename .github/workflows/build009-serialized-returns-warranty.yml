@@ -1,0 +1,22 @@
+name: Build 009.40 serialized returns and warranty
+on:
+  push:
+    branches:
+      - implementation/build-009-40-serialized-returns-warranty-lifecycle
+  pull_request:
+    branches:
+      - implementation/build-009-39-serialized-checkout-cogs-bridge
+jobs:
+  serialized-returns-warranty:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - run: npm run lint
+      - run: npm run test:build009:serialized-returns-warranty
+      - run: npm run test:build009:serialized-checkout-cogs
+      - run: npm run test:build009:inventory-cogs
