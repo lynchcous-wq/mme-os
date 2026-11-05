@@ -4,7 +4,7 @@ on:
   pull_request:
     branches: [main, "foundation/**", "integration/**"]
   push:
-    branches: [main, "foundation/**"]
+    branches: [main, "foundation/**", "integration/**"]
 
 permissions:
   contents: read
