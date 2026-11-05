@@ -167,6 +167,9 @@ export async function POST(request: Request) {
     if (!authorization.ok) {
       return NextResponse.json({ error: authorization.error }, { status: authorization.status });
     }
+    if (authorization.actorUserId !== actorUserId) {
+      return NextResponse.json({ error: "Employee session changed during authorization." }, { status: 401 });
+    }
 
     const rpc = await supabaseRequest<string>(
       `${baseUrl}/rest/v1/rpc/mme_submit_serialized_inspection`,
