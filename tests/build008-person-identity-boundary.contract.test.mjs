@@ -8,7 +8,7 @@ test("Build 004 contract separates stable person identity from provider login su
   const contract = await read("docs/BUILD-004-PERSON-IDENTITY-INTEGRATION-CONTRACT.md");
   assert.match(contract, /stable MME `person_id`/);
   assert.match(contract, /Provider subject/);
-  assert.match(contract, /email is an attribute to verify/);
+  assert.match(contract, /Email is an attribute to verify/);
   assert.match(contract, /Employee relationship.*Customer relationship/s);
   assert.match(contract, /A provider subject maps to at most one person/);
 });
