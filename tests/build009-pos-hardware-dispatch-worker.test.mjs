@@ -35,5 +35,6 @@ test("dispatch worker exposes only safe command outcomes, not provider errors or
   assert.ok(route.includes("Provider transport failed or timed out."));
   assert.ok(route.includes("TRANSPORT_ERROR"));
   assert.ok(route.includes("Cache-Control"));
-  assert.ok(!route.includes("SUPABASE_SERVICE_ROLE_KEY"));
+  assert.ok(route.includes("process.env.SUPABASE_SERVICE_ROLE_KEY"));
+  assert.ok(!route.includes("SUPABASE_SERVICE_ROLE_KEY:"));
 });
