@@ -92,7 +92,7 @@ export default function FinancialReportsPage() {
     if (!payload?.report) return;
     const columns = ["business_date","gross_sales_minor","discounts_minor","refunds_minor","net_sales_minor","sales_tax_minor","cost_of_goods_sold_minor","gross_profit_minor","processor_fees_minor","chargebacks_minor","contribution_profit_minor"] as const;
     const lines = [columns.join(","), ...storeRows.map(row => columns.map(key => String(row[key] ?? "")).join(","))];
-    const blob = new Blob([lines.join("\\r\\n")], {type:"text/csv;charset=utf-8"});
+    const blob = new Blob([lines.join("\r\n")], {type:"text/csv;charset=utf-8"});
     const url = URL.createObjectURL(blob); const anchor = document.createElement("a");
     anchor.href = url; anchor.download = `mme-financial-report-${payload.report.period_start}-${payload.report.period_end}.csv`;
     document.body.appendChild(anchor); anchor.click(); anchor.remove(); URL.revokeObjectURL(url);
