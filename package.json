@@ -7,9 +7,19 @@
     "build": "next build",
     "start": "next start",
     "lint": "tsc --noEmit",
+    "test:identity-authorization": "node --test tests/identity-authorization-helper.contract.test.mjs",
     "test:workflow-cancellation": "node --test tests/workflow-cancellation-api.contract.test.mjs",
     "test:workflow-reconciliation-decision": "node --test tests/workflow-reconciliation-decision-api.contract.test.mjs",
-    "test:workflow-reconciliation-history": "node --test tests/workflow-reconciliation-history-api.contract.test.mjs"
+    "test:workflow-reconciliation-history": "node --test tests/workflow-reconciliation-history-api.contract.test.mjs",
+    "test:build004-inspection-submit": "node --test tests/build004-inspection-submit-route.contract.test.mjs",
+    "test:build004-inspection-resolve": "node --test tests/build004-inspection-resolve-route.contract.test.mjs",
+    "test:build004-inspection-history-photos": "node --test tests/build004-inspection-history-photos.contract.test.mjs",
+    "test:identity-authorization-runtime": "node --test tests/identity-authorization-helper.runtime.test.mjs",
+    "test:build004-inspection-resolve-runtime": "node --test tests/build004-inspection-resolve.runtime.test.mjs",
+    "test:build004-inspection-submit-runtime": "node --test tests/build004-inspection-submit.runtime.test.mjs",
+    "test:build004-inspection-history-runtime": "node --test tests/build004-inspection-history.runtime.test.mjs",
+    "test:build004-inspection-photos-runtime": "node --test tests/build004-inspection-photos.runtime.test.mjs",
+    "test:build004-auth-live": "node --test tests/build004-identity-authorization.live-supabase.test.mjs"
   },
   "dependencies": {
     "next": "^15.2.4",
@@ -22,5 +32,10 @@
     "@types/react": "^19.0.10",
     "@types/react-dom": "^19.0.4",
     "typescript": "^5.8.2"
+  },
+  "overrides": {
+    "next": {
+      "postcss": "^8.5.23"
+    }
   }
 }

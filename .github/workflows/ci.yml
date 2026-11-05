@@ -29,9 +29,22 @@ jobs:
 
       - name: Install dependencies
         run: npm install
+      - name: Report exact dependency advisories
+        run: |
+          npm audit --json > "$RUNNER_TEMP/npm-audit.json" || true
+          node -e 'const a=require(process.env.RUNNER_TEMP + "/npm-audit.json"); console.log(JSON.stringify(Object.entries(a.vulnerabilities || {}).map(([name, v]) => ({name, severity:v.severity, range:v.range, direct:v.isDirect, fixAvailable:v.fixAvailable})), null, 2))'
 
       - name: Run workflow cancellation and reconciliation contract tests
         run: |
+          npm run test:identity-authorization
+          npm run test:identity-authorization-runtime
+          npm run test:build004-inspection-submit
+          npm run test:build004-inspection-submit-runtime
+          npm run test:build004-inspection-resolve
+          npm run test:build004-inspection-resolve-runtime
+          npm run test:build004-inspection-history-photos
+          npm run test:build004-inspection-history-runtime
+          npm run test:build004-inspection-photos-runtime
           npm run test:workflow-cancellation
           npm run test:workflow-reconciliation-decision
           npm run test:workflow-reconciliation-history
@@ -65,16 +78,33 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+      - name: Set up Node.js for live authorization integration test
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Install project dependencies
+        run: npm install
       - name: Set up Supabase CLI
         uses: supabase/setup-cli@v1
         with:
           version: 3.0.0
       - name: Move local database ports away from runner defaults
         run: |
-          sed -i 's/^port = 54322$/port = 54332/; s/^shadow_port = 54320$/shadow_port = 54330/' supabase/config.toml
+          sed -i '/^\[db\]/,/^\[/{s/^port = 54322$/port = 54332/; s/^shadow_port = 54320$/shadow_port = 54330/;}' supabase/config.toml
+          sed -i '/^\[local_smtp\]/,/^\[/{s/^port = 54324$/port = 54334/;}' supabase/config.toml
       - name: Start local Supabase
         run: supabase start
       - name: Apply complete migration chain to an empty local database
         run: supabase db reset
       - name: Run pgTAP database tests
         run: supabase test db
+      - name: Run live Supabase Auth and Build 004 authorization integration test
+        shell: bash
+        run: |
+          set -a
+          source <(supabase status -o env)
+          set +a
+          SUPABASE_URL="$API_URL" \
+          NEXT_PUBLIC_SUPABASE_ANON_KEY="$ANON_KEY" \
+          SUPABASE_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY" \
+          npm run test:build004-auth-live

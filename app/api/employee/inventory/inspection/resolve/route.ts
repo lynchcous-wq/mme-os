@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { authenticateAndAuthorizeEmployee } from "@/lib/server/identity-authorization";
 
 export const dynamic = "force-dynamic";
 
@@ -78,6 +79,41 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Inspection is missing or no longer pending review." }, { status: 409 });
     }
 
+    // Resolve the Build 004 person identity from the validated Auth subject.
+    // Auth user IDs and person-identity IDs are separate identifiers.
+    const identityQuery = new URLSearchParams({
+      select: "id",
+      auth_user_id: `eq.${user.id}`,
+      limit: "2",
+    });
+    const identityResponse = await fetch(`${base}/rest/v1/mme_person_identities?${identityQuery.toString()}`, {
+      headers: { apikey: service, Authorization: `Bearer ${service}` },
+      cache: "no-store",
+    });
+    if (!identityResponse.ok) {
+      return NextResponse.json({ error: "Manager identity mapping could not be verified." }, { status: 503 });
+    }
+    const identities = await identityResponse.json() as Array<{ id: string }>;
+    if (identities.length !== 1) {
+      return NextResponse.json({ error: "Manager identity mapping could not be verified." }, { status: 403 });
+    }
+    const actorIdentityId = identities[0].id;
+
+    for (const actionKey of ["approve", "resolve"] as const) {
+      const authorization = await authenticateAndAuthorizeEmployee(
+        token,
+        "inventory.inspection",
+        actionKey,
+        { product_id: record.product_id, location_id: record.location_id },
+      );
+      if (!authorization.ok) {
+        return NextResponse.json({ error: authorization.error }, { status: authorization.status });
+      }
+      if (authorization.actorUserId !== user.id) {
+        return NextResponse.json({ error: "Manager session changed during authorization." }, { status: 401 });
+      }
+    }
+
     for (const permissionKey of ["inventory.inspection.approve", "inventory.inspection.resolve"]) {
       const permission = await rpc<boolean>(base, service, "mme_employee_authorize_inventory_action", {
         p_actor_user_id: user.id,
@@ -85,7 +121,10 @@ export async function POST(request: Request) {
         p_target_product_id: record.product_id,
         p_target_location_id: record.location_id,
       });
-      if (!permission.ok || permission.data !== true) {
+      if (!permission.ok) {
+        return NextResponse.json({ error: "Manager permission service is temporarily unavailable." }, { status: 503 });
+      }
+      if (permission.data !== true) {
         return NextResponse.json({ error: "Your account lacks the required manager approval and resolution permissions." }, { status: 403 });
       }
     }
@@ -98,8 +137,8 @@ export async function POST(request: Request) {
       p_resolution: input.resolution,
       p_condition_after: input.condition_after ?? null,
       p_reason: input.reason.trim(),
-      p_actor_identity_id: user.id,
-      p_approved_by_identity_id: user.id,
+      p_actor_identity_id: actorIdentityId,
+      p_approved_by_identity_id: actorIdentityId,
     });
     if (!resolved.ok) return NextResponse.json({ error: "The database rejected the inspection resolution." }, { status: 409 });
     if (resolved.data !== true) return NextResponse.json({ error: "Inspection was already resolved or its inventory state changed." }, { status: 409 });
