@@ -16,7 +16,7 @@ begin
   'pos.security.view','pos.security.manage','pos.security.investigate','pos.security.contain','pos.security.rules.manage',
   'pos.fraud.view','pos.fraud.review','pos.fraud.rules.manage','pos.fraud.case.manage','pos.fraud.override',
   'pos.disputes.view','pos.disputes.manage','pos.disputes.evidence','pos.disputes.approve','pos.disputes.submit',
-  'pos.settlement.view','pos.settlement.reconcile','pos.settlement.exception.manage','pos.settlement.approve','pos.settlement.bank.match'
+  'pos.settlement.view','pos.settlement.reconcile','pos.settlement.exception.manage','pos.settlement.approve','pos.settlement.bank.match','pos.settlement.cash.manage'
  ) then return false; end if;
  select lifecycle_status into v_person_status from public.mme_person_identities where person_id=p_actor_person_id;
  if not found or v_person_status is distinct from 'active' then return false; end if;
@@ -171,6 +171,34 @@ create table public.mme_pos_settlement_approvals (
  approved_at timestamptz not null default now()
 );
 
+create table public.mme_pos_cash_drawer_closings (
+ id uuid primary key default gen_random_uuid(),
+ location_id uuid not null,
+ register_reference text not null,
+ business_date date not null,
+ opening_float_minor bigint not null check(opening_float_minor>=0),
+ cash_sales_minor bigint not null check(cash_sales_minor>=0),
+ cash_refunds_minor bigint not null check(cash_refunds_minor>=0),
+ paid_out_minor bigint not null default 0 check(paid_out_minor>=0),
+ expected_cash_minor bigint generated always as (opening_float_minor+cash_sales_minor-cash_refunds_minor-paid_out_minor) stored,
+ counted_cash_minor bigint check(counted_cash_minor is null or counted_cash_minor>=0),
+ variance_minor bigint generated always as (counted_cash_minor-expected_cash_minor) stored,
+ counted_by_person_id uuid,
+ witnessed_by_person_id uuid,
+ status text not null default 'open' check(status in ('open','counted','variance_review','approved','closed')),
+ counted_at timestamptz,
+ approved_by_person_id uuid,
+ approved_at timestamptz,
+ notes text check(notes is null or length(notes)<=1500),
+ created_at timestamptz not null default now(),
+ unique(location_id,register_reference,business_date),
+ check(counted_by_person_id is null or witnessed_by_person_id is null or counted_by_person_id<>witnessed_by_person_id),
+ check(approved_by_person_id is null or approved_by_person_id<>counted_by_person_id)
+);
+alter table public.mme_pos_cash_drawer_closings enable row level security;
+revoke all on public.mme_pos_cash_drawer_closings from public,anon,authenticated;
+grant all on public.mme_pos_cash_drawer_closings to service_role;
+
 create table public.mme_pos_settlement_audit_events (
  id uuid primary key default gen_random_uuid(),
  location_id uuid not null,
@@ -192,19 +220,20 @@ alter table public.mme_pos_settlement_exceptions enable row level security;
 alter table public.mme_pos_bank_deposits enable row level security;
 alter table public.mme_pos_settlement_bank_matches enable row level security;
 alter table public.mme_pos_settlement_approvals enable row level security;
+alter table public.mme_pos_cash_drawer_closings enable row level security;
 alter table public.mme_pos_settlement_audit_events enable row level security;
 revoke all on public.mme_pos_settlement_batches,public.mme_pos_settlement_lines,public.mme_pos_reconciliation_runs,
  public.mme_pos_settlement_matches,public.mme_pos_settlement_exceptions,public.mme_pos_bank_deposits,
- public.mme_pos_settlement_bank_matches,public.mme_pos_settlement_approvals,public.mme_pos_settlement_audit_events from public,anon,authenticated;
+ public.mme_pos_settlement_bank_matches,public.mme_pos_settlement_approvals,public.mme_pos_settlement_audit_events,public.mme_pos_cash_drawer_closings from public,anon,authenticated;
 grant all on public.mme_pos_settlement_batches,public.mme_pos_settlement_lines,public.mme_pos_reconciliation_runs,
  public.mme_pos_settlement_matches,public.mme_pos_settlement_exceptions,public.mme_pos_bank_deposits,
- public.mme_pos_settlement_bank_matches,public.mme_pos_settlement_approvals,public.mme_pos_settlement_audit_events to service_role;
+ public.mme_pos_settlement_bank_matches,public.mme_pos_settlement_approvals,public.mme_pos_settlement_audit_events,public.mme_pos_cash_drawer_closings to service_role;
 
 create or replace function public.mme_pos_authorize_settlement_action(p_actor_person_id uuid,p_location_id uuid,p_permission text)
 returns boolean language plpgsql security definer set search_path=pg_catalog,public
 as $$
 begin
- if p_permission not in ('pos.settlement.view','pos.settlement.reconcile','pos.settlement.exception.manage','pos.settlement.approve','pos.settlement.bank.match') then return false; end if;
+ if p_permission not in ('pos.settlement.view','pos.settlement.reconcile','pos.settlement.exception.manage','pos.settlement.approve','pos.settlement.bank.match','pos.settlement.cash.manage') then return false; end if;
  return public.mme_pos_authorize_hardware_action(p_actor_person_id,p_permission,p_location_id);
 end;
 $$;
@@ -276,7 +305,7 @@ create or replace function public.mme_pos_complete_settlement_run(p_run_id uuid,
 returns boolean language plpgsql security definer set search_path=pg_catalog,public
 as $$
 declare v_run public.mme_pos_reconciliation_runs%rowtype; v_batch public.mme_pos_settlement_batches%rowtype;
- v_matched integer; v_exceptions integer; v_gross bigint; v_fees bigint; v_net bigint;
+ v_matched integer; v_exceptions integer; v_unmatched integer; v_open_exceptions integer; v_gross bigint; v_fees bigint; v_net bigint;
 begin
  select * into v_run from public.mme_pos_reconciliation_runs where id=p_run_id for update;
  if not found then raise exception 'Reconciliation run not found' using errcode='P0002'; end if;
@@ -287,6 +316,11 @@ begin
  if v_run.status<>'running' then raise exception 'Reconciliation run is not active' using errcode='55000'; end if;
  select count(*) filter(where match_status='matched'),count(*) filter(where match_status<>'matched')
  into v_matched,v_exceptions from public.mme_pos_settlement_matches where run_id=p_run_id;
+ select count(*) into v_unmatched from public.mme_pos_settlement_lines l where l.batch_id=v_batch.id
+  and not exists(select 1 from public.mme_pos_settlement_matches m where m.run_id=p_run_id and m.settlement_line_id=l.id);
+ select count(*) into v_open_exceptions from public.mme_pos_settlement_exceptions e where e.run_id=p_run_id
+  and e.status not in ('resolved','accepted_variance','false_positive');
+ v_exceptions:=v_exceptions+v_unmatched+v_open_exceptions;
  select coalesce(sum(amount_minor),0),coalesce(sum(fee_minor),0),coalesce(sum(net_amount_minor),0)
  into v_gross,v_fees,v_net from public.mme_pos_settlement_lines where batch_id=v_batch.id;
  update public.mme_pos_reconciliation_runs set status=case when v_exceptions=0 then 'completed' else 'completed_with_exceptions' end,
@@ -318,6 +352,9 @@ begin
  end if;
  insert into public.mme_pos_settlement_approvals(run_id,approver_person_id,decision,reason)
  values(p_run_id,p_approver_person_id,p_decision,p_reason) returning id into v_id;
+ if p_decision='approve' and (v_run.exception_count>0 or exists(select 1 from public.mme_pos_settlement_exceptions e where e.run_id=p_run_id and e.status not in ('resolved','accepted_variance','false_positive')) or exists(select 1 from public.mme_pos_settlement_matches m where m.run_id=p_run_id and m.match_status<>'matched')) then
+  raise exception 'Unmatched lines or unresolved exceptions prevent settlement approval' using errcode='55000';
+ end if;
  if p_decision='approve' then update public.mme_pos_reconciliation_runs set status='approved' where id=p_run_id; end if;
  insert into public.mme_pos_settlement_audit_events(location_id,actor_person_id,action,object_type,object_reference,reason)
  values(v_run.location_id,p_approver_person_id,'settlement_run_'||p_decision,'reconciliation_run',p_run_id::text,p_reason);
@@ -336,6 +373,7 @@ grant execute on function public.mme_pos_match_settlement_line(uuid,uuid,text,bi
 grant execute on function public.mme_pos_complete_settlement_run(uuid,uuid) to service_role;
 grant execute on function public.mme_pos_approve_settlement_run(uuid,uuid,text,text) to service_role;
 
+comment on table public.mme_pos_cash_drawer_closings is 'Register cash close, independent witness and variance review; drawer command state is reconciled separately.';
 comment on table public.mme_pos_settlement_batches is 'Imported processor payout/settlement batches. Amounts are integer minor units and net equals gross minus fees.';
 comment on table public.mme_pos_settlement_lines is 'Normalized provider balance lines. Store processor references, never raw payment credentials.';
 comment on table public.mme_pos_settlement_matches is 'Exact or authorized manual transaction matching. Does not mutate the POS or general ledger.';
