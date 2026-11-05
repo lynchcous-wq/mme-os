@@ -8,7 +8,7 @@ test("Provider refund settlement matching is exact and idempotently linked", () 
   assert.ok(sql.includes("mme_pos_reconcile_refund_settlement"));
   assert.ok(sql.includes("r.provider_refund_reference=v_record.provider_operation_reference"));
   assert.ok(sql.includes("v_request.amount_minor<>v_record.amount_minor"));
-  assert.ok(sql.includes("r.currency=v_record.currency"));
+  assert.ok(sql.includes("v_request.currency<>v_record.currency"));
   assert.ok(sql.includes("refund_already_linked_to_other_settlement"));
   assert.ok(sql.includes("mme_pos_refund_settlement_record_unique"));
 });
