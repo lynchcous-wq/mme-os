@@ -22,6 +22,7 @@ jobs:
       - run: npm run test:build009:payments
       - run: npm run test:build009:pos-state
       - run: npm run test:build009:persistence
+      - run: npm run test:build009:api
       - uses: supabase/setup-cli@v1
         id: supabase-cli
         with:
