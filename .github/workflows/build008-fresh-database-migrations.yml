@@ -1,0 +1,28 @@
+name: Build 008 Build 001 migration validation
+
+on:
+  push:
+    branches:
+      - work/build008-build001-catalog-routes
+  pull_request:
+    branches:
+      - build-008-inventory-foundation
+
+jobs:
+  fresh-database-migration-chain:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - name: Start isolated local Supabase stack
+        run: supabase start
+      - name: Apply the complete migration chain to a fresh local database
+        run: supabase db reset --local
+      - name: Check migrated database for SQL issues
+        run: supabase db lint --local
+      - name: Stop isolated local Supabase stack
+        if: always()
+        run: supabase stop --no-backup
