@@ -406,13 +406,15 @@ revoke all on function public.mme_pos_decide_deployment_approval(uuid,uuid,text)
 revoke all on function public.mme_pos_record_deployment_preflight(uuid,uuid,boolean,boolean,timestamptz) from public,anon,authenticated;
 revoke all on function public.mme_pos_authorize_deployment_dispatch(uuid) from public,anon,authenticated;
 revoke all on function public.mme_pos_pause_deployment_on_failure(uuid) from public,anon,authenticated;
-revoke all on function public.mme_pos_request_deployment_recovery(uuid,uuid,text,text,uuid,boolean) from public,anon,authenticated;\nrevoke all on function public.mme_pos_decide_deployment_recovery(uuid,uuid,text) from public,anon,authenticated;
+revoke all on function public.mme_pos_request_deployment_recovery(uuid,uuid,text,text,uuid,boolean) from public,anon,authenticated;
+revoke all on function public.mme_pos_decide_deployment_recovery(uuid,uuid,text) from public,anon,authenticated;
 grant execute on function public.mme_pos_create_deployment_campaign(uuid,text,text,text,uuid,uuid,uuid[],numeric) to service_role;
 grant execute on function public.mme_pos_decide_deployment_approval(uuid,uuid,text) to service_role;
 grant execute on function public.mme_pos_record_deployment_preflight(uuid,uuid,boolean,boolean,timestamptz) to service_role;
 grant execute on function public.mme_pos_authorize_deployment_dispatch(uuid) to service_role;
 grant execute on function public.mme_pos_pause_deployment_on_failure(uuid) to service_role;
-grant execute on function public.mme_pos_request_deployment_recovery(uuid,uuid,text,text,uuid,boolean) to service_role;\ngrant execute on function public.mme_pos_decide_deployment_recovery(uuid,uuid,text) to service_role;
+grant execute on function public.mme_pos_request_deployment_recovery(uuid,uuid,text,text,uuid,boolean) to service_role;
+grant execute on function public.mme_pos_decide_deployment_recovery(uuid,uuid,text) to service_role;
 
 comment on table public.mme_pos_firmware_packages is 'Firmware artifact metadata and integrity evidence; artifact bytes remain in controlled object storage.';
 comment on table public.mme_pos_deployment_campaigns is 'Approved staged rollout plans; campaign records alone do not contact hardware.';
