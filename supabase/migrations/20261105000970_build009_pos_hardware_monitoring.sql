@@ -58,6 +58,9 @@ create table public.mme_pos_drawer_hardware_commands (
 create index mme_pos_drawer_hw_commands_pending_idx
   on public.mme_pos_drawer_hardware_commands(status,requested_at)
   where status in ('requested','acknowledged');
+alter table public.mme_pos_drawer_hardware_events
+  add constraint mme_pos_drawer_hw_event_command_fk foreign key(command_attempt_id,device_id)
+  references public.mme_pos_drawer_hardware_commands(id,device_id) on delete restrict;
 
 create table public.mme_pos_drawer_it_incidents (
   id uuid primary key default gen_random_uuid(),
