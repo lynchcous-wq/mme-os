@@ -100,6 +100,7 @@ create table public.mme_pos_financial_closes (
  unique(location_id,business_period_start,business_period_end,currency)
 );
 create index mme_pos_financial_closes_queue_idx on public.mme_pos_financial_closes(location_id,status,business_period_end desc);
+create unique index mme_pos_settlement_bank_match_one_batch_idx on public.mme_pos_settlement_bank_matches(bank_deposit_id) where match_status='matched';
 
 create table public.mme_pos_financial_close_items (
  id uuid primary key default gen_random_uuid(),
@@ -150,8 +151,7 @@ begin
  if p_assignee_person_id is null or length(btrim(coalesce(p_reason,'')))<8 or v_exception.status in ('resolved','accepted_variance','false_positive') then
   raise exception 'Active exception, assignee and reason required' using errcode='22023';
  end if;
- if not exists(select 1 from public.mme_person_identities i join public.employee_relationships e using(person_id)
-  where i.person_id=p_assignee_person_id and i.lifecycle_status='active' and e.employment_status='active') then
+ if not public.mme_pos_authorize_hardware_action(p_assignee_person_id,'pos.settlement.exception.manage',v_exception.location_id) then
   raise exception 'Assignee must be an active employee' using errcode='42501';
  end if;
  update public.mme_pos_settlement_exceptions set assigned_to_person_id=p_assignee_person_id,
@@ -385,6 +385,8 @@ revoke all on function public.mme_pos_reopen_financial_close(uuid,uuid,text) fro
 alter table public.mme_pos_financial_closes
  add column unreconciled_batch_count integer not null default 0 check(unreconciled_batch_count>=0),
  add column business_timezone text not null default 'UTC';
+alter table public.mme_pos_cash_drawer_closings add constraint mme_pos_cash_close_variance_reason_check
+ check(status not in ('approved','closed') or variance_minor is null or variance_minor=0 or length(btrim(coalesce(notes,'')))>=8);
 
 -- Replace the initial close preparer with a timezone-aware version that checks every settled payout.
 create or replace function public.mme_pos_prepare_financial_close(
@@ -441,10 +443,13 @@ commit;
  left join public.mme_pos_settlement_bank_matches m on m.batch_id=b.id
  left join public.mme_pos_bank_deposits d on d.id=m.bank_deposit_id
  where b.location_id=p_location_id and b.currency=p_currency and b.settled_at>=p_period_start and b.settled_at<p_period_end;
+ v_unmatched_bank:=v_unmatched_bank+(select count(*) from public.mme_pos_bank_deposits d
+  where d.location_id=p_location_id and d.currency=p_currency and d.deposit_date between v_local_start and v_local_end
+   and not exists(select 1 from public.mme_pos_settlement_bank_matches m where m.bank_deposit_id=d.id and m.match_status='matched'));
  select count(*) into v_cash_unapproved from public.mme_pos_cash_drawer_closings c
  where c.location_id=p_location_id and c.business_date between v_local_start and v_local_end
   and c.status not in ('approved','closed');
- select count(*),coalesce(sum(variance_minor),0) into v_cash_variances,v_cash_variance
+ select count(*) filter(where status not in ('approved','closed')),coalesce(sum(variance_minor),0) into v_cash_variances,v_cash_variance
  from public.mme_pos_cash_drawer_closings c
  where c.location_id=p_location_id and c.business_date between v_local_start and v_local_end
   and c.variance_minor is not null and c.variance_minor<>0;
