@@ -20,7 +20,7 @@ test("actor identity is derived from the verified session, never the request bod
 
 test("request rejects non-JSON, oversized bodies, malformed UUIDs, and invalid reasons", () => {
   assert.match(route, /application\/json/);
-  assert.match(route, /byteLength\(raw\)\s*>\s*4000/);
+  assert.match(route, /TextEncoder\(\)\.encode\(raw\)\.byteLength\s*>\s*4000/);
   assert.match(route, /executionId.*valid UUID/s);
   assert.match(route, /reason\.trim\(\)\.length < 3/);
   assert.match(route, /reason\.trim\(\)\.length > 1000/);
