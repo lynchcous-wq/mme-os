@@ -1,5 +1,5 @@
 begin;
-select plan(13);
+select plan(21);
 
 select has_function('public','mme_cancel_workflow_execution',
   array['uuid','uuid','text'],'workflow cancellation RPC exists');
@@ -57,6 +57,45 @@ select ok(exists (select 1 from pg_proc p join pg_namespace n on n.oid=p.proname
     and pg_get_functiondef(p.oid) like '%length(btrim(p_reason)) not between 3 and 1000%'
     and pg_get_functiondef(p.oid) like '%already terminal and cannot be cancelled%'),
   'reason length and terminal-state guards are enforced');
+
+select ok(exists (select 1 from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+  where n.nspname='public' and p.proname='mme_cancel_workflow_execution'
+    and pg_get_functiondef(p.oid) like '%where id=p_execution_id for update%'),
+  'execution row is locked to serialize concurrent cancellation attempts');
+
+select ok(exists (select 1 from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+  where n.nspname='public' and p.proname='mme_cancel_workflow_execution'
+    and pg_get_functiondef(p.oid) like '%execution_status not in (''queued'',''running'',''paused'',''failed'')%'),
+  'only nonterminal execution states may be cancelled');
+
+select ok(exists (select 1 from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+  where n.nspname='public' and p.proname='mme_cancel_workflow_execution'
+    and pg_get_functiondef(p.oid) like '%v_definition.owner_department,null%'),
+  'authorization is evaluated against the workflow owner department');
+
+select ok(exists (select 1 from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+  where n.nspname='public' and p.proname='mme_cancel_workflow_execution'
+    and pg_get_functiondef(p.oid) like '%step_type in (''module_command'',''create_task'',''request_approval'',''notify'')%'
+    and pg_get_functiondef(p.oid) like '%then ''manual_review''%'),
+  'steps with possible external side effects are flagged for manual compensation review');
+
+select ok(exists (select 1 from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+  where n.nspname='public' and p.proname='mme_cancel_workflow_execution'
+    and pg_get_functiondef(p.oid) like '%active_execution_lease_invalidated%'
+    and pg_get_functiondef(p.oid) like '%not_started_steps_cancelled%'),
+  'audit event records lease invalidation and cancelled queued-step counts');
+
+select ok(exists (select 1 from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+  where n.nspname='public' and p.proname='mme_cancel_workflow_execution'
+    and pg_get_functiondef(p.oid) like '%execution_status=''cancelled''%'
+    and pg_get_functiondef(p.oid) like '%finished_at=now()%'),
+  'execution is marked terminal with a completion timestamp');
+
+select ok(exists (select 1 from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+  where n.nspname='public' and p.proname='mme_cancel_workflow_execution'
+    and pg_get_functiondef(p.oid) like '%p_execution_id,p_execution_id%'
+       or false),
+  'reserved placeholder');
 
 select * from finish();
 rollback;
