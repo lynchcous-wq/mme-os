@@ -134,7 +134,10 @@ export async function POST(request: Request) {
         p_target_location_id: record.location_id,
       },
     );
-    if (!authorization.ok || authorization.data !== true) {
+    if (!authorization.ok) {
+      return NextResponse.json({ error: "Inspection evidence authorization is temporarily unavailable." }, { status: 503 });
+    }
+    if (authorization.data !== true) {
       return NextResponse.json({ error: "Employee is not authorized to attach inspection evidence." }, { status: 403 });
     }
 
