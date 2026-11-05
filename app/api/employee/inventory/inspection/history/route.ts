@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { authenticateAndAuthorizeEmployee } from "@/lib/server/identity-authorization";
 
 export const dynamic = "force-dynamic";
 
@@ -16,9 +17,22 @@ export async function GET(request: Request) {
     if (!auth.ok) return NextResponse.json({ error: "Session expired." }, { status: 401 });
     const user = await auth.json() as { id?: string };
     if (!user.id) return NextResponse.json({ error: "Invalid employee identity." }, { status: 401 });
+    const identityQuery = new URLSearchParams({
+      select: "id",
+      auth_user_id: `eq.${user.id}`,
+      limit: "2",
+    });
+    const identityResponse = await fetch(`${base}/rest/v1/mme_person_identities?${identityQuery}`, {
+      headers: { apikey: service, Authorization: `Bearer ${service}` }, cache: "no-store",
+    });
+    if (!identityResponse.ok) return NextResponse.json({ error: "Employee identity could not be verified." }, { status: 503 });
+    const identities = await identityResponse.json() as Array<{ id: string }>;
+    if (identities.length !== 1) return NextResponse.json({ error: "Employee identity could not be verified." }, { status: 403 });
+    const actorIdentityId = identities[0].id;
+
     const query = new URLSearchParams({
       select: "id,inspection_reference,product_id,location_id,inspection_type,disposition,reason,findings,condition_before,condition_after,created_at,updated_at,resolved_at",
-      inspected_by_identity_id: `eq.${user.id}`,
+      inspected_by_identity_id: `eq.${actorIdentityId}`,
       order: "created_at.desc",
       limit: "50",
     });
@@ -29,6 +43,14 @@ export async function GET(request: Request) {
     const inspections = await response.json() as Array<Record<string, unknown>>;
     const authorized = [];
     for (const item of inspections) {
+      const build004 = await authenticateAndAuthorizeEmployee(
+        token,
+        "inventory.inspection",
+        "view",
+        { product_id: String(item.product_id), location_id: String(item.location_id) },
+      );
+      if (!build004.ok || build004.actorUserId !== user.id) continue;
+
       const permission = await fetch(`${base}/rest/v1/rpc/mme_employee_authorize_inventory_action`, {
         method: "POST",
         headers: { apikey: service, Authorization: `Bearer ${service}`, "Content-Type": "application/json" },
