@@ -40,7 +40,7 @@
     "test:build009:financial-dashboard": "node --test tests/build009-pos-financial-dashboard.test.mjs",
     "test:build009:financial-connectors": "node --test tests/build009-pos-financial-source-connectors.test.mjs",
     "test:build009:financial-worker": "node --test tests/build009-pos-financial-import-worker.test.mjs",
-    "test:build009:financial-provider-sync": "node --test tests/build009-pos-financial-provider-sync.test.mjs"
+    "test:build009:financial-provider-sync": "node --import tsx --test tests/build009-pos-financial-provider-sync.test.mjs"
   },
   "dependencies": {
     "next": "^15.2.4",
