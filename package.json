@@ -13,7 +13,8 @@
     "test:workflow-reconciliation-history": "node --test tests/workflow-reconciliation-history-api.contract.test.mjs",
     "test:build004-inspection-submit": "node --test tests/build004-inspection-submit-route.contract.test.mjs",
     "test:build004-inspection-resolve": "node --test tests/build004-inspection-resolve-route.contract.test.mjs",
-    "test:build004-inspection-history-photos": "node --test tests/build004-inspection-history-photos.contract.test.mjs"
+    "test:build004-inspection-history-photos": "node --test tests/build004-inspection-history-photos.contract.test.mjs",
+    "test:identity-authorization-runtime": "node --test tests/identity-authorization-helper.runtime.test.mjs"
   },
   "dependencies": {
     "next": "^15.2.4",
