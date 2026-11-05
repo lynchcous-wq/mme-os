@@ -1,0 +1,38 @@
+name: Build 009 POS persistence validation
+
+on:
+  push:
+    branches:
+      - implementation/build-009-enterprise-pos
+  pull_request:
+    branches:
+      - implementation/build-009-enterprise-pos
+
+jobs:
+  pos-persistence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - run: npm run lint
+      - run: npm run test:build009:payments
+      - run: npm run test:build009:pos-state
+      - run: npm run test:build009:persistence
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.120.0
+      - name: Start isolated local Supabase stack
+        run: supabase start
+      - name: Apply all migrations to a fresh local database
+        run: supabase db reset --local
+      - name: Run PostgreSQL integration contract tests
+        run: supabase test db --local
+      - name: Lint migrated PostgreSQL schema
+        run: supabase db lint --local
+      - name: Stop isolated local Supabase stack
+        if: always()
+        run: supabase stop --no-backup
