@@ -94,7 +94,7 @@ declare
 begin
   if p_actor_person_id is null or p_permission_key is null or p_order_id is null
      or p_permission_key not in (
-       'pos.transaction.create','pos.transaction.price','pos.tender.create',
+       'pos.transaction.create','pos.transaction.view','pos.transaction.price','pos.tender.create',
        'pos.tender.capture','pos.tender.reconcile','pos.transaction.finalize',
        'pos.transaction.cancel'
      ) then
@@ -173,6 +173,7 @@ declare
   v_order public.mme_orders%rowtype;
   v_existing_id uuid;
   v_existing_key text;
+  v_existing_order_id uuid;
   v_transaction_id uuid;
 begin
   if p_order_id is null or p_actor_person_id is null
@@ -201,14 +202,14 @@ begin
     raise exception 'Active inventory reservation required' using errcode = 'P0001';
   end if;
 
-  select id, idempotency_key into v_existing_id, v_existing_key
+  select id, idempotency_key, order_id into v_existing_id, v_existing_key, v_existing_order_id
     from public.mme_pos_transactions
    where order_id = p_order_id or idempotency_key = p_idempotency_key
    for update;
 
   if found then
-    if v_existing_key <> p_idempotency_key then
-      raise exception 'Order already has a POS transaction with another idempotency key' using errcode = '23505';
+    if v_existing_key <> p_idempotency_key or v_existing_order_id <> p_order_id then
+      raise exception 'POS idempotency key or order is already bound to another transaction' using errcode = '23505';
     end if;
     return v_existing_id;
   end if;
