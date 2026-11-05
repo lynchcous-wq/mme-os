@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {readFile} from "node:fs/promises";
 const migration=await readFile(new URL("../supabase/migrations/20261105001170_build009_pos_native_financial_adapter.sql",import.meta.url),"utf8");
+const tenderMigration=await readFile(new URL("../supabase/migrations/20261105000931_build009_pos_tender_reconciliation.sql",import.meta.url),"utf8");
 const posCreate=await readFile(new URL("../app/api/pos/transactions/route.ts",import.meta.url),"utf8");
 const registerRoute=await readFile(new URL("../app/api/pos/transactions/[transactionId]/register/route.ts",import.meta.url),"utf8");
 const exportRoute=await readFile(new URL("../app/api/cron/pos-native-financial-export/route.ts",import.meta.url),"utf8");
@@ -75,4 +76,9 @@ test("existing POS transaction creation API remains idempotent and authenticated
 test("financial schema retains chargeback reversals as offsets",()=>{
  assert.ok(migration.includes("chargeback_reversal"));
  assert.ok(migration.includes("fact_type in ('chargeback','chargeback_reversal')"));
+});
+
+test("all Build 009 migrations use distinct versions",()=>{
+ assert.match(tenderMigration,/Build 009/);
+ assert.ok(!tenderMigration.includes("native POS financial export"));
 });
