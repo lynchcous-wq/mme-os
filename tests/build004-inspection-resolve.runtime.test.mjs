@@ -20,7 +20,8 @@ const ENV = {
   SUPABASE_SERVICE_ROLE_KEY: "test-service",
 };
 
-function json(body, status = 200) {
+function json(body, init = {}) {
+  const status = typeof init === "number" ? init : (init?.status ?? 200);
   return new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
 }
 
