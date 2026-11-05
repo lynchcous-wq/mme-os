@@ -179,7 +179,7 @@ begin
   or length(btrim(coalesce(p_resolution_notes,'')))<12 or length(btrim(coalesce(p_evidence_reference,'')))<3 then
   raise exception 'Resolution code, explanation and evidence reference are required' using errcode='22023';
  end if;
- if p_accept_variance and not public.mme_pos_authorize_hardware_action(p_actor_person_id,'pos.settlement.adjustment.request',v_exception.location_id) then
+ if p_accept_variance and (p_actor_person_id=v_exception.assigned_to_person_id or not public.mme_pos_authorize_hardware_action(p_actor_person_id,'pos.settlement.approve',v_exception.location_id)) then
   raise exception 'Variance acceptance permission denied' using errcode='42501';
  end if;
  v_next_status:=case when p_accept_variance then 'accepted_variance' else 'resolved' end;
@@ -378,14 +378,137 @@ revoke all on function public.mme_pos_resolve_settlement_exception(uuid,uuid,tex
 revoke all on function public.mme_pos_request_settlement_adjustment(uuid,uuid,text,bigint,text,text,text) from public,anon,authenticated;
 revoke all on function public.mme_pos_review_settlement_adjustment(uuid,uuid,text,text) from public,anon,authenticated;
 revoke all on function public.mme_pos_prepare_financial_close(uuid,timestamptz,timestamptz,text,uuid) from public,anon,authenticated;
+revoke all on function public.mme_pos_prepare_financial_close(uuid,timestamptz,timestamptz,text,text,uuid) from public,anon,authenticated;
 revoke all on function public.mme_pos_approve_financial_close(uuid,uuid,text) from public,anon,authenticated;
 revoke all on function public.mme_pos_finalize_financial_close(uuid,uuid,text) from public,anon,authenticated;
 revoke all on function public.mme_pos_reopen_financial_close(uuid,uuid,text) from public,anon,authenticated;
+alter table public.mme_pos_financial_closes
+ add column unreconciled_batch_count integer not null default 0 check(unreconciled_batch_count>=0),
+ add column business_timezone text not null default 'UTC';
+
+-- Replace the initial close preparer with a timezone-aware version that checks every settled payout.
+create or replace function public.mme_pos_prepare_financial_close(
+ p_location_id uuid,p_period_start timestamptz,p_period_end timestamptz,p_currency text,
+ p_business_timezone text,p_actor_person_id uuid
+) returns uuid language plpgsql security definer set search_path=pg_catalog,public
+as $
+declare v_id uuid; v_batches integer; v_runs integer; v_unreconciled integer; v_exceptions integer;
+ v_unmatched_bank integer; v_cash_unapproved integer; v_cash_variances integer;
+ v_processor_net bigint; v_bank_net bigint; v_cash_variance bigint; v_status text;
+ v_local_start date; v_local_end date;
+begin
+ if not public.mme_pos_authorize_hardware_action(p_actor_person_id,'pos.settlement.close.prepare',p_location_id) then
+  raise exception 'Financial close preparation permission denied' using errcode='42501';
+ end if;
+ if p_period_end<=p_period_start or p_currency !~ '^[A-Z]{3}
 grant execute on function public.mme_pos_assign_settlement_exception(uuid,uuid,uuid,text) to service_role;
 grant execute on function public.mme_pos_resolve_settlement_exception(uuid,uuid,text,text,text,boolean) to service_role;
 grant execute on function public.mme_pos_request_settlement_adjustment(uuid,uuid,text,bigint,text,text,text) to service_role;
 grant execute on function public.mme_pos_review_settlement_adjustment(uuid,uuid,text,text) to service_role;
-grant execute on function public.mme_pos_prepare_financial_close(uuid,timestamptz,timestamptz,text,uuid) to service_role;
+revoke all on function public.mme_pos_prepare_financial_close(uuid,timestamptz,timestamptz,text,uuid) from service_role;
+grant execute on function public.mme_pos_prepare_financial_close(uuid,timestamptz,timestamptz,text,text,uuid) to service_role;
+grant execute on function public.mme_pos_approve_financial_close(uuid,uuid,text) to service_role;
+grant execute on function public.mme_pos_finalize_financial_close(uuid,uuid,text) to service_role;
+grant execute on function public.mme_pos_reopen_financial_close(uuid,uuid,text) to service_role;
+
+comment on table public.mme_pos_settlement_exception_history is 'Append-only exception assignment, investigation, resolution and evidence-reference history.';
+comment on table public.mme_pos_settlement_adjustment_requests is 'Proposed accounting adjustments; approval does not itself post money or mutate processor records.';
+comment on table public.mme_pos_financial_closes is 'Store- and currency-scoped financial close snapshots with independent approval and controlled reopen.';
+comment on table public.mme_pos_financial_close_items is 'Source snapshot references captured during financial close preparation.';
+commit;
+
+  or not exists(select 1 from pg_timezone_names where name=p_business_timezone) then
+  raise exception 'Invalid period, currency or IANA business timezone' using errcode='22023';
+ end if;
+ v_local_start:=(p_period_start at time zone p_business_timezone)::date;
+ v_local_end:=((p_period_end - interval '1 microsecond') at time zone p_business_timezone)::date;
+ select count(*),coalesce(sum(b.net_amount_minor),0) into v_batches,v_processor_net
+ from public.mme_pos_settlement_batches b
+ where b.location_id=p_location_id and b.currency=p_currency and b.settled_at>=p_period_start and b.settled_at<p_period_end;
+ select count(distinct r.batch_id) into v_runs
+ from public.mme_pos_reconciliation_runs r join public.mme_pos_settlement_batches b on b.id=r.batch_id
+ where r.location_id=p_location_id and r.status in ('approved','closed') and b.currency=p_currency
+  and b.settled_at>=p_period_start and b.settled_at<p_period_end;
+ v_unreconciled:=greatest(v_batches-v_runs,0);
+ select count(*) into v_exceptions
+ from public.mme_pos_settlement_exceptions e join public.mme_pos_settlement_batches b on b.id=e.batch_id
+ where e.location_id=p_location_id and b.currency=p_currency and b.settled_at>=p_period_start and b.settled_at<p_period_end
+  and e.status not in ('resolved','accepted_variance','false_positive');
+ select count(*) filter(where m.id is null or m.match_status<>'matched'),
+  coalesce(sum(d.amount_minor) filter(where m.match_status='matched'),0)
+ into v_unmatched_bank,v_bank_net
+ from public.mme_pos_settlement_batches b
+ left join public.mme_pos_settlement_bank_matches m on m.batch_id=b.id
+ left join public.mme_pos_bank_deposits d on d.id=m.bank_deposit_id
+ where b.location_id=p_location_id and b.currency=p_currency and b.settled_at>=p_period_start and b.settled_at<p_period_end;
+ select count(*) into v_cash_unapproved from public.mme_pos_cash_drawer_closings c
+ where c.location_id=p_location_id and c.business_date between v_local_start and v_local_end
+  and c.status not in ('approved','closed');
+ select count(*),coalesce(sum(variance_minor),0) into v_cash_variances,v_cash_variance
+ from public.mme_pos_cash_drawer_closings c
+ where c.location_id=p_location_id and c.business_date between v_local_start and v_local_end
+  and c.variance_minor is not null and c.variance_minor<>0;
+ v_status:=case when v_unreconciled=0 and v_exceptions=0 and v_unmatched_bank=0
+  and v_cash_unapproved=0 and v_cash_variances=0 and v_processor_net=v_bank_net
+  then 'ready_for_approval' else 'blocked' end;
+ insert into public.mme_pos_financial_closes(location_id,business_period_start,business_period_end,currency,status,
+  settlement_run_count,unreconciled_batch_count,open_exception_count,unmatched_bank_deposit_count,
+  unapproved_cash_close_count,cash_variance_count,processor_net_minor,bank_deposit_net_minor,cash_variance_minor,
+  prepared_by_person_id,business_timezone)
+ values(p_location_id,p_period_start,p_period_end,p_currency,v_status,v_runs,v_unreconciled,v_exceptions,
+  v_unmatched_bank,v_cash_unapproved,v_cash_variances,v_processor_net,v_bank_net,v_cash_variance,p_actor_person_id,p_business_timezone)
+ on conflict(location_id,business_period_start,business_period_end,currency) do update set
+  status=excluded.status,settlement_run_count=excluded.settlement_run_count,unreconciled_batch_count=excluded.unreconciled_batch_count,
+  open_exception_count=excluded.open_exception_count,unmatched_bank_deposit_count=excluded.unmatched_bank_deposit_count,
+  unapproved_cash_close_count=excluded.unapproved_cash_close_count,cash_variance_count=excluded.cash_variance_count,
+  processor_net_minor=excluded.processor_net_minor,bank_deposit_net_minor=excluded.bank_deposit_net_minor,
+  cash_variance_minor=excluded.cash_variance_minor,prepared_by_person_id=excluded.prepared_by_person_id,
+  business_timezone=excluded.business_timezone,approved_by_person_id=null,approved_at=null,closed_by_person_id=null,
+  closed_at=null,reopened_by_person_id=null,reopened_at=null,reopen_reason=null,updated_at=now()
+ where public.mme_pos_financial_closes.status not in ('approved','closed')
+ returning id into v_id;
+ if v_id is null then raise exception 'Financial close already approved or closed; reopen through authorized workflow before refresh' using errcode='55000'; end if;
+ insert into public.mme_pos_financial_close_items(close_id,item_type,source_reference,currency,amount_minor,source_status)
+ select v_id,'settlement_run',r.id::text,p_currency,b.net_amount_minor,r.status
+ from public.mme_pos_reconciliation_runs r join public.mme_pos_settlement_batches b on b.id=r.batch_id
+ where r.location_id=p_location_id and r.status in ('approved','closed') and b.currency=p_currency and b.settled_at>=p_period_start and b.settled_at<p_period_end
+ on conflict(close_id,item_type,source_reference) do update set amount_minor=excluded.amount_minor,source_status=excluded.source_status,captured_at=now();
+ insert into public.mme_pos_financial_close_items(close_id,item_type,source_reference,currency,amount_minor,source_status)
+ select v_id,'exception',e.id::text,p_currency,coalesce(e.amount_difference_minor,0),e.status
+ from public.mme_pos_settlement_exceptions e join public.mme_pos_settlement_batches b on b.id=e.batch_id
+ where e.location_id=p_location_id and b.currency=p_currency and b.settled_at>=p_period_start and b.settled_at<p_period_end
+ on conflict(close_id,item_type,source_reference) do update set amount_minor=excluded.amount_minor,source_status=excluded.source_status,captured_at=now();
+ insert into public.mme_pos_financial_close_items(close_id,item_type,source_reference,currency,amount_minor,source_status)
+ select v_id,'bank_deposit',d.id::text,d.currency,d.amount_minor,m.match_status
+ from public.mme_pos_settlement_bank_matches m join public.mme_pos_bank_deposits d on d.id=m.bank_deposit_id
+ join public.mme_pos_settlement_batches b on b.id=m.batch_id
+ where b.location_id=p_location_id and b.currency=p_currency and b.settled_at>=p_period_start and b.settled_at<p_period_end
+ on conflict(close_id,item_type,source_reference) do update set amount_minor=excluded.amount_minor,source_status=excluded.source_status,captured_at=now();
+ insert into public.mme_pos_financial_close_items(close_id,item_type,source_reference,currency,amount_minor,source_status)
+ select v_id,'cash_close',c.id::text,p_currency,coalesce(c.counted_cash_minor,0),c.status
+ from public.mme_pos_cash_drawer_closings c
+ where c.location_id=p_location_id and c.business_date between v_local_start and v_local_end
+ on conflict(close_id,item_type,source_reference) do update set amount_minor=excluded.amount_minor,source_status=excluded.source_status,captured_at=now();
+ insert into public.mme_pos_financial_close_events(close_id,location_id,actor_person_id,event_type,reason,metadata)
+ values(v_id,p_location_id,p_actor_person_id,case when v_status='blocked' then 'blocked' else 'prepared' end,
+  'Financial close snapshot prepared from approved processor and bank records.',
+  jsonb_build_object('settlement_batches',v_batches,'approved_runs',v_runs,'unreconciled_batches',v_unreconciled,
+   'open_exceptions',v_exceptions,'unmatched_bank_batches',v_unmatched_bank,'unapproved_cash_closes',v_cash_unapproved,
+   'cash_variances',v_cash_variances,'processor_net_minor',v_processor_net,'matched_bank_net_minor',v_bank_net,
+   'business_timezone',p_business_timezone));
+ return v_id;
+end;
+$;
+
+-- Variance acceptance is an approval decision, not merely an investigator action.
+revoke all on function public.mme_pos_prepare_financial_close(uuid,timestamptz,timestamptz,text,text,uuid) from public,anon,authenticated;
+grant execute on function public.mme_pos_prepare_financial_close(uuid,timestamptz,timestamptz,text,text,uuid) to service_role;
+grant execute on function public.mme_pos_assign_settlement_exception(uuid,uuid,uuid,text) to service_role;
+grant execute on function public.mme_pos_resolve_settlement_exception(uuid,uuid,text,text,text,boolean) to service_role;
+grant execute on function public.mme_pos_request_settlement_adjustment(uuid,uuid,text,bigint,text,text,text) to service_role;
+grant execute on function public.mme_pos_review_settlement_adjustment(uuid,uuid,text,text) to service_role;
+revoke all on function public.mme_pos_prepare_financial_close(uuid,timestamptz,timestamptz,text,uuid) from service_role;
+grant execute on function public.mme_pos_prepare_financial_close(uuid,timestamptz,timestamptz,text,text,uuid) to service_role;
 grant execute on function public.mme_pos_approve_financial_close(uuid,uuid,text) to service_role;
 grant execute on function public.mme_pos_finalize_financial_close(uuid,uuid,text) to service_role;
 grant execute on function public.mme_pos_reopen_financial_close(uuid,uuid,text) to service_role;
