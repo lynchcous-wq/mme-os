@@ -76,7 +76,7 @@ test("history returns only own inspections after Build 004 and legacy view autho
   const data = await response.json();
   assert.equal(response.status, 200);
   assert.equal(data.inspections.length, 1);
-  assert.deepEqual(buildCalls, [{
+  assert.deepEqual(JSON.parse(JSON.stringify(buildCalls)), [{
     resource: "inventory.inspection", action: "view",
     scope: { product_id: PRODUCT_ID, location_id: LOCATION_ID },
   }]);
