@@ -1,0 +1,19 @@
+name: Build 008 catalog route contract tests
+
+on:
+  push:
+    branches:
+      - work/build008-build001-catalog-routes
+  pull_request:
+    branches:
+      - build-008-inventory-foundation
+
+jobs:
+  catalog-route-contracts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm run test:build008:catalog-routes
