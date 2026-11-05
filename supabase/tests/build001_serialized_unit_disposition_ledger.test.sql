@@ -14,8 +14,10 @@ select has_function(
   'serialized inspection resolver exists'
 );
 
-select ok(
-  has_column('public','mme_serialized_units','unit_status','serialized unit status remains recorded in the unit ledger'),
+select has_column(
+  'public',
+  'mme_serialized_units',
+  'unit_status',
   'serialized unit status remains recorded in the unit ledger'
 );
 
