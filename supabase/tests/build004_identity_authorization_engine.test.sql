@@ -1,6 +1,6 @@
 begin;
 
-select plan(13);
+select plan(16);
 
 select has_function(
   'public',
@@ -35,6 +35,29 @@ from public.mme_person_identities
 where auth_user_id = 'b0040000-0000-4000-8000-000000000002'
 on conflict (employee_number) do nothing;
 
+insert into auth.users (id, email)
+values ('b0040000-0000-4000-8000-000000000003', 'build004-authz-ceo@example.invalid')
+on conflict (id) do nothing;
+
+insert into public.employee_relationships
+  (user_id, employment_status, employee_number)
+values
+  ('b0040000-0000-4000-8000-000000000003', 'active', 'B004-AUTHZ-CEO')
+on conflict (user_id) do nothing;
+
+insert into public.mme_employee_relationships
+  (person_identity_id, employee_number, status)
+select id, 'B004-AUTHZ-CEO', 'active'
+from public.mme_person_identities
+where auth_user_id = 'b0040000-0000-4000-8000-000000000003'
+on conflict (employee_number) do nothing;
+
+update public.employee_security_settings
+set ceo_user_id = 'b0040000-0000-4000-8000-000000000003',
+    employee_access_frozen = false,
+    freeze_reason = null
+where singleton = true;
+
 insert into public.mme_roles (role_key, display_name, active)
 values ('build004_authz_test', 'Build 004 Authorization Test', true)
 on conflict (role_key) do update set active = true;
@@ -51,7 +74,7 @@ on conflict do nothing;
 
 insert into public.mme_permission_grants
   (role_assignment_id, resource_key, action_key, scope, status)
-select ra.id, 'inventory', 'inspection.submit',
+select ra.id, 'inventory.inspection', 'submit',
        '{"store_id":"mableton"}'::jsonb, 'active'
 from public.mme_role_assignments ra
 join public.mme_employee_relationships e on e.id = ra.employee_relationship_id
@@ -62,14 +85,14 @@ where p.auth_user_id = 'b0040000-0000-4000-8000-000000000002'
   and not exists (
     select 1 from public.mme_permission_grants g
     where g.role_assignment_id = ra.id
-      and g.resource_key = 'inventory'
-      and g.action_key = 'inspection.submit'
+      and g.resource_key = 'inventory.inspection'
+      and g.action_key = 'submit'
   );
 
 select ok(
   public.mme_authorize_employee_action(
     'b0040000-0000-4000-8000-000000000002',
-    'inventory', 'inspection.submit', '{"store_id":"mableton"}'::jsonb
+    'inventory.inspection', 'submit', '{"store_id":"mableton"}'::jsonb
   ),
   'active employee with active role and matching grant is authorized'
 );
@@ -77,7 +100,7 @@ select ok(
 select ok(
   not public.mme_authorize_employee_action(
     'b0040000-0000-4000-8000-000000000002',
-    'inventory', 'inspection.delete', '{"store_id":"mableton"}'::jsonb
+    'inventory.inspection', 'delete', '{"store_id":"mableton"}'::jsonb
   ),
   'missing permission grant is denied'
 );
@@ -176,6 +199,40 @@ select ok(
     'inventory', 'inspection.submit', '[]'::jsonb
   ),
   'non-object requested scope is denied'
+);
+
+update public.employee_security_settings
+set employee_access_frozen = true,
+    freeze_reason = 'Build 004 authorization freeze test'
+where singleton = true;
+
+select ok(
+  not public.mme_authorize_employee_action(
+    'b0040000-0000-4000-8000-000000000002',
+    'inventory.inspection', 'submit', '{"store_id":"mableton"}'::jsonb
+  ),
+  'legacy global employee freeze denies non-CEO authorization'
+);
+
+update public.employee_security_settings
+set employee_access_frozen = false,
+    freeze_reason = null
+where singleton = true;
+
+select ok(
+  public.mme_authorize_employee_action(
+    'b0040000-0000-4000-8000-000000000003',
+    'inventory.inspection', 'approve', '{}'::jsonb
+  ),
+  'provisioned active CEO retains legacy inventory inspection bypass'
+);
+
+select ok(
+  not public.mme_authorize_employee_action(
+    'b0040000-0000-4000-8000-000000000003',
+    'crm', 'export', '{}'::jsonb
+  ),
+  'CEO bypass does not extend to new resource families without an explicit grant'
 );
 
 select * from finish();
