@@ -50,7 +50,8 @@
     "test:build009:stripe-refund-dispatch": "node --test tests/build009-stripe-refund-dispatch.test.mjs",
     "test:build009:stripe-refund-settlement": "node --test tests/build009-stripe-refund-settlement.test.mjs",
     "test:build009:stripe-settlement-exceptions": "node --test tests/build009-stripe-settlement-exceptions.test.mjs",
-    "test:build009:stripe-financial-intelligence": "node --test tests/build009-stripe-financial-intelligence.test.mjs"
+    "test:build009:stripe-financial-intelligence": "node --test tests/build009-stripe-financial-intelligence.test.mjs",
+    "test:build009:financial-command-center": "node --test tests/build009-financial-command-center.test.mjs"
   },
   "dependencies": {
     "next": "^15.2.4",
