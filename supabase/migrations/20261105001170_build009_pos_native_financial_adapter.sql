@@ -297,7 +297,7 @@ $$;
 
 create or replace function public.mme_pos_export_finalized_transaction_financial_facts(
  p_transaction_id uuid,p_lease_token uuid,p_worker_person_id uuid,p_business_timezone text
-) returns boolean language plpgsql security definer set search_path=pg_catalog,public
+) returns boolean language plpgsql security definer set search_path=pg_catalog,public,extensions
 as $$
 declare
  v_export public.mme_pos_financial_pos_exports%rowtype;
