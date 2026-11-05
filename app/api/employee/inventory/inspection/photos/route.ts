@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { authenticateAndAuthorizeEmployee } from "@/lib/server/identity-authorization";
 import { createHash, randomUUID } from "node:crypto";
 
 export const runtime = "nodejs";
@@ -85,10 +86,41 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Inspection record was not found." }, { status: 404 });
     }
 
-    // The submit API currently stores the validated Auth subject as the
-    // inspection identity UUID. Only the submitting employee may attach photos.
-    if (record.inspected_by_identity_id !== authUser.id || record.disposition !== "pending") {
+    // Resolve the separate Build 004 person identity from the validated Auth subject.
+    const identityQuery = new URLSearchParams({
+      select: "id",
+      auth_user_id: `eq.${authUser.id}`,
+      limit: "2",
+    });
+    const identityResponse = await jsonRequest<Array<{ id: string }>>(
+      `${baseUrl}/rest/v1/mme_person_identities?${identityQuery}`,
+      serviceKey,
+      "GET",
+    );
+    if (!identityResponse.ok) {
+      return NextResponse.json({ error: "Employee identity could not be verified." }, { status: 503 });
+    }
+    if (identityResponse.data?.length !== 1) {
+      return NextResponse.json({ error: "Employee identity could not be verified." }, { status: 403 });
+    }
+    const actorIdentityId = identityResponse.data[0].id;
+
+    // Only the submitting employee may attach photos while the inspection is pending.
+    if (record.inspected_by_identity_id !== actorIdentityId || record.disposition !== "pending") {
       return NextResponse.json({ error: "Only the submitting employee may attach photos while the inspection is pending." }, { status: 403 });
+    }
+
+    const build004 = await authenticateAndAuthorizeEmployee(
+      bearer,
+      "inventory.inspection",
+      "submit",
+      { product_id: record.product_id, location_id: record.location_id },
+    );
+    if (!build004.ok || build004.actorUserId !== authUser.id) {
+      return NextResponse.json(
+        { error: build004.ok ? "Employee session changed during authorization." : build004.error },
+        { status: build004.ok ? 401 : build004.status },
+      );
     }
 
     const authorization = await jsonRequest<boolean>(
@@ -146,7 +178,7 @@ export async function POST(request: Request) {
         p_file_size_bytes: file.size,
         p_sha256_hex: sha256,
         p_caption: caption.trim(),
-        p_actor_identity_id: authUser.id,
+        p_actor_identity_id: actorIdentityId,
       },
     );
 
