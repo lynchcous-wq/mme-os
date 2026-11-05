@@ -217,7 +217,9 @@ begin
  if p_approval_id is not null then
   select * into v_approval from public.mme_pos_device_admin_approvals where id=p_approval_id for update;
   if not found or v_approval.device_id<>p_device_id or v_approval.action_type<>'reassign'
-   or v_approval.status<>'approved' then raise exception 'Approved reassignment request is required' using errcode='42501'; end if;
+   or v_approval.status<>'approved' or v_approval.expires_at<=now()
+   or v_approval.payload->>'location_id' is distinct from p_location_id::text
+   or v_approval.payload->>'register_reference' is distinct from btrim(p_register_reference) then raise exception 'Approved reassignment request is required' using errcode='42501'; end if;
  else
   raise exception 'Approved reassignment request is required' using errcode='42501';
  end if;
@@ -257,8 +259,12 @@ begin
  if p_approval_id is null then raise exception 'Approved lifecycle request is required' using errcode='42501'; end if;
  select * into v_approval from public.mme_pos_device_admin_approvals where id=p_approval_id for update;
  if not found or v_approval.device_id<>p_device_id or v_approval.status<>'approved'
-  or v_approval.action_type not in ('activate','maintenance','retire','reactivate') then
-  raise exception 'Approved lifecycle request does not match this device' using errcode='42501';
+  or v_approval.expires_at<=now()
+  or (p_new_status='retired' and v_approval.action_type<>'retire')
+  or (p_new_status='maintenance' and v_approval.action_type<>'maintenance')
+  or (p_new_status='online' and v_approval.action_type not in ('activate','reactivate'))
+  or (p_new_status='pending' and v_approval.action_type<>'reactivate') then
+  raise exception 'Approved lifecycle request does not match this device transition' using errcode='42501';
  end if;
  if v_device.status='retired' and p_new_status<>'pending' then raise exception 'Retired device must be reactivated through pending enrollment' using errcode='55000'; end if;
  if v_device.status=p_new_status then raise exception 'Device already has requested lifecycle state' using errcode='23514'; end if;
