@@ -236,7 +236,8 @@ begin
   values(p_device_id,v_network.zone_id,case when p_authenticated is distinct from true then 'authentication_failure' else 'encryption_missing' end,
    'critical','POS network security requirement failed','Connection quarantined pending security review');
   update public.mme_pos_network_devices set security_posture='noncompliant',updated_at=now() where device_id=p_device_id;
-  raise exception 'Unauthenticated or unencrypted POS connection rejected' using errcode='42501';
+  -- Return NULL so the incident/event inserts commit; raising here would roll them back.
+  return null;
  end if;
  insert into public.mme_pos_network_connections(device_id,zone_id,connection_state,authenticated,encrypted,mutual_auth,
   protocol,peer_identity,latency_ms,packet_loss_percent,observed_at,source,safe_detail)
