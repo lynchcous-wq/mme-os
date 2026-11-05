@@ -101,7 +101,10 @@ test("live Supabase Auth identity mapping and Build 004 deny decision", async (t
         method: "DELETE",
         headers: adminHeaders,
       });
-      assert.ok(removed.ok, "integration fixture user is removed after the test");
+      if (!removed.ok) {
+        const detail = await removed.text();
+        throw new Error(`integration fixture cleanup failed (${removed.status}): ${detail}`);
+      }
     }
   }
 });
