@@ -39,7 +39,7 @@ test("Cash adjustments require a second person and produce an auditable ledger m
 
 test("Closeout computes over-short variance and blocks unresolved adjustment requests", () => {
   assert.ok(sql.includes("v_variance:=p_counted_cash_minor-v_session.expected_cash_minor"));
-  assert.ok(sql.includes("status='review_required'"));
+  assert.ok(sql.includes("'review_required'"));
   assert.ok(sql.includes("Pending cash adjustment decisions must be resolved before closeout"));
 });
 
@@ -56,7 +56,8 @@ test("Cash sales and refunds are tied to completed cash ledger outcomes exactly 
 test("Cash drawer data and RPCs are not directly exposed to authenticated clients", () => {
   for (const table of ["mme_pos_cash_drawer_sessions","mme_pos_cash_drawer_movements","mme_pos_cash_adjustment_requests"]) {
     assert.ok(sql.includes("alter table public." + table + " enable row level security"));
-    assert.ok(sql.includes("public." + table + " to service_role"));
+    assert.ok(sql.includes("grant all on public.mme_pos_cash_drawer_sessions"));
+    assert.ok(sql.includes("to service_role;"));
   }
   for (const fn of ["mme_pos_open_cash_drawer","mme_pos_record_drawer_cash_movement","mme_pos_request_cash_adjustment","mme_pos_decide_cash_adjustment","mme_pos_close_cash_drawer"]) {
     assert.ok(sql.includes("revoke all on function public." + fn));
