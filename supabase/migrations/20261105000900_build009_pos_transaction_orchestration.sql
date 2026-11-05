@@ -78,7 +78,8 @@ grant all on public.mme_pos_transactions, public.mme_pos_transaction_events, pub
 -- these SECURITY DEFINER functions are callable only by service_role.
 create or replace function public.mme_person_authorize_pos_action(
   p_actor_person_id uuid,
-  p_permission_key text
+  p_permission_key text,
+  p_order_id uuid
 )
 returns boolean
 language plpgsql
@@ -91,7 +92,7 @@ declare
   v_frozen boolean;
   v_employment_status text;
 begin
-  if p_actor_person_id is null or p_permission_key is null
+  if p_actor_person_id is null or p_permission_key is null or p_order_id is null
      or p_permission_key not in (
        'pos.transaction.create','pos.transaction.price','pos.tender.create',
        'pos.tender.capture','pos.tender.reconcile','pos.transaction.finalize',
@@ -136,12 +137,24 @@ begin
        and g.permission_key = p_permission_key
        and g.revoked_at is null
        and (g.expires_at is null or g.expires_at > now())
-       and g.scope = '{}'::jsonb
+       and exists (
+         select 1 from public.mme_inventory_reservations r
+         join public.mme_inventory_reservation_lines rl on rl.reservation_id = r.id
+         where r.order_id = p_order_id and r.status = 'active' and r.expires_at > now()
+       )
+       and not exists (
+         select 1
+           from public.mme_inventory_reservations r
+           join public.mme_inventory_reservation_lines rl on rl.reservation_id = r.id
+          where r.order_id = p_order_id and r.status = 'active' and r.expires_at > now()
+            and g.scope <> '{}'::jsonb
+            and g.scope ->> 'location_id' is distinct from rl.location_id::text
+       )
   );
 end;
 $;
 
-revoke all on function public.mme_person_authorize_pos_action(uuid,text)
+revoke all on function public.mme_person_authorize_pos_action(uuid,text,uuid)
   from public, anon, authenticated;
 grant execute on function public.mme_person_authorize_pos_action(uuid,text)
   to service_role;
@@ -168,7 +181,7 @@ begin
     raise exception 'Invalid POS transaction creation request' using errcode = '22023';
   end if;
 
-  if not public.mme_person_authorize_pos_action(p_actor_person_id, 'pos.transaction.create') then
+  if not public.mme_person_authorize_pos_action(p_actor_person_id, 'pos.transaction.create', p_order_id) then
     raise exception 'POS transaction creation permission denied' using errcode = '42501';
   end if;
 
@@ -242,21 +255,6 @@ begin
     raise exception 'Invalid POS transaction event request' using errcode = '22023';
   end if;
 
-  if not public.mme_person_authorize_pos_action(
-    p_actor_person_id,
-    case p_event_type
-      when 'pricing_confirmed' then 'pos.transaction.price'
-      when 'tender_submitted' then 'pos.tender.create'
-      when 'tender_result' then 'pos.tender.capture'
-      when 'reconciliation_result' then 'pos.tender.reconcile'
-      when 'finalization_started' then 'pos.transaction.finalize'
-      when 'finalization_confirmed' then 'pos.transaction.finalize'
-      when 'cancelled' then 'pos.transaction.cancel'
-      else null
-    end
-  ) then
-    raise exception 'POS transaction event permission denied' using errcode = '42501';
-  end if;
 
   if p_event_data::text ~* '("?(pan|card_number|cvv|cvc|pin|track_data|raw_card_data)"?[[:space:]]*:)'
   then
@@ -272,6 +270,21 @@ begin
     raise exception 'POS transaction not found' using errcode = 'P0002';
   end if;
 
+  if not public.mme_person_authorize_pos_action(
+    p_actor_person_id,
+    case p_event_type
+      when 'pricing_confirmed' then 'pos.transaction.price'
+      when 'tender_submitted' then 'pos.tender.create'
+      when 'tender_result' then 'pos.tender.capture'
+      when 'reconciliation_result' then 'pos.tender.reconcile'
+      when 'finalization_started' then 'pos.transaction.finalize'
+      when 'finalization_confirmed' then 'pos.transaction.finalize'
+      when 'cancelled' then 'pos.transaction.cancel'
+      else null
+    end
+  ), v_tx.order_id) then
+    raise exception 'POS transaction event permission denied' using errcode = '42501';
+  end if;
   v_fingerprint := md5(jsonb_build_object(
     'event_type', p_event_type,
     'next_status', p_next_status,
