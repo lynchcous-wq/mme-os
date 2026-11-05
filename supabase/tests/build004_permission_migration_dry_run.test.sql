@@ -34,6 +34,13 @@ values
   ('b0040000-0000-4000-8000-000000000005', 'active', 'B004-DRYRUN')
 on conflict (user_id) do nothing;
 
+insert into public.mme_employee_relationships
+  (person_identity_id, employee_number, status)
+select p.id, 'B004-DRYRUN', 'active'
+from public.mme_person_identities p
+where p.auth_user_id = 'b0040000-0000-4000-8000-000000000005'
+on conflict (person_identity_id) do nothing;
+
 insert into public.employee_permission_grants
   (employee_user_id, permission_key, scope, granted_by_user_id, reason)
 values
