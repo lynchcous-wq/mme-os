@@ -98,7 +98,7 @@ export default function CheckoutPage() {
     setCreating(true);
     setError("");
     setPaymentMessage("");
-    setIntent(null); setIdempotencyKey("");
+    setIntent(null);
 
     try {
       if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
@@ -200,13 +200,13 @@ export default function CheckoutPage() {
           <form className="checkout-details" onSubmit={createPaymentIntent}>
             <h2>Fulfillment</h2>
             <label>How would you like your order?
-              <select value={method} onChange={(event) => { setMethod(event.target.value as FulfillmentMethod); setIntent(null); setIdempotencyKey(""); setIdempotencyKey(""); }}>
+              <select value={method} onChange={(event) => { setMethod(event.target.value as FulfillmentMethod); setIntent(null); setIdempotencyKey(""); }}>
                 <option value="pickup">Local pickup</option>
                 <option value="shipping">Ship to me</option>
               </select>
             </label>
             {method === "pickup" && <label>Pickup location
-              <select required value={pickupLocation || (locations.length === 1 ? locations[0][0] : "")} onChange={(event) => { setPickupLocation(event.target.value); setIntent(null); setIdempotencyKey(""); setIdempotencyKey(""); }}>
+              <select required value={pickupLocation || (locations.length === 1 ? locations[0][0] : "")} onChange={(event) => { setPickupLocation(event.target.value); setIntent(null); setIdempotencyKey(""); }}>
                 <option value="" disabled>Select a pickup location</option>
                 {locations.map(([id, label]) => <option key={id} value={id}>{label}</option>)}
               </select>
