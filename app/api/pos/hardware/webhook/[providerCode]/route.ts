@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { normalizeProviderHardwareEvent, verifyHardwareWebhook } from "@/lib/pos/hardware-provider";
+import { normalizeProviderHardwareEvent, verifyHardwareWebhook, type PosHardwareEventType } from "@/lib/pos/hardware-provider";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -18,9 +18,9 @@ function secretForReference(reference: string): string | null {
   } catch { return null; }
 }
 
-function eventMapping(capabilities: unknown): Record<string, "heartbeat" | "device_online" | "device_offline" | "drawer_open_confirmed" | "drawer_open_failed" | "drawer_closed_confirmed" | "connection_lost" | "connection_restored"> {
+function eventMapping(capabilities: unknown): Record<string, PosHardwareEventType> {
   const allowed = new Set(["heartbeat","device_online","device_offline","drawer_open_confirmed","drawer_open_failed","drawer_closed_confirmed","connection_lost","connection_restored"]);
-  const result: Record<string, "heartbeat" | "device_online" | "device_offline" | "drawer_open_confirmed" | "drawer_open_failed" | "drawer_closed_confirmed" | "connection_lost" | "connection_restored"> = Object.create(null);
+  const result: Record<string, PosHardwareEventType> = Object.create(null);
   if (!Array.isArray(capabilities)) return result;
   for (const item of capabilities) {
     if (!item || typeof item !== "object" || Array.isArray(item)) continue;
@@ -28,7 +28,7 @@ function eventMapping(capabilities: unknown): Record<string, "heartbeat" | "devi
     if (record.type !== "event_mapping" || !record.mapping || typeof record.mapping !== "object" || Array.isArray(record.mapping)) continue;
     for (const [providerType, canonicalType] of Object.entries(record.mapping as Record<string, unknown>)) {
       if (providerType.length > 80 || typeof canonicalType !== "string" || !allowed.has(canonicalType)) continue;
-      result[providerType] = canonicalType as keyof typeof canonicalType extends never ? never : typeof result[string];
+      result[providerType] = canonicalType as PosHardwareEventType;
     }
   }
   return result;
@@ -40,6 +40,8 @@ export async function POST(request: Request, context: { params: Promise<{ provid
   const baseUrl = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!baseUrl || !serviceKey) return NextResponse.json({ error: "Hardware ingestion is not configured." }, { status: 503 });
+  const declaredLength = Number(request.headers.get("content-length") ?? "0");
+  if (Number.isFinite(declaredLength) && declaredLength > 64 * 1024) return NextResponse.json({ error: "Payload too large." }, { status: 413 });
   const rawBody = Buffer.from(await request.arrayBuffer());
   if (rawBody.byteLength > 64 * 1024) return NextResponse.json({ error: "Payload too large." }, { status: 413 });
   const adapterResponse = await fetch(baseUrl + "/rest/v1/mme_pos_hardware_provider_adapters?select=provider_code,webhook_secret_ref,capabilities,enabled&provider_code=eq." + encodeURIComponent(providerCode) + "&enabled=eq.true&limit=1", {
