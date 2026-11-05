@@ -29,6 +29,8 @@ declare v_connector public.mme_pos_financial_connectors%rowtype; v_run uuid;
 begin
  select * into v_connector from public.mme_pos_financial_connectors where id=p_connector_id for update;
  if not found then raise exception 'Financial connector not found' using errcode='P0002'; end if;
+ update public.mme_pos_financial_sync_runs set status='failed',safe_error_code='STALE_RUN_RECOVERED',finished_at=now()
+  where connector_id=p_connector_id and status='processing' and started_at<now()-interval '15 minutes';
  if v_connector.status<>'active' then raise exception 'Financial connector is not active' using errcode='55000'; end if;
  if not public.mme_pos_authorize_hardware_action(p_worker_person_id,'pos.finance.report.import',v_connector.location_id) then
   raise exception 'Financial sync permission denied' using errcode='42501';
