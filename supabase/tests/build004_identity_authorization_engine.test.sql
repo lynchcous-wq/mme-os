@@ -1,6 +1,6 @@
 begin;
 
-select plan(22);
+select plan(26);
 
 select has_function(
   'public',
@@ -372,6 +372,72 @@ select ok(
   ),
   'CEO catalog approval is denied without a valid product target'
 );
+
+select is(
+  public.mme_employee_authorize_inventory_action(
+    'b0040000-0000-4000-8000-000000000003',
+    'inventory.inspection.approve',
+    '11111111-1111-4111-8111-111111111111',
+    '22222222-2222-4222-8222-222222222222'
+  ),
+  public.mme_authorize_employee_action(
+    'b0040000-0000-4000-8000-000000000003',
+    'inventory.inspection', 'approve',
+    '{"product_id":"11111111-1111-4111-8111-111111111111","location_id":"22222222-2222-4222-8222-222222222222"}'::jsonb
+  ),
+  'legacy and Build 004 CEO inventory bypass decisions agree'
+);
+select is(
+  public.mme_employee_authorize_task_action(
+    'b0040000-0000-4000-8000-000000000003',
+    'tasks.manage', 'sales',
+    '22222222-2222-4222-8222-222222222222'
+  ),
+  public.mme_authorize_employee_action(
+    'b0040000-0000-4000-8000-000000000003',
+    'tasks', 'manage',
+    '{"department":"sales","location_id":"22222222-2222-4222-8222-222222222222"}'::jsonb
+  ),
+  'legacy and Build 004 CEO task bypass decisions agree'
+);
+
+update public.employee_security_settings
+set employee_access_frozen = true,
+    freeze_reason = 'Build 004 CEO freeze parity test'
+where singleton = true;
+
+select is(
+  public.mme_employee_authorize_inventory_action(
+    'b0040000-0000-4000-8000-000000000003',
+    'inventory.inspection.approve',
+    '11111111-1111-4111-8111-111111111111',
+    '22222222-2222-4222-8222-222222222222'
+  ),
+  public.mme_authorize_employee_action(
+    'b0040000-0000-4000-8000-000000000003',
+    'inventory.inspection', 'approve',
+    '{"product_id":"11111111-1111-4111-8111-111111111111","location_id":"22222222-2222-4222-8222-222222222222"}'::jsonb
+  ),
+  'legacy and Build 004 both deny CEO inventory bypass during global freeze'
+);
+select is(
+  public.mme_employee_authorize_task_action(
+    'b0040000-0000-4000-8000-000000000003',
+    'tasks.manage', 'sales',
+    '22222222-2222-4222-8222-222222222222'
+  ),
+  public.mme_authorize_employee_action(
+    'b0040000-0000-4000-8000-000000000003',
+    'tasks', 'manage',
+    '{"department":"sales","location_id":"22222222-2222-4222-8222-222222222222"}'::jsonb
+  ),
+  'legacy and Build 004 both deny CEO task bypass during global freeze'
+);
+
+update public.employee_security_settings
+set employee_access_frozen = false,
+    freeze_reason = null
+where singleton = true;
 
 select * from finish();
 rollback;
