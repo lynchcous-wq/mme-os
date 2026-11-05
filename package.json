@@ -12,10 +12,12 @@
     "test:workflow-reconciliation-history": "node --test tests/workflow-reconciliation-history-api.contract.test.mjs"
   },
   "dependencies": {
+    "@stripe/react-stripe-js": "^3.9.0",
+    "@stripe/stripe-js": "^7.9.0",
+    "@supabase/supabase-js": "^2.49.1",
     "next": "^15.2.4",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0",
-    "@supabase/supabase-js": "^2.49.1"
+    "react-dom": "^19.0.0"
   },
   "devDependencies": {
     "@types/node": "^22.13.10",
