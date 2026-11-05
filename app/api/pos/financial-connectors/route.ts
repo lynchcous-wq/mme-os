@@ -32,14 +32,15 @@ export async function GET(request:Request) {
  if(!await authorize(auth.context,"pos.finance.connector.view",locationId))
   return NextResponse.json({error:"Connector view permission denied."},{status:403,headers});
  try {
-  const [connectors,batches,quarantine,jobs,webhookEvents]=await Promise.all([
+  const [connectors,batches,quarantine,jobs,webhookEvents,syncRuns]=await Promise.all([
    read(auth.context,`mme_pos_financial_connectors?select=id,location_id,provider_key,source_system,display_name,status,external_account_reference,adapter_version,last_success_at,last_attempt_at,last_error_code,created_at&location_id=eq.${locationId}&order=created_at.desc`),
    read(auth.context,`mme_pos_financial_import_batches?select=id,connector_id,source_batch_reference,status,record_count,imported_count,duplicate_count,quarantined_count,staged_at,completed_at&location_id=eq.${locationId}&order=staged_at.desc&limit=100`),
    read(auth.context,`mme_pos_financial_import_quarantine?select=id,batch_id,import_row_id,error_code,safe_message,resolution_status,created_at&location_id=eq.${locationId}&resolution_status=eq.open&order=created_at.desc&limit=100`),
    read(auth.context,`mme_pos_financial_import_jobs?select=id,batch_id,connector_id,status,attempts,max_attempts,available_at,lease_expires_at,last_error_code,created_at,updated_at&location_id=eq.${locationId}&order=created_at.desc&limit=100`),
-   read(auth.context,`mme_pos_financial_webhook_events?select=id,provider_event_id,provider_event_type,status,received_at,processed_at,safe_error_code&location_id=eq.${locationId}&order=received_at.desc&limit=100`)
+   read(auth.context,`mme_pos_financial_webhook_events?select=id,provider_event_id,provider_event_type,status,received_at,processed_at,safe_error_code&location_id=eq.${locationId}&order=received_at.desc&limit=100`),
+   read(auth.context,`mme_pos_financial_sync_runs?select=id,connector_id,provider_key,status,records_fetched,records_staged,records_ignored,batches_staged,safe_error_code,started_at,finished_at&location_id=eq.${locationId}&order=started_at.desc&limit=100`)
   ]);
-  return NextResponse.json({connectors,batches,open_quarantine:quarantine,jobs,webhook_events:webhookEvents},{headers});
+  return NextResponse.json({connectors,batches,open_quarantine:quarantine,jobs,webhook_events:webhookEvents,sync_runs:syncRuns},{headers});
  } catch {return NextResponse.json({error:"Unable to load financial connector status."},{status:503,headers});}
 }
 export async function POST(request:Request) {
