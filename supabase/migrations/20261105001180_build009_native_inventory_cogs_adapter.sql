@@ -228,6 +228,10 @@ begin
   if not exists(select 1 from public.mme_store_locations where id=v_item.location_id and active=true) then
    raise exception 'Serialized receipt store is inactive' using errcode='P0002';
   end if;
+  if not public.mme_pos_authorize_hardware_action(p_actor_person_id,'pos.inventory.cost.manage',v_item.location_id)
+   or not public.mme_pos_authorize_hardware_action(p_approved_by_person_id,'pos.inventory.cost.approve',v_item.location_id) then
+   raise exception 'Serialized inventory receiving permission denied' using errcode='42501';
+  end if;
   insert into public.mme_inventory_balances(product_id,location_id,on_hand_quantity,reserved_quantity,average_unit_cost_cents)
    values(v_item.product_id,v_item.location_id,0,0,0) on conflict(product_id,location_id) do nothing;
   select id,on_hand_quantity,reserved_quantity,average_unit_cost_cents into v_balance
@@ -287,7 +291,7 @@ begin
  if not exists(select 1 from public.mme_products where id=v_line.product_id and serialized=true and active=true) then
   raise exception 'Order line product is not serialized' using errcode='23514';
  end if;
- if p_expires_at<=now() or p_expires_at>now()+interval '30 minutes' then
+ if p_expires_at is null or p_expires_at<=now() or p_expires_at>now()+interval '30 minutes' then
   raise exception 'Serial reservation expiry must be within 30 minutes' using errcode='22023';
  end if;
  select * into v_res from public.mme_inventory_reservations where order_id=v_order.id for update;
