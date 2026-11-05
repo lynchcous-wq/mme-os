@@ -461,6 +461,123 @@ exception when others then
 end;
 $$;
 
+create or replace function public.mme_pos_build_financial_report(
+ p_location_id uuid,p_actor_person_id uuid,p_period_start date,p_period_end date,
+ p_currency text,p_business_timezone text
+) returns uuid language plpgsql security definer set search_path=pg_catalog,public
+as $
+declare v_run uuid; v_cutoff timestamptz:=clock_timestamp(); v_count bigint; v_status text;
+begin
+ if not public.mme_pos_authorize_hardware_action(p_actor_person_id,'pos.finance.report.build',p_location_id) then
+  raise exception 'Financial report build permission denied' using errcode='42501';
+ end if;
+ if p_period_end<p_period_start or p_currency !~ '^[A-Z]{3}(uuid,uuid,text) from public,anon,authenticated;
+revoke all on function public.mme_pos_claim_native_financial_exports(uuid,integer,integer) from public,anon,authenticated;
+revoke all on function public.mme_pos_export_finalized_transaction_financial_facts(uuid,uuid,uuid,text) from public,anon,authenticated;
+grant execute on function public.mme_pos_set_transaction_register(uuid,uuid,text) to service_role;
+grant execute on function public.mme_pos_claim_native_financial_exports(uuid,integer,integer) to service_role;
+grant execute on function public.mme_pos_export_finalized_transaction_financial_facts(uuid,uuid,uuid,text) to service_role;
+
+comment on table public.mme_pos_financial_pos_exports is
+ 'Leased, idempotent export state for finalized native MME POS transactions. Re-scans completed transactions for later completed refunds.';
+comment on table public.mme_pos_financial_pos_export_events is
+ 'Append-only audit history for native POS financial export claims, results and failures.';
+comment on column public.mme_pos_financial_reporting_facts.fact_type is
+ 'Payment capture/refund facts are provider movement evidence only and are excluded from sales revenue aggregates.';
+
+commit;
+
+  or not exists(select 1 from pg_timezone_names where name=p_business_timezone) then
+  raise exception 'Invalid financial report period, currency or timezone' using errcode='22023';
+ end if;
+ select count(*) into v_count from public.mme_pos_financial_reporting_facts f
+ where f.location_id=p_location_id and f.currency=p_currency and f.business_date between p_period_start and p_period_end
+  and f.imported_at<=v_cutoff;
+ v_status:=case when exists(select 1 from public.mme_pos_financial_closes c
+  where c.location_id=p_location_id and c.currency=p_currency and c.status='closed'
+   and c.business_period_start<=((p_period_start::timestamp at time zone p_business_timezone))
+   and c.business_period_end>=(((p_period_end+1)::timestamp at time zone p_business_timezone)))
+  then 'closed_period_snapshot' else 'provisional' end;
+ insert into public.mme_pos_financial_report_runs(location_id,period_start,period_end,business_timezone,currency,status,
+  source_fact_count,built_by_person_id,built_at,source_cutoff_at)
+ values(p_location_id,p_period_start,p_period_end,p_business_timezone,p_currency,v_status,v_count,p_actor_person_id,v_cutoff,v_cutoff)
+ returning id into v_run;
+
+ insert into public.mme_pos_financial_report_rows(report_run_id,business_date,grouping_level,grouping_reference,currency,
+  gross_sales_minor,discounts_minor,refunds_minor,subscription_revenue_minor,net_sales_minor,sales_tax_minor,
+  cost_of_goods_sold_minor,processor_fees_minor,chargebacks_minor,cash_over_short_minor,inventory_adjustments_minor,
+  gross_profit_minor,contribution_profit_minor,source_fact_count)
+ with grouped as (
+  select f.business_date,
+   case when grouping(f.product_category)=0 then 'product_category'
+        when grouping(f.register_reference)=0 then 'register'
+        when grouping(f.employee_person_id)=0 then 'employee' else 'store' end as grouping_level,
+   case when grouping(f.product_category)=0 then f.product_category
+        when grouping(f.register_reference)=0 then f.register_reference
+        when grouping(f.employee_person_id)=0 then f.employee_person_id::text else null end as grouping_reference,
+   f.currency,
+   coalesce(sum(amount_minor) filter(where fact_type='gross_sale'),0)::bigint gross_sales,
+   coalesce(sum(amount_minor) filter(where fact_type='discount'),0)::bigint discounts,
+   coalesce(sum(amount_minor) filter(where fact_type='refund'),0)::bigint refunds,
+   coalesce(sum(amount_minor) filter(where fact_type='subscription_revenue'),0)::bigint subscription_revenue,
+   coalesce(sum(amount_minor) filter(where fact_type in ('gross_sale','discount','refund','subscription_revenue')),0)::bigint net_sales,
+   coalesce(sum(amount_minor) filter(where fact_type='sales_tax'),0)::bigint sales_tax,
+   coalesce(sum(amount_minor) filter(where fact_type='cost_of_goods_sold'),0)::bigint cogs,
+   coalesce(sum(amount_minor) filter(where fact_type='processor_fee'),0)::bigint processor_fees,
+   coalesce(sum(amount_minor) filter(where fact_type in ('chargeback','chargeback_reversal')),0)::bigint chargebacks,
+   coalesce(sum(amount_minor) filter(where fact_type='cash_over_short'),0)::bigint cash_over_short,
+   coalesce(sum(amount_minor) filter(where fact_type='inventory_adjustment'),0)::bigint inventory_adjustments,
+   count(*)::bigint fact_count
+  from public.mme_pos_financial_reporting_facts f
+  where f.location_id=p_location_id and f.currency=p_currency
+   and f.business_date between p_period_start and p_period_end and f.imported_at<=v_cutoff
+  group by grouping sets ((f.business_date,f.currency),(f.business_date,f.currency,f.product_category),
+   (f.business_date,f.currency,f.register_reference),(f.business_date,f.currency,f.employee_person_id))
+ )
+ select v_run,business_date,grouping_level,grouping_reference,currency,gross_sales,discounts,refunds,
+  subscription_revenue,net_sales,sales_tax,cogs,processor_fees,chargebacks,cash_over_short,inventory_adjustments,
+  net_sales+cogs,net_sales+cogs+processor_fees+chargebacks+cash_over_short,fact_count
+ from grouped;
+
+ insert into public.mme_pos_financial_report_summaries(report_run_id,settlement_net_minor,settlement_fee_minor,
+  matched_bank_deposit_minor,cash_expected_minor,cash_counted_minor,cash_variance_minor,
+  open_settlement_exception_count,unreconciled_batch_count)
+ select v_run,
+  coalesce((select sum(b.net_amount_minor) from public.mme_pos_settlement_batches b where b.location_id=p_location_id
+   and b.currency=p_currency and b.settled_at>=p_period_start::timestamp at time zone p_business_timezone
+   and b.settled_at<((p_period_end+1)::timestamp at time zone p_business_timezone)),0),
+  coalesce((select sum(b.fee_amount_minor) from public.mme_pos_settlement_batches b where b.location_id=p_location_id
+   and b.currency=p_currency and b.settled_at>=p_period_start::timestamp at time zone p_business_timezone
+   and b.settled_at<((p_period_end+1)::timestamp at time zone p_business_timezone)),0),
+  coalesce((select sum(d.amount_minor) from public.mme_pos_settlement_bank_matches m
+   join public.mme_pos_bank_deposits d on d.id=m.bank_deposit_id
+   where d.location_id=p_location_id and d.currency=p_currency and m.match_status='matched'
+    and d.deposit_date between p_period_start and p_period_end),0),
+  coalesce((select sum(c.expected_cash_minor) from public.mme_pos_cash_drawer_closings c
+   where c.location_id=p_location_id and c.business_date between p_period_start and p_period_end),0),
+  coalesce((select sum(c.counted_cash_minor) from public.mme_pos_cash_drawer_closings c
+   where c.location_id=p_location_id and c.business_date between p_period_start and p_period_end),0),
+  coalesce((select sum(c.variance_minor) from public.mme_pos_cash_drawer_closings c
+   where c.location_id=p_location_id and c.business_date between p_period_start and p_period_end),0),
+  (select count(*) from public.mme_pos_settlement_exceptions e join public.mme_pos_settlement_batches b on b.id=e.batch_id
+   where e.location_id=p_location_id and b.currency=p_currency and b.settled_at>=p_period_start::timestamp at time zone p_business_timezone
+    and b.settled_at<((p_period_end+1)::timestamp at time zone p_business_timezone)
+    and e.status not in ('resolved','accepted_variance','false_positive')),
+  greatest((select count(*) from public.mme_pos_settlement_batches b where b.location_id=p_location_id
+   and b.currency=p_currency and b.settled_at>=p_period_start::timestamp at time zone p_business_timezone
+   and b.settled_at<((p_period_end+1)::timestamp at time zone p_business_timezone))
+   -(select count(distinct r.batch_id) from public.mme_pos_reconciliation_runs r
+    join public.mme_pos_settlement_batches b on b.id=r.batch_id
+    where r.location_id=p_location_id and r.status in ('approved','closed') and b.currency=p_currency
+     and b.settled_at>=p_period_start::timestamp at time zone p_business_timezone
+     and b.settled_at<((p_period_end+1)::timestamp at time zone p_business_timezone)),0)::integer;
+ return v_run;
+end;
+$;
+
+revoke all on function public.mme_pos_build_financial_report(uuid,uuid,date,date,text,text) from public,anon,authenticated;
+grant execute on function public.mme_pos_build_financial_report(uuid,uuid,date,date,text,text) to service_role;
+
 revoke all on function public.mme_pos_set_transaction_register(uuid,uuid,text) from public,anon,authenticated;
 revoke all on function public.mme_pos_claim_native_financial_exports(uuid,integer,integer) from public,anon,authenticated;
 revoke all on function public.mme_pos_export_finalized_transaction_financial_facts(uuid,uuid,uuid,text) from public,anon,authenticated;
