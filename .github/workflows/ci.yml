@@ -33,6 +33,7 @@ jobs:
       - name: Run workflow cancellation and reconciliation contract tests
         run: |
           npm run test:identity-authorization
+          npm run test:identity-authorization-runtime
           npm run test:build004-inspection-submit
           npm run test:build004-inspection-resolve
           npm run test:build004-inspection-history-photos
