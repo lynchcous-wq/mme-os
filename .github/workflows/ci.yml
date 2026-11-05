@@ -30,6 +30,12 @@ jobs:
       - name: Install dependencies
         run: npm install
 
+      - name: Run workflow cancellation and reconciliation contract tests
+        run: |
+          npm run test:workflow-cancellation
+          npm run test:workflow-reconciliation-decision
+          npm run test:workflow-reconciliation-history
+
       - name: Type-check
         run: npm run lint
 
