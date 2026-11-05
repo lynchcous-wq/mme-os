@@ -99,4 +99,5 @@ test("live Supabase Auth identity mapping and Build 004 deny decision", async (t
     // The identity foundation intentionally retains person identities and
     // audit references. This test runs only against an ephemeral local
     // Supabase database that is discarded with the CI job.
-  }});
+  }
+});
