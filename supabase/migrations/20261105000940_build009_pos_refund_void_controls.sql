@@ -32,6 +32,9 @@ create table public.mme_pos_refund_requests (
 
 create index mme_pos_refund_queue_idx
   on public.mme_pos_refund_requests(status,created_at,lease_expires_at);
+create unique index mme_pos_refund_provider_operation_unique
+  on public.mme_pos_refund_requests(provider_operation_reference)
+  where provider_operation_reference is not null;
 
 alter table public.mme_pos_refund_requests enable row level security;
 revoke all on public.mme_pos_refund_requests from public,anon,authenticated;
@@ -83,10 +86,17 @@ begin
        and g.permission_key = p_permission_key
        and g.revoked_at is null
        and (g.expires_at is null or g.expires_at > now())
-       and exists (
-         select 1 from public.mme_inventory_reservations r
-         join public.mme_inventory_reservation_lines rl on rl.reservation_id = r.id
-         where r.order_id = p_order_id and r.status = 'active' and r.expires_at > now()
+       and (
+         (p_permission_key in ('pos.refund.request','pos.refund.approve','pos.tender.void') and exists (
+           select 1 from public.mme_inventory_reservations r
+           join public.mme_inventory_reservation_lines rl on rl.reservation_id = r.id
+           where r.order_id = p_order_id
+         ))
+         or (p_permission_key not in ('pos.refund.request','pos.refund.approve','pos.tender.void') and exists (
+           select 1 from public.mme_inventory_reservations r
+           join public.mme_inventory_reservation_lines rl on rl.reservation_id = r.id
+           where r.order_id = p_order_id and r.status = 'active' and r.expires_at > now()
+         ))
        )
        and not exists (
          select 1 from public.mme_inventory_reservations r
