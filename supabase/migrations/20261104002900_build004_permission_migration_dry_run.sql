@@ -72,15 +72,15 @@ as $$
           (x.source_scope = '{}'::jsonb
             or (x.source_scope ? 'product_id'
                 and x.source_scope - 'product_id' = '{}'::jsonb
-                and (x.source_scope ->> 'product_id') ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}
+                and (x.source_scope ->> 'product_id') ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$')
             or (x.source_scope ? 'location_id'
                 and x.source_scope - 'location_id' = '{}'::jsonb
-                and (x.source_scope ->> 'location_id') ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}
+                and (x.source_scope ->> 'location_id') ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'))
         when x.source_permission_key in ('catalog.approve','catalog.publish') then
           (x.source_scope = '{}'::jsonb
             or (x.source_scope ? 'product_id'
                 and x.source_scope - 'product_id' = '{}'::jsonb
-                and nullif(btrim(x.source_scope ->> 'product_id'),'') is not null))
+                and (x.source_scope ->> 'product_id') ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'))
         when x.source_permission_key ~ '^tasks\.[a-z][a-z0-9_.:-]{0,80}$' then
           (x.source_scope = '{}'::jsonb
             or (
