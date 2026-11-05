@@ -220,7 +220,8 @@ begin
   'pos.hardware.approve','pos.hardware.retire','pos.network.view',
   'pos.network.manage','pos.network.certificates','pos.network.incidents',
   'pos.security.view','pos.security.manage','pos.security.investigate',
-  'pos.security.contain','pos.security.rules.manage'
+  'pos.security.contain','pos.security.rules.manage',
+  'pos.fraud.view','pos.fraud.review','pos.fraud.rules.manage','pos.fraud.case.manage','pos.fraud.override'
  ) then return false; end if;
  select lifecycle_status into v_person_status from public.mme_person_identities where person_id=p_actor_person_id;
  if not found or v_person_status is distinct from 'active' then return false; end if;
