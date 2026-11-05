@@ -46,7 +46,7 @@ export async function POST(request:Request) {
  let body:unknown;try{body=await request.json();}catch{return NextResponse.json({error:"Valid JSON is required."},{status:400,headers});}
  if(!body||typeof body!=="object"||Array.isArray(body))return NextResponse.json({error:"Invalid connector request."},{status:400,headers});
  const b=body as Record<string,unknown>;
- const allowed=["action","location_id","provider_key","display_name","external_account_reference","credential_reference","connector_id","source_batch_reference","idempotency_key","records","source_digest_sha256","batch_id"];
+ const allowed=["action","location_id","provider_key","display_name","external_account_reference","credential_reference","connector_id","source_batch_reference","idempotency_key","records","source_digest_sha256","batch_id","next_status","reason"];
  if(Object.keys(b).some(k=>!allowed.includes(k)))return NextResponse.json({error:"Unsupported request fields."},{status:400,headers});
  if(!isUuid(b.location_id)||typeof b.action!=="string")return NextResponse.json({error:"A valid store and action are required."},{status:400,headers});
  if(b.action==="register_connector") {
@@ -58,11 +58,22 @@ export async function POST(request:Request) {
   try {const id=await rpc(auth.context,"mme_pos_register_financial_connector",{p_location_id:b.location_id,p_actor_person_id:auth.context.personId,p_provider_key:b.provider_key,p_display_name:b.display_name,p_external_account_reference:b.external_account_reference??null,p_credential_reference:b.credential_reference??null});return NextResponse.json({connector_id:id},{status:201,headers});}
   catch(e){return NextResponse.json({error:e instanceof Error?e.message:"Connector registration failed."},{status:503,headers});}
  }
+ if(b.action==="set_connector_status") {
+  if(!isUuid(b.connector_id)||typeof b.next_status!=="string"||typeof b.reason!=="string"||b.reason.trim().length<8)
+   return NextResponse.json({error:"A connector, valid status and reason are required."},{status:400,headers});
+  try {
+   const connectors=await read(auth.context,`mme_pos_financial_connectors?select=id,location_id&id=eq.${b.connector_id}&limit=1`);
+   if(!connectors.length||connectors[0].location_id!==b.location_id)return NextResponse.json({error:"Connector does not belong to the requested store."},{status:404,headers});
+   if(!await authorize(auth.context,"pos.finance.connector.manage",b.location_id))return NextResponse.json({error:"Connector management permission denied."},{status:403,headers});
+   await rpc(auth.context,"mme_pos_set_financial_connector_status",{p_connector_id:b.connector_id,p_actor_person_id:auth.context.personId,p_next_status:b.next_status,p_reason:b.reason});
+   return NextResponse.json({updated:true},{headers});
+  }catch(e){return NextResponse.json({error:e instanceof Error?e.message:"Connector status update failed."},{status:503,headers});}
+ }
  if(b.action==="stage_batch") {
   if(!isUuid(b.connector_id)||typeof b.source_batch_reference!=="string"||typeof b.idempotency_key!=="string"||!Array.isArray(b.records)||b.records.length<1||b.records.length>250)
    return NextResponse.json({error:"A connector, batch reference, idempotency key and 1–250 normalized rows are required."},{status:400,headers});
   try {
-   const connectors=await read(auth.context,`mme_pos_financial_connectors?select=id,location_id&eq=none`.replace("&eq=none",`&id=eq.${b.connector_id}&limit=1`));
+   const connectors=await read(auth.context,`mme_pos_financial_connectors?select=id,location_id&id=eq.${b.connector_id}&limit=1`);
    if(!connectors.length||connectors[0].location_id!==b.location_id)return NextResponse.json({error:"Connector does not belong to the requested store."},{status:404,headers});
    if(!await authorize(auth.context,"pos.finance.report.import",b.location_id))return NextResponse.json({error:"Financial import permission denied."},{status:403,headers});
    const id=await rpc(auth.context,"mme_pos_stage_financial_import_batch",{p_connector_id:b.connector_id,p_actor_person_id:auth.context.personId,p_source_batch_reference:b.source_batch_reference,p_idempotency_key:b.idempotency_key,p_records:b.records,p_source_digest_sha256:b.source_digest_sha256??null});
