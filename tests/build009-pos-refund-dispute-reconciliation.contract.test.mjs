@@ -15,8 +15,9 @@ test("Provider refund settlement matching is exact and idempotently linked", () 
 
 test("Refund reconciliation rejects non-refund and non-completed evidence", () => {
   assert.ok(sql.includes("v_record.record_type <> 'refund'"));
-  assert.ok(sql.includes("r.status='completed'"));
-  assert.ok(sql.includes("no_exact_completed_refund_match"));
+  assert.ok(sql.includes("v_request.status <> 'completed'"));
+  assert.ok(sql.includes("no_refund_reference_match"));
+  assert.ok(sql.includes("refund_amount_or_currency_mismatch"));
   assert.ok(sql.includes("ambiguous_refund_reference_match"));
 });
 
