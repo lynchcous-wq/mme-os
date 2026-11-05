@@ -36,6 +36,7 @@ test("Out-of-order provider dispute events cannot roll back newer state", () => 
 
 test("Dispute event imports fail closed on invalid values and ambiguous payment links", () => {
   assert.ok(sql.includes("Invalid provider dispute event"));
+  assert.ok(sql.includes("or p_occurred_at is null"));
   assert.ok(sql.includes("v_count=1 then v_attempt.id else null end"));
   assert.ok(sql.includes("case when v_count=1 then 'open' else 'manual_review' end"));
   assert.ok(sql.includes("raw_event_digest text not null check(raw_event_digest ~"));
