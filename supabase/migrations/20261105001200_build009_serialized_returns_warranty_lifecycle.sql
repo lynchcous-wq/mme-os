@@ -377,7 +377,7 @@ begin
  v_inspection_id:=public.mme_submit_serialized_inspection(
   p_reference,v_warranty.serialized_unit_id,'warranty_return',p_reason,p_findings,
   null,'not_applicable','not_applicable','not_applicable','not_applicable','not_applicable',
-  'not_applicable','not_applicable','not_applicable',null,p_actor_user_id,p_actor_identity_id
+  'not_applicable','not_applicable','not_applicable',left(p_reason,4000),p_actor_user_id,p_actor_identity_id
  );
  update public.mme_serialized_warranty_claims set status='inspection_pending',
   inspection_id=v_inspection_id,updated_at=now() where id=v_claim.id;
