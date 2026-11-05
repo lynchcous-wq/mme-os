@@ -7,7 +7,7 @@ alter table public.mme_pos_refund_requests
     references public.mme_pos_provider_settlement_records(id) on delete restrict,
   add column if not exists provider_reconciled_at timestamptz,
   add column if not exists provider_reconciliation_status text not null default 'pending'
-    check (provider_reconciliation_status in ('pending','matched','mismatch','manual_review'));
+    check (provider_reconciliation_status in ('pending','matched','mismatch','unmatched','manual_review'));
 
 create unique index if not exists mme_pos_refund_settlement_record_unique
   on public.mme_pos_refund_requests(settlement_record_id)
