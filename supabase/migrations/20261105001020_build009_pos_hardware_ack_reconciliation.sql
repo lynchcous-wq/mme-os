@@ -69,6 +69,7 @@ begin
     return 'conflict';
   end if;
 
+  -- Acknowledgments that disagree with an already terminal command outcome are recorded as conflicts.
   if v_command.status in ('confirmed','failed','cancelled') then
     if (v_command.status='confirmed' and v_ack.event_type='drawer_open_confirmed')
       or (v_command.status='failed' and v_ack.event_type='drawer_open_failed') then
