@@ -1,6 +1,6 @@
 -- Build 009 schema contract checks on disposable local Supabase CI.
 begin;
-select plan(19);
+select plan(25);
 
 select has_table('public', 'mme_pos_transactions', 'POS transaction envelope exists');
 select has_table('public', 'mme_pos_transaction_events', 'POS append-only event history exists');
@@ -8,6 +8,9 @@ select has_table('public', 'mme_pos_outbox', 'POS transactional outbox exists');
 select has_table('public', 'mme_pos_tender_attempts', 'Provider-neutral tender attempt ledger exists');
 select has_table('public', 'mme_pos_tender_outbox', 'Tender dispatch outbox exists');
 select has_function('public', 'mme_pos_create_tender_attempt', array['uuid','uuid','text','text','bigint','text','text','text','text','text','text','text'], 'Idempotent tender intent function exists');
+select has_function('public', 'mme_pos_claim_tender_dispatch', array['integer','integer'], 'Leased tender dispatch claim function exists');
+select has_function('public', 'mme_pos_finish_tender_dispatch', array['uuid','uuid','text','bigint','bigint','text','text','text'], 'Trusted tender outcome function exists');
+select has_function('public', 'mme_pos_retry_tender_dispatch', array['uuid','uuid','text'], 'Tender retry and dead-letter function exists');
 
 select has_function(
   'public', 'mme_person_authorize_pos_action',
@@ -47,6 +50,12 @@ select ok((select c.relrowsecurity from pg_class c where c.oid='public.mme_pos_t
 select ok(has_function_privilege('service_role', 'public.mme_pos_create_tender_attempt(uuid,uuid,text,text,bigint,text,text,text,text,text,text,text)', 'EXECUTE'), 'service_role can create tender intents');
 select ok(not has_function_privilege('authenticated', 'public.mme_pos_create_tender_attempt(uuid,uuid,text,text,bigint,text,text,text,text,text,text,text)', 'EXECUTE'), 'authenticated cannot create tender intents');
 select ok((select obj_description('public.mme_pos_tender_attempts'::regclass) like '%not proof%'), 'Tender intent is explicitly not payment confirmation');
+select ok(has_function_privilege('service_role', 'public.mme_pos_claim_tender_dispatch(integer,integer)', 'EXECUTE'), 'service_role can claim tender dispatch work');
+select ok(not has_function_privilege('authenticated', 'public.mme_pos_claim_tender_dispatch(integer,integer)', 'EXECUTE'), 'authenticated cannot claim tender dispatch work');
+select ok(has_function_privilege('service_role', 'public.mme_pos_finish_tender_dispatch(uuid,uuid,text,bigint,bigint,text,text,text)', 'EXECUTE'), 'service_role can record trusted tender outcomes');
+select ok(not has_function_privilege('authenticated', 'public.mme_pos_finish_tender_dispatch(uuid,uuid,text,bigint,bigint,text,text,text)', 'EXECUTE'), 'authenticated cannot record trusted tender outcomes');
+select ok(has_function_privilege('service_role', 'public.mme_pos_retry_tender_dispatch(uuid,uuid,text)', 'EXECUTE'), 'service_role can schedule tender retries');
+select ok(not has_function_privilege('authenticated', 'public.mme_pos_retry_tender_dispatch(uuid,uuid,text)', 'EXECUTE'), 'authenticated cannot schedule tender retries');
 
 select * from finish();
 rollback;
