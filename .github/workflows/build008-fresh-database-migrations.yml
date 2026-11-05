@@ -16,7 +16,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: supabase/setup-cli@v1
         with:
-          version: latest
+          version: 2.20.12
       - name: Start isolated local Supabase stack
         run: supabase start
       - name: Apply the complete migration chain to a fresh local database
@@ -25,4 +25,9 @@ jobs:
         run: supabase db lint --local
       - name: Stop isolated local Supabase stack
         if: always()
-        run: supabase stop --no-backup
+        run: |
+          if command -v supabase >/dev/null 2>&1; then
+            supabase stop --no-backup
+          else
+            echo "Supabase CLI was not installed; no local stack cleanup is required."
+          fi
