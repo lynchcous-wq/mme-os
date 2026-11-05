@@ -4,6 +4,8 @@ import { readFileSync } from "node:fs";
 import vm from "node:vm";
 import ts from "typescript";
 import { File } from "node:buffer";
+import { createRequire } from "node:module";
+const nodeRequire = createRequire(import.meta.url);
 
 const source = readFileSync("app/api/employee/inventory/inspection/photos/route.ts", "utf8");
 const compiled = ts.transpileModule(source, {
@@ -30,7 +32,7 @@ function loadRoute(fetchImpl, authorizeImpl = async () => ({ ok: true, actorUser
     require(name) {
       if (name === "next/server") return { NextResponse: { json } };
       if (name === "@/lib/server/identity-authorization") return { authenticateAndAuthorizeEmployee: authorizeImpl };
-      if (name === "node:crypto") return require("node:crypto");
+      if (name === "node:crypto") return nodeRequire("node:crypto");
       throw new Error("Unexpected import: " + name);
     },
     process: { env: ENV }, fetch: fetchImpl, URLSearchParams, Request, Response, FormData, File, Buffer,
