@@ -224,13 +224,17 @@ begin
  select * into v_line from public.mme_order_lines where id=p_order_line_id for update;
  if not found or v_line.serialized_unit_id is null then raise exception 'Serialized order line not found' using errcode='P0002'; end if;
  select * into v_order from public.mme_orders where id=v_line.order_id for update;
- if not found or v_order.status not in ('paid','partially_refunded') or v_order.customer_identity_id<>p_customer_identity_id
-  or v_order.paid_at is null then raise exception 'Customer is not eligible to return this paid order' using errcode='42501'; end if;
+ if not found or v_order.customer_identity_id<>p_customer_identity_id or v_order.paid_at is null then
+  raise exception 'Customer does not own this serialized order' using errcode='42501';
+ end if;
  v_fp:=encode(digest(jsonb_build_object('order_line_id',p_order_line_id,'customer_identity_id',p_customer_identity_id,'reason',btrim(p_reason))::text,'sha256'),'hex');
  select * into v_existing from public.mme_serialized_return_requests where idempotency_key=p_idempotency_key for update;
  if found then
   if v_existing.request_fingerprint<>v_fp then raise exception 'Return idempotency key reused with different request' using errcode='23505'; end if;
   return v_existing.id;
+ end if;
+ if v_order.status not in ('paid','partially_refunded') then
+  raise exception 'Only a paid order can start a new serialized return' using errcode='42501';
  end if;
  select * into v_policy from public.mme_serialized_return_policies
   where location_id=v_line.location_id and enabled=true;
