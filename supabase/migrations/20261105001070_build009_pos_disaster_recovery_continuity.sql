@@ -298,7 +298,7 @@ on conflict(plan_key) do nothing;
 
 create or replace function public.mme_pos_start_recovery_execution(p_execution_id uuid,p_actor_person_id uuid,p_execution_reference text)
 returns text language plpgsql security definer set search_path=pg_catalog,public
-as $
+as $$
 declare v public.mme_pos_recovery_executions%rowtype;
 begin
  select * into v from public.mme_pos_recovery_executions where id=p_execution_id for update;
@@ -314,7 +314,7 @@ begin
   where id=p_execution_id;
  return 'in_progress';
 end;
-$;
+$$;
 
 create or replace function public.mme_pos_finalize_recovery_execution(p_execution_id uuid,p_actor_person_id uuid,p_outcome_summary text)
 returns text language plpgsql security definer set search_path=pg_catalog,public
@@ -345,12 +345,14 @@ revoke all on function public.mme_pos_authorize_recovery_action(uuid,uuid,text) 
 revoke all on function public.mme_pos_record_transaction_journal(uuid,text,text,uuid,timestamptz,text,text,numeric,numeric,text,text,text,text,jsonb,text,text,text,text) from public,anon,authenticated;
 revoke all on function public.mme_pos_request_recovery_execution(uuid,uuid,uuid,text) from public,anon,authenticated;
 revoke all on function public.mme_pos_decide_recovery_approval(uuid,uuid,text) from public,anon,authenticated;
-revoke all on function public.mme_pos_start_recovery_execution(uuid,uuid,text) from public,anon,authenticated;\nrevoke all on function public.mme_pos_finalize_recovery_execution(uuid,uuid,text) from public,anon,authenticated;
+revoke all on function public.mme_pos_start_recovery_execution(uuid,uuid,text) from public,anon,authenticated;
+revoke all on function public.mme_pos_finalize_recovery_execution(uuid,uuid,text) from public,anon,authenticated;
 grant execute on function public.mme_pos_authorize_recovery_action(uuid,uuid,text) to service_role;
 grant execute on function public.mme_pos_record_transaction_journal(uuid,text,text,uuid,timestamptz,text,text,numeric,numeric,text,text,text,text,jsonb,text,text,text,text) to service_role;
 grant execute on function public.mme_pos_request_recovery_execution(uuid,uuid,uuid,text) to service_role;
 grant execute on function public.mme_pos_decide_recovery_approval(uuid,uuid,text) to service_role;
-grant execute on function public.mme_pos_start_recovery_execution(uuid,uuid,text) to service_role;\ngrant execute on function public.mme_pos_finalize_recovery_execution(uuid,uuid,text) to service_role;
+grant execute on function public.mme_pos_start_recovery_execution(uuid,uuid,text) to service_role;
+grant execute on function public.mme_pos_finalize_recovery_execution(uuid,uuid,text) to service_role;
 
 comment on table public.mme_pos_transaction_journal is 'Idempotent transaction continuity journal. Never store PAN, CVV, PIN, magnetic-stripe data or raw cardholder data.';
 comment on table public.mme_pos_backup_registry is 'Backup inventory metadata and external object/key references; backup bytes and keys remain outside this database.';
