@@ -80,11 +80,11 @@ begin
        and ra.status = 'active'
        and ra.effective_from <= statement_timestamp()
        and (ra.effective_until is null or ra.effective_until > statement_timestamp())
-       and ra.scope @> p_requested_scope
+       and (ra.scope = '{}'::jsonb or ra.scope @> p_requested_scope)
        and g.status = 'active'
        and g.resource_key = p_resource_key
        and g.action_key = p_action_key
-       and g.scope @> p_requested_scope
+       and (g.scope = '{}'::jsonb or g.scope @> p_requested_scope)
   );
 end;
 $$;
