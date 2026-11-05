@@ -64,7 +64,7 @@ test("scheduled worker is configured at five-minute cadence",()=>{
  assert.match(config,/"schedule": "\*\/5 \* \* \* \*"/);
 });
 test("prior connector migration includes corrected SQL delimiters and row fingerprint check",()=>{
- assert.match(prior,/row_fingerprint_md5 ~ '\^\[a-f0-9\]\{32\}\$'/);
+ assert.ok(prior.includes("row_fingerprint_md5 text not null check(row_fingerprint_md5 ~ '^[a-f0-9]{32}$')"));
  assert.match(prior,/as \$\$\s*declare v_connector public\.mme_pos_financial_connectors/);
  assert.match(prior,/end;\s*\$\$;/);
 });
