@@ -26,7 +26,8 @@
     "test:build009:hardware-webhook": "node --test tests/build009-pos-hardware-webhook-route.test.mjs",
     "test:build009:hardware-command-delivery": "node --test tests/build009-pos-hardware-command-delivery.test.mjs",
     "test:build009:hardware-dispatch": "node --test tests/build009-pos-hardware-dispatch-worker.test.mjs",
-    "test:build009:hardware-ack-reconciliation": "node --test tests/build009-pos-hardware-ack-reconciliation.test.mjs"
+    "test:build009:hardware-ack-reconciliation": "node --test tests/build009-pos-hardware-ack-reconciliation.test.mjs",
+    "test:build009:hardware-health-intelligence": "node --test tests/build009-pos-hardware-health-intelligence.test.mjs"
   },
   "dependencies": {
     "next": "^15.2.4",
