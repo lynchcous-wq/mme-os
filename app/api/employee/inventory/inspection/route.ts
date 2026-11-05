@@ -151,7 +151,10 @@ export async function POST(request: Request) {
       `${baseUrl}/rest/v1/mme_person_identities?${identityQuery.toString()}`,
       serviceKey, "GET",
     );
-    if (!identityResult.ok || identityResult.data?.length !== 1) {
+    if (!identityResult.ok) {
+      return NextResponse.json({ error: "Employee identity service is temporarily unavailable." }, { status: 503 });
+    }
+    if (identityResult.data?.length !== 1) {
       return NextResponse.json({ error: "Employee identity mapping could not be verified." }, { status: 403 });
     }
 
