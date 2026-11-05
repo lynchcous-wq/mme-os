@@ -91,7 +91,7 @@ test("resolve route allows only after both Build 004 actions and legacy checks p
   assert.equal(response.status, 200);
   assert.equal(body.status, "resolved");
   assert.deepEqual(actions.map(x => x.action), ["approve", "resolve"]);
-  assert.deepEqual(actions[0].scope, { product_id: PRODUCT_ID, location_id: LOCATION_ID });
+  assert.deepEqual(JSON.parse(JSON.stringify(actions[0].scope)), { product_id: PRODUCT_ID, location_id: LOCATION_ID });
   assert.equal(calls.filter(x => x.url.includes("/rpc/mme_employee_authorize_inventory_action")).length, 2);
   const finalCall = calls.find(x => x.url.endsWith("/rpc/mme_resolve_serialized_inspection"));
   assert.ok(finalCall);
