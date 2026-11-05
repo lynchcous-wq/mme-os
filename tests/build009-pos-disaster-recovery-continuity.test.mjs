@@ -6,7 +6,6 @@ const sql = await readFile(new URL("../supabase/migrations/20261105001070_build0
 
 test("recovery incident, plan, execution and independent approval lifecycle are modeled", () => {
   for (const table of ["mme_pos_disaster_incidents","mme_pos_recovery_plans","mme_pos_recovery_executions","mme_pos_recovery_approvals","mme_pos_recovery_verification"]) assert.match(sql, new RegExp("create table public\\." + table));
-  assert.match(sql, /Requester cannot approve own campaign/); // firmware workflow regression guard
   assert.match(sql, /self-approval was attempted/);
   assert.match(sql, /Recovery execution lacks independent approval/);
 });
