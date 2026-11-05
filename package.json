@@ -44,7 +44,8 @@
     "test:build009:native-financial": "node --test tests/build009-pos-native-financial-adapter.test.mjs",
     "test:build009:inventory-cogs": "node --test tests/build009-native-inventory-cogs-adapter.test.mjs",
     "test:build009:serialized-checkout-cogs": "node --test tests/build009-serialized-checkout-cogs-bridge.test.mjs",
-    "test:build009:serialized-returns-warranty": "node --test tests/build009-serialized-returns-warranty-lifecycle.test.mjs"
+    "test:build009:serialized-returns-warranty": "node --test tests/build009-serialized-returns-warranty-lifecycle.test.mjs",
+    "test:build009:serialized-return-refunds": "node --test tests/build009-serialized-return-refund-reconciliation.test.mjs"
   },
   "dependencies": {
     "next": "^15.2.4",
