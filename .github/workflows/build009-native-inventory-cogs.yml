@@ -21,6 +21,7 @@ jobs:
       - run: npm run test:build009:native-financial
       - run: npm run test:build009:financial-provider-sync
       - uses: supabase/setup-cli@v1
+        id: supabase-cli
         with:
           version: 2.120.0
       - name: Start isolated local Supabase stack
@@ -32,5 +33,5 @@ jobs:
       - name: Lint migrated PostgreSQL schema
         run: supabase db lint --local
       - name: Stop isolated local Supabase stack
-        if: always()
+        if: always() && steps.supabase-cli.outcome == 'success'
         run: supabase stop --no-backup
