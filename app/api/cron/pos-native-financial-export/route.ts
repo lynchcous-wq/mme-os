@@ -2,7 +2,7 @@ import {NextResponse} from "next/server";
 export const dynamic="force-dynamic";
 export const revalidate=0;
 const headers={"Cache-Control":"no-store, private"};
-type Claim={transaction_id:string;location_id:string;lease_token:string};
+type Claim={transaction_id:string;location_id:string;business_timezone:string;lease_token:string};
 async function rpc(baseUrl:string,key:string,name:string,args:Record<string,unknown>){
  const r=await fetch(baseUrl+"/rest/v1/rpc/"+name,{method:"POST",headers:{apikey:key,Authorization:"Bearer "+key,"Content-Type":"application/json"},body:JSON.stringify(args),cache:"no-store"});
  if(!r.ok)throw new Error("NATIVE_POS_FINANCIAL_EXPORT_RPC_FAILED");
@@ -13,8 +13,6 @@ export async function POST(request:Request){
  const baseUrl=process.env.SUPABASE_URL??process.env.NEXT_PUBLIC_SUPABASE_URL,key=process.env.SUPABASE_SERVICE_ROLE_KEY;
  if(!cronSecret||!workerId||!baseUrl||!key)return NextResponse.json({error:"Native POS financial export is not configured."},{status:503,headers});
  if(request.headers.get("authorization")!=="Bearer "+cronSecret)return NextResponse.json({error:"Unauthorized."},{status:401,headers});
- const timezone=process.env.MME_FINANCIAL_BUSINESS_TIMEZONE||"America/New_York";
- try{new Intl.DateTimeFormat("en-US",{timeZone:timezone});}catch{return NextResponse.json({error:"Business timezone is invalid."},{status:503,headers});}
  try{
   const claims=await rpc(baseUrl,key,"mme_pos_claim_native_financial_exports",{p_worker_person_id:workerId,p_limit:25,p_lease_seconds:120}) as Claim[];
   if(!Array.isArray(claims))throw new Error("NATIVE_POS_FINANCIAL_CLAIM_INVALID");
@@ -22,7 +20,7 @@ export async function POST(request:Request){
   for(const claim of claims){
    try{
     const result=await rpc(baseUrl,key,"mme_pos_export_finalized_transaction_financial_facts",{
-     p_transaction_id:claim.transaction_id,p_lease_token:claim.lease_token,p_worker_person_id:workerId,p_business_timezone:timezone
+     p_transaction_id:claim.transaction_id,p_lease_token:claim.lease_token,p_worker_person_id:workerId,p_business_timezone:claim.business_timezone
     });
     results.push({transaction_id:claim.transaction_id,location_id:claim.location_id,status:result===true?"exported":"failed"});
    }catch{results.push({transaction_id:claim.transaction_id,location_id:claim.location_id,status:"failed",error:"EXPORT_RPC_FAILED"});}
