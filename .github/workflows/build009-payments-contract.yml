@@ -19,3 +19,4 @@ jobs:
       - run: npm install
       - run: npm run lint
       - run: npm run test:build009:payments
+      - run: npm run test:build009:pos-state
