@@ -15,7 +15,7 @@ select has_function(
 );
 
 select ok(
-  has_column('public','mme_serialized_units','unit_status'),
+  has_column('public','mme_serialized_units','unit_status','serialized unit status remains recorded in the unit ledger'),
   'serialized unit status remains recorded in the unit ledger'
 );
 
