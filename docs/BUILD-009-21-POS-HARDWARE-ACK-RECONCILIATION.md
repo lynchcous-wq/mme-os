@@ -15,7 +15,7 @@ Status: implementation changes committed to a review branch; migration applicati
 4. Exact provider command correlation is restricted to the same registered device. Multiple matching commands are treated as a conflict; the engine never picks the newest command arbitrarily.
 5. A matching device confirmation can transition an uncertain `open_drawer` command from `timed_out` to `confirmed`, clearing its reconciliation hold. A matching device failure transitions it to `failed`.
 6. A conflicting late event does not overwrite an already terminal command. Events without a provider command identifier are retained as unmatched; the engine does not guess which drawer command they refer to.
-7. `mme_pos_reconcile_hardware_acknowledgments` provides bounded, per-device replay of unmatched events after command/provider state becomes available.
+7. `mme_pos_reconcile_hardware_acknowledgments` provides bounded, per-device replay of unmatched events when a provider command identifier was supplied and the matching command becomes available. Events that arrive without a provider command identifier remain unmatched for an authorized manual investigation; the engine does not infer a command.
 
 ## Security and integrity
 - RLS enabled; acknowledgment table access and reconciliation RPCs are service-role only.
