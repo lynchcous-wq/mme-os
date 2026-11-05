@@ -201,6 +201,7 @@ where id = (
   join public.mme_roles r on r.id = ra.role_id
   where p.auth_user_id = 'b0040000-0000-4000-8000-000000000002'
     and r.role_key = 'build004_authz_test'
+    and ra.scope = '{"store_id":"mableton"}'::jsonb
 );
 
 select ok(
