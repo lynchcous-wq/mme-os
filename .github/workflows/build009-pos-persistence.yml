@@ -29,6 +29,7 @@ jobs:
       - run: npm run test:build009:worker
       - run: npm run test:build009:reconciliation
       - run: npm run test:build009:refunds
+      - run: npm run test:build009:disputes
       - uses: supabase/setup-cli@v1
         id: supabase-cli
         with:
