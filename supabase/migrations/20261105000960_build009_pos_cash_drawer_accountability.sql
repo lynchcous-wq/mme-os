@@ -58,6 +58,8 @@ create unique index mme_pos_drawer_refund_once
   where source_refund_request_id is not null;
 create index mme_pos_drawer_movement_history_idx
   on public.mme_pos_cash_drawer_movements(drawer_session_id,created_at);
+create unique index mme_pos_drawer_tender_sale_once on public.mme_pos_cash_drawer_movements(source_tender_attempt_id) where source_tender_attempt_id is not null;
+create unique index mme_pos_drawer_refund_once on public.mme_pos_cash_drawer_movements(source_refund_request_id) where source_refund_request_id is not null;
 
 create table public.mme_pos_cash_adjustment_requests (
   id uuid primary key default gen_random_uuid(),
