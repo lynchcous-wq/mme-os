@@ -34,7 +34,8 @@
     "test:build009:disaster-recovery": "node --test tests/build009-pos-disaster-recovery-continuity.test.mjs",
     "test:build009:security-intelligence": "node --test tests/build009-pos-security-intelligence.test.mjs",
     "test:build009:fraud-intelligence": "node --test tests/build009-pos-fraud-anomaly-intelligence.test.mjs",
-    "test:build009:settlement-integrity": "node --test tests/build009-pos-settlement-reconciliation.test.mjs"
+    "test:build009:settlement-integrity": "node --test tests/build009-pos-settlement-reconciliation.test.mjs",
+    "test:build009:financial-close": "node --test tests/build009-pos-financial-close-exceptions.test.mjs"
   },
   "dependencies": {
     "next": "^15.2.4",
