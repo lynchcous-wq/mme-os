@@ -42,7 +42,7 @@ test("dashboard renders daily sales trend and CSV export", () => {
  assert.match(page,/Export CSV/);
 });
 test("dashboard keeps the bearer token in component memory and does not persist it", () => {
- assert.match(page,/useState\(" "\)/);
+ assert.match(page,/useState\(""\)/);
  assert.match(page,/type="password"/);
  assert.doesNotMatch(page,/localStorage|sessionStorage|document\.cookie/);
 });
