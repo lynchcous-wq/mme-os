@@ -61,6 +61,24 @@ grant select,insert on public.mme_pos_financial_worker_events to service_role;
 grant select,insert,update on public.mme_pos_financial_webhook_events to service_role;
 revoke delete,truncate on public.mme_pos_financial_import_jobs,public.mme_pos_financial_worker_events,public.mme_pos_financial_webhook_events from service_role;
 
+
+create or replace function public.mme_pos_authorize_financial_worker(p_worker_person_id uuid)
+returns boolean language plpgsql security definer set search_path=pg_catalog,public
+as $
+declare v_status text; v_ceo uuid; v_frozen boolean; v_employment text;
+begin
+ select lifecycle_status into v_status from public.mme_person_identities where person_id=p_worker_person_id;
+ if not found or v_status is distinct from 'active' then return false; end if;
+ select ceo_person_id,employee_access_frozen into v_ceo,v_frozen from public.employee_security_settings where singleton=true;
+ if not found or v_frozen is distinct from false or v_ceo is null then return false; end if;
+ select employment_status into v_employment from public.employee_relationships where person_id=p_worker_person_id;
+ if v_employment is distinct from 'active' then return false; end if;
+ return exists(select 1 from public.employee_permission_grants g where g.person_id=p_worker_person_id
+  and g.permission_key='pos.finance.report.import' and g.revoked_at is null
+  and (g.expires_at is null or g.expires_at>now()) and g.scope='{}'::jsonb);
+end;
+$;
+
 create or replace function public.mme_pos_enqueue_financial_import_jobs(
  p_actor_person_id uuid,p_limit integer default 100
 ) returns integer language plpgsql security definer set search_path=pg_catalog,public
@@ -160,6 +178,23 @@ begin
 end;
 $$;
 
+create or replace function public.mme_pos_expire_financial_import_jobs(p_worker_person_id uuid)
+returns integer language plpgsql security definer set search_path=pg_catalog,public
+as $
+declare v_count integer;
+begin
+ if not public.mme_pos_authorize_financial_worker(p_worker_person_id) then
+  raise exception 'Global financial worker permission denied' using errcode='42501';
+ end if;
+ update public.mme_pos_financial_import_jobs set status='dead_letter',lease_token=null,lease_expires_at=null,
+  last_error_code='MAX_ATTEMPTS_EXCEEDED',last_error_safe='Worker lease expired after maximum attempts; manual review required.',
+  updated_at=now()
+ where attempts>=max_attempts and ((status='processing' and lease_expires_at<now()) or status in ('queued','retry_wait'));
+ get diagnostics v_count=row_count;
+ return v_count;
+end;
+$;
+
 create or replace function public.mme_pos_record_financial_webhook_event(
  p_connector_id uuid,p_provider_event_id text,p_event_type text,p_account_reference text,p_payload_sha256 text
 ) returns uuid language plpgsql security definer set search_path=pg_catalog,public
@@ -182,11 +217,11 @@ begin
 end;
 $$;
 
-revoke all on function public.mme_pos_enqueue_financial_import_jobs(uuid,integer) from public,anon,authenticated;
+revoke all on function public.mme_pos_authorize_financial_worker(uuid) from public,anon,authenticated;\nrevoke all on function public.mme_pos_expire_financial_import_jobs(uuid) from public,anon,authenticated;\nrevoke all on function public.mme_pos_enqueue_financial_import_jobs(uuid,integer) from public,anon,authenticated;
 revoke all on function public.mme_pos_claim_financial_import_job(uuid,integer) from public,anon,authenticated;
 revoke all on function public.mme_pos_finish_financial_import_job(uuid,uuid,uuid,boolean,text,text) from public,anon,authenticated;
 revoke all on function public.mme_pos_record_financial_webhook_event(uuid,text,text,text,text) from public,anon,authenticated;
-grant execute on function public.mme_pos_enqueue_financial_import_jobs(uuid,integer) to service_role;
+grant execute on function public.mme_pos_authorize_financial_worker(uuid) to service_role;\ngrant execute on function public.mme_pos_expire_financial_import_jobs(uuid) to service_role;\ngrant execute on function public.mme_pos_enqueue_financial_import_jobs(uuid,integer) to service_role;
 grant execute on function public.mme_pos_claim_financial_import_job(uuid,integer) to service_role;
 grant execute on function public.mme_pos_finish_financial_import_job(uuid,uuid,uuid,boolean,text,text) to service_role;
 grant execute on function public.mme_pos_record_financial_webhook_event(uuid,text,text,text,text) to service_role;
