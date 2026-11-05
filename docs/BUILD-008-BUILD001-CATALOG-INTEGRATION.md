@@ -12,4 +12,4 @@ Build 001 owns the authoritative product catalog. Build 008 consumes the catalog
 
 ## Verification
 
-The route test suites are intended to run with `npm run test:build008:catalog-routes`.
+The route suites run with `npm run test:build008:catalog-routes`. They include source-contract checks, migration dependency checks, and handler-level tests that import the TypeScript route handlers and mock Supabase REST responses. The handler tests verify published-product filtering, reservation-aware quantity availability, media-field allowlisting, aggregate-only serialized availability, and cart rejection when stock is insufficient. GitHub Actions installs dependencies before running the suites.
