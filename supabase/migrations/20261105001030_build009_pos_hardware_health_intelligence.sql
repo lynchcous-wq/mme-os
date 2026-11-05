@@ -79,6 +79,7 @@ create table public.mme_pos_device_baselines (
  warning_threshold numeric not null,
  critical_threshold numeric not null,
  unit text not null,
+ threshold_direction text not null check(threshold_direction in ('higher_is_worse','lower_is_worse')),
  enabled boolean not null default true,
  updated_at timestamptz not null default now(),
  check(warning_threshold<>critical_threshold)
@@ -183,17 +184,23 @@ begin
  if v_telemetry is null then
   v_factor:=v_factor||jsonb_build_array(jsonb_build_object('factor','telemetry','impact',0,'evidence','No recent optional telemetry; score is based on available registry and incident evidence'));
  else
-  for v_metric in select b.metric_key,b.warning_threshold,b.critical_threshold,
+  for v_metric in select b.metric_key,b.warning_threshold,b.critical_threshold,b.threshold_direction,
     (v_telemetry->>b.metric_key)::numeric as metric_value,b.unit
     from public.mme_pos_device_baselines b
     where b.device_type=v_device.device_type and b.enabled and v_telemetry ? b.metric_key
   loop
-   if v_metric.metric_value>=greatest(v_metric.warning_threshold,v_metric.critical_threshold) then
+   if (v_metric.threshold_direction='higher_is_worse'
+       and v_metric.metric_value>=greatest(v_metric.warning_threshold,v_metric.critical_threshold))
+     or (v_metric.threshold_direction='lower_is_worse'
+       and v_metric.metric_value<=least(v_metric.warning_threshold,v_metric.critical_threshold)) then
     v_score:=v_score-20;
-    v_factor:=v_factor||jsonb_build_array(jsonb_build_object('factor',v_metric.metric_key,'impact',-20,'value',v_metric.metric_value,'unit',v_metric.unit,'threshold',v_metric.critical_threshold));
-   elsif v_metric.metric_value>=least(v_metric.warning_threshold,v_metric.critical_threshold) then
+    v_factor:=v_factor||jsonb_build_array(jsonb_build_object('factor',v_metric.metric_key,'impact',-20,'value',v_metric.metric_value,'unit',v_metric.unit,'critical_threshold',v_metric.critical_threshold));
+   elsif (v_metric.threshold_direction='higher_is_worse'
+       and v_metric.metric_value>=least(v_metric.warning_threshold,v_metric.critical_threshold))
+     or (v_metric.threshold_direction='lower_is_worse'
+       and v_metric.metric_value<=greatest(v_metric.warning_threshold,v_metric.critical_threshold)) then
     v_score:=v_score-10;
-    v_factor:=v_factor||jsonb_build_array(jsonb_build_object('factor',v_metric.metric_key,'impact',-10,'value',v_metric.metric_value,'unit',v_metric.unit,'threshold',v_metric.warning_threshold));
+    v_factor:=v_factor||jsonb_build_array(jsonb_build_object('factor',v_metric.metric_key,'impact',-10,'value',v_metric.metric_value,'unit',v_metric.unit,'warning_threshold',v_metric.warning_threshold));
    end if;
   end loop;
  end if;
