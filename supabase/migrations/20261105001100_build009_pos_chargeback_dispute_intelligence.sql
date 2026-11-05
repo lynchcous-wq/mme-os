@@ -194,8 +194,8 @@ begin
  if jsonb_typeof(p_manifest)<>'object' or jsonb_typeof(p_validation_results)<>'array'
   or p_digest is not null and p_digest !~ '^[a-f0-9]{64}$' then raise exception 'Invalid evidence packet' using errcode='22023'; end if;
  select coalesce(max(packet_version),0)+1 into v_version from public.mme_pos_dispute_packets where dispute_id=p_dispute_id;
- insert into public.mme_pos_dispute_packets(dispute_id,packet_version,packet_manifest,validation_results,packet_digest_sha256,generated_by_person_id)
- values(p_dispute_id,v_version,p_manifest,p_validation_results,p_digest,p_actor_person_id) returning id into v_id;
+ insert into public.mme_pos_dispute_packets(dispute_id,packet_version,status,packet_manifest,validation_results,packet_digest_sha256,generated_by_person_id)
+ values(p_dispute_id,v_version,case when jsonb_array_length(p_validation_results)=0 then 'ready_for_approval' else 'validating' end,p_manifest,p_validation_results,p_digest,p_actor_person_id) returning id into v_id;
  update public.mme_pos_payment_disputes set status='evidence_gathering',updated_at=now() where id=p_dispute_id;
  insert into public.mme_pos_dispute_audit_events(dispute_id,location_id,actor_person_id,action,reason,object_reference)
  values(p_dispute_id,v_dispute.location_id,p_actor_person_id,'packet_generated','Evidence packet generated and awaits validation.',v_id::text);
