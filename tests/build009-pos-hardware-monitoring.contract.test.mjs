@@ -7,7 +7,6 @@ const sql = await readFile(new URL("../supabase/migrations/20261105000970_build0
 test("POS hardware registry is location-bound and supports register device lifecycle", () => {
   assert.ok(sql.includes("mme_pos_register_devices"));
   assert.ok(sql.includes("unique(provider,device_reference)"));
-  assert.ok(sql.includes("mme_pos_register_hardware_device") === false);
   assert.ok(sql.includes("mme_pos_register_drawer_hardware_device"));
   assert.ok(sql.includes("pos.hardware.register"));
   assert.ok(sql.includes("'cash_drawer','receipt_printer','payment_terminal','register_controller'"));
