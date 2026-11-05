@@ -61,10 +61,10 @@ export async function POST(request:Request) {
  if(b.action==="set_connector_status") {
   if(!isUuid(b.connector_id)||typeof b.next_status!=="string"||typeof b.reason!=="string"||b.reason.trim().length<8)
    return NextResponse.json({error:"A connector, valid status and reason are required."},{status:400,headers});
+  if(!await authorize(auth.context,"pos.finance.connector.manage",b.location_id))return NextResponse.json({error:"Connector management permission denied."},{status:403,headers});
   try {
    const connectors=await read(auth.context,`mme_pos_financial_connectors?select=id,location_id&id=eq.${b.connector_id}&limit=1`);
    if(!connectors.length||connectors[0].location_id!==b.location_id)return NextResponse.json({error:"Connector does not belong to the requested store."},{status:404,headers});
-   if(!await authorize(auth.context,"pos.finance.connector.manage",b.location_id))return NextResponse.json({error:"Connector management permission denied."},{status:403,headers});
    await rpc(auth.context,"mme_pos_set_financial_connector_status",{p_connector_id:b.connector_id,p_actor_person_id:auth.context.personId,p_next_status:b.next_status,p_reason:b.reason});
    return NextResponse.json({updated:true},{headers});
   }catch(e){return NextResponse.json({error:e instanceof Error?e.message:"Connector status update failed."},{status:503,headers});}
@@ -82,10 +82,10 @@ export async function POST(request:Request) {
  }
  if(b.action==="process_batch") {
   if(!isUuid(b.batch_id))return NextResponse.json({error:"A valid batch UUID is required."},{status:400,headers});
+  if(!await authorize(auth.context,"pos.finance.report.import",b.location_id))return NextResponse.json({error:"Financial import permission denied."},{status:403,headers});
   try {
-   const batches=await read(auth.context,`mme_pos_financial_import_batches?select=id,location_id& id=eq.${b.batch_id}&limit=1`.replace("& id","&id"));
+   const batches=await read(auth.context,`mme_pos_financial_import_batches?select=id,location_id&id=eq.${b.batch_id}&limit=1`);
    if(!batches.length||batches[0].location_id!==b.location_id)return NextResponse.json({error:"Batch does not belong to the requested store."},{status:404,headers});
-   if(!await authorize(auth.context,"pos.finance.report.import",b.location_id))return NextResponse.json({error:"Financial import permission denied."},{status:403,headers});
    const result=await rpc(auth.context,"mme_pos_process_financial_import_batch",{p_batch_id:b.batch_id,p_actor_person_id:auth.context.personId});
    return NextResponse.json({result},{headers});
   }catch(e){return NextResponse.json({error:e instanceof Error?e.message:"Batch processing failed."},{status:503,headers});}
