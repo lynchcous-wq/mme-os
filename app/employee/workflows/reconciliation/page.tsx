@@ -40,7 +40,8 @@ type ReconciliationItem = {
   last_error_summary: string | null;
   correlation_id: string | null;
   execution_created_at: string;
-  audit_history: AuditEvent[];\n  decision_history: ReconciliationDecision[];
+  audit_history: AuditEvent[];
+  decision_history: ReconciliationDecision[];
 };
 
 export default function WorkflowReconciliationPage() {
