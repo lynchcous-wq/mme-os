@@ -40,7 +40,7 @@ export async function GET(
     if (await permission.json() !== true) return NextResponse.json({ error: "You do not have permission to view this POS transaction." }, { status: 403 });
 
     const eventsResponse = await fetch(
-      `${context.baseUrl}/rest/v1/mme_pos_transaction_events?select=id,revision,event_type,previous_status,next_status,actor_person_id,created_at&transaction_id=eq.${transactionId}&order=revision.asc`,
+      `${context.baseUrl}/rest/v1/mme_pos_transaction_events?select=id,revision,event_type,previous_status,next_status,created_at&transaction_id=eq.${transactionId}&order=revision.asc`,
       { headers: { apikey: context.serviceKey, Authorization: `Bearer ${context.serviceKey}` }, cache: "no-store" },
     );
     if (!eventsResponse.ok) return NextResponse.json({ error: "POS transaction history could not be loaded." }, { status: 502 });
