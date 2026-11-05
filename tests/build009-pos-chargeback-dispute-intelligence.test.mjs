@@ -26,8 +26,10 @@ test("evidence packets are versioned, integrity checked and independently approv
  assert.match(sql,/validation_results\)>0/);
 });
 test("dispute operations enforce role and location authorization", () => {
- for (const p of ["pos.disputes.view","pos.disputes.manage","pos.disputes.evidence","pos.disputes.approve","pos.disputes.submit"]) assert.ok(securitySql.includes("'" + p + "'"));
- assert.match(sql,/mme_pos_authorize_hardware_action/);
+ for (const p of ["pos.disputes.view","pos.disputes.manage","pos.disputes.evidence","pos.disputes.approve","pos.disputes.submit"]) assert.ok(sql.includes("'" + p + "'"));
+ assert.match(sql,/employee_access_frozen/);
+ assert.match(sql,/employment_status/);
+ assert.match(sql,/scope->>'location_id'/);
 });
 test("provider submission is not falsely claimed as implemented", () => {
  assert.match(sql,/approved_to_submit/);
