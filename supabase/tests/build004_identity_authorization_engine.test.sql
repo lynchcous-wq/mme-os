@@ -1,6 +1,6 @@
 begin;
 
-select plan(16);
+select plan(17);
 
 select has_function(
   'public',
@@ -88,6 +88,31 @@ where p.auth_user_id = 'b0040000-0000-4000-8000-000000000002'
       and g.resource_key = 'inventory.inspection'
       and g.action_key = 'submit'
   );
+
+insert into public.mme_role_assignments
+  (employee_relationship_id, role_id, scope, status, effective_from)
+select e.id, r.id, '{}'::jsonb, 'active', now() - interval '1 hour'
+from public.mme_employee_relationships e
+join public.mme_person_identities p on p.id = e.person_identity_id
+join public.mme_roles r on r.role_key = 'build004_authz_test'
+where p.auth_user_id = 'b0040000-0000-4000-8000-000000000002';
+
+insert into public.mme_permission_grants
+  (role_assignment_id, resource_key, action_key, scope, status)
+select ra.id, 'inventory.inspection', 'view', '{}'::jsonb, 'active'
+from public.mme_role_assignments ra
+join public.mme_employee_relationships e on e.id = ra.employee_relationship_id
+join public.mme_person_identities p on p.id = e.person_identity_id
+where p.auth_user_id = 'b0040000-0000-4000-8000-000000000002'
+  and ra.scope = '{}'::jsonb;
+
+select ok(
+  public.mme_authorize_employee_action(
+    'b0040000-0000-4000-8000-000000000002',
+    'inventory.inspection', 'view', '{"store_id":"another-store"}'::jsonb
+  ),
+  'global role assignment and grant authorize across requested scopes'
+);
 
 select ok(
   public.mme_authorize_employee_action(
