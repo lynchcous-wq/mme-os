@@ -207,6 +207,7 @@ begin
  if p_location_id is null or p_register_reference is null or p_transaction_reference is null or p_occurred_at is null
   or p_gross_amount<0 or p_tax_amount<0 or p_currency_code !~ '^[A-Z]{3}$'
   or p_item_summary is null or jsonb_typeof(p_item_summary)<>'array'
+  or p_item_summary::text ~* '"(pan|cvv|cvc|pin|track_data|magstripe|full_card_number)"'
   or p_idempotency_key is null or length(btrim(p_idempotency_key))<8
   or p_payload_digest_sha256 is not null and p_payload_digest_sha256 !~ '^[a-f0-9]{64}$' then
   raise exception 'Invalid transaction journal payload' using errcode='22023';
