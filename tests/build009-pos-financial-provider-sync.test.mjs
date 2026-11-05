@@ -68,15 +68,17 @@ test("Stripe normalization preserves signed minor-unit amounts and emits fee fac
   {id:"txn_charge",type:"charge",reporting_category:"charge",amount:1200,fee:65,currency:"usd",created:1793900000,source:"ch_123"},
   {id:"txn_refund",type:"refund",reporting_category:"refund",amount:-400,fee:0,currency:"usd",created:1793900100,source:"re_123"},
   {id:"txn_dispute",type:"adjustment",reporting_category:"dispute",amount:-1200,fee:0,currency:"usd",created:1793900200,source:"dp_123"},
+  {id:"txn_dispute_reversal",type:"adjustment",reporting_category:"dispute_reversal",amount:1200,fee:0,currency:"usd",created:1793900250,source:"dp_124"},
   {id:"txn_payout",type:"payout",reporting_category:"payout",amount:-500,fee:0,currency:"usd",created:1793900300,source:"po_123"}
  ]});
- assert.equal(result.records.length,4);
+ assert.equal(result.records.length,5);
  assert.equal(result.ignored,1);
- assert.deepEqual(result.records.map(x=>x.fact_type),["payment_capture","processor_fee","payment_refund","chargeback"]);
+ assert.deepEqual(result.records.map(x=>x.fact_type),["payment_capture","processor_fee","payment_refund","chargeback","chargeback_reversal"]);
  assert.equal(result.records[0].amount_minor,1200);
  assert.equal(result.records[1].amount_minor,-65);
  assert.equal(result.records[2].amount_minor,-400);
  assert.equal(result.records[3].amount_minor,-1200);
+ assert.equal(result.records[4].amount_minor,1200);
  assert.match(result.records[0].source_digest_sha256,/^[a-f0-9]{64}$/);
  assert.equal(result.records[0].business_timezone,"America/New_York");
 });
