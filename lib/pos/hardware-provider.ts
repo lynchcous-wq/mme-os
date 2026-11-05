@@ -72,10 +72,10 @@ export function normalizeProviderHardwareEvent(input: {
   const providerType = typeof value.event_type === "string" ? value.event_type.trim() : "";
   const occurredAt = typeof value.occurred_at === "string" ? value.occurred_at : "";
   const epoch = Date.parse(occurredAt);
-  const eventType = mapping[providerType];
+  const eventType = Object.hasOwn(mapping, providerType) ? mapping[providerType] : undefined;
   if (!providerEventId || providerEventId.length > 160 ||
       !deviceReference || deviceReference.length > 120 ||
-      !eventType || !Number.isFinite(epoch)) {
+      typeof eventType !== "string" || !Number.isFinite(epoch)) {
     throw new Error("Provider event is missing a valid identifier, device, mapped type, or timestamp.");
   }
   const safeDetail = typeof value.safe_detail === "string"
