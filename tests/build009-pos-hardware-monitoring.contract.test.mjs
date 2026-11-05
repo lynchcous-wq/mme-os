@@ -52,3 +52,47 @@ test("Hardware tables and privileged functions are restricted to service role", 
     assert.ok(sql.includes("grant execute on function public." + fn));
   }
 });
+
+import test from "node:test";
+import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+const sql = await readFile(new URL("../supabase/migrations/20261105000980_build009_pos_hardware_pairing_supervision.sql", import.meta.url), "utf8");
+
+test("Provider adapter metadata stores external secret references, not raw credentials", () => {
+  assert.ok(sql.includes("mme_pos_hardware_provider_adapters"));
+  assert.ok(sql.includes("credential_secret_ref"));
+  assert.ok(sql.includes("webhook_secret_ref"));
+  assert.ok(sql.includes("never store raw credentials"));
+  assert.ok(sql.includes("from public,anon,authenticated"));
+});
+
+test("Pairing challenge is digest-only, short-lived, and one-time", () => {
+  assert.ok(sql.includes("challenge_digest text not null"));
+  assert.ok(sql.includes("^[a-f0-9]{64}$"));
+  assert.ok(sql.includes("p_expires_at>now()+interval '15 minutes'"));
+  assert.ok(sql.includes("consumed_at is null and expires_at>now()"));
+  assert.ok(sql.includes("set consumed_at=now()"));
+  assert.ok(sql.includes("provider_proof_verified is distinct from true"));
+});
+
+test("Heartbeat supervision detects stale paired devices and opens an IT incident", () => {
+  assert.ok(sql.includes("mme_pos_sweep_stale_hardware_devices"));
+  assert.ok(sql.includes("last_heartbeat_at"));
+  assert.ok(sql.includes("heartbeat_interval_seconds*3"));
+  assert.ok(sql.includes("set status='offline'"));
+  assert.ok(sql.includes("POS device heartbeat missed"));
+  assert.ok(sql.includes("on conflict(device_id,incident_type)"));
+});
+
+test("Heartbeat ingestion records an event and refreshes device health", () => {
+  assert.ok(sql.includes("mme_pos_record_hardware_heartbeat"));
+  assert.ok(sql.includes("mme_pos_ingest_drawer_hardware_event"));
+  assert.ok(sql.includes("last_heartbeat_at=p_occurred_at"));
+});
+
+test("New pairing and supervision functions are service-role only", () => {
+  for (const fn of ["mme_pos_create_hardware_pairing_challenge","mme_pos_complete_hardware_pairing","mme_pos_sweep_stale_hardware_devices","mme_pos_record_hardware_heartbeat"]) {
+    assert.ok(sql.includes("revoke all on function public." + fn));
+    assert.ok(sql.includes("grant execute on function public." + fn));
+  }
+});
