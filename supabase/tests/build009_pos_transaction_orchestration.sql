@@ -95,5 +95,38 @@ select ok(not has_function_privilege('authenticated','public.mme_pos_reconcile_r
 select ok(has_function_privilege('service_role','public.mme_pos_import_dispute_event(text,text,text,text,text,text,bigint,text,text,timestamp with time zone,timestamp with time zone,text)','EXECUTE'),'service_role can import dispute events');
 select ok(not has_function_privilege('authenticated','public.mme_pos_import_dispute_event(text,text,text,text,text,text,bigint,text,text,timestamp with time zone,timestamp with time zone,text)','EXECUTE'),'authenticated cannot import dispute events');
 
+select has_table('public','mme_pos_cash_drawer_sessions','Associate cash drawer sessions exist');
+select has_table('public','mme_pos_cash_drawer_movements','Cash drawer movement ledger exists');
+select has_table('public','mme_pos_cash_adjustment_requests','Dual-control cash adjustment requests exist');
+select has_function('public','mme_pos_authorize_drawer_action',array['uuid','text','uuid'],'Person-keyed drawer authorization exists');
+select has_function('public','mme_pos_open_cash_drawer',array['text','uuid','uuid','uuid','text','bigint','text'],'Associate cash drawer opening function exists');
+select has_function('public','mme_pos_record_drawer_cash_movement',array['uuid','uuid','text','bigint','text','text','text'],'Cash in/out movement function exists');
+select has_function('public','mme_pos_request_cash_adjustment',array['uuid','uuid','text','bigint','text','text','text'],'Cash adjustment request function exists');
+select has_function('public','mme_pos_decide_cash_adjustment',array['uuid','uuid','text','text'],'Second-person cash adjustment decision function exists');
+select has_function('public','mme_pos_close_cash_drawer',array['uuid','uuid','bigint','text'],'Cash drawer closeout function exists');
+select has_function('public','mme_pos_record_drawer_cash_sale',array['uuid','uuid','uuid','text'],'Captured cash tender linkage function exists');
+select has_function('public','mme_pos_record_drawer_cash_refund',array['uuid','uuid','uuid','text'],'Completed cash refund linkage function exists');
+select ok((select c.relrowsecurity from pg_class c where c.oid='public.mme_pos_cash_drawer_sessions'::regclass),'Cash drawer sessions have RLS enabled');
+select ok((select c.relrowsecurity from pg_class c where c.oid='public.mme_pos_cash_drawer_movements'::regclass),'Cash drawer movements have RLS enabled');
+select ok((select c.relrowsecurity from pg_class c where c.oid='public.mme_pos_cash_adjustment_requests'::regclass),'Cash adjustment requests have RLS enabled');
+select ok(to_regclass('public.mme_pos_one_open_drawer_per_register') is not null,'Only one open till per register is enforced');
+select ok(to_regclass('public.mme_pos_one_open_drawer_per_associate') is not null,'Only one open till per associate is enforced');
+select ok(has_function_privilege('service_role','public.mme_pos_authorize_drawer_action(uuid,text,uuid)','EXECUTE'),'service_role can evaluate drawer permissions');
+select ok(not has_function_privilege('authenticated','public.mme_pos_authorize_drawer_action(uuid,text,uuid)','EXECUTE'),'authenticated cannot evaluate drawer permissions directly');
+select ok(has_function_privilege('service_role','public.mme_pos_open_cash_drawer(text,uuid,uuid,uuid,text,bigint,text)','EXECUTE'),'service_role can open assigned cash drawers');
+select ok(not has_function_privilege('authenticated','public.mme_pos_open_cash_drawer(text,uuid,uuid,uuid,text,bigint,text)','EXECUTE'),'authenticated cannot open cash drawers directly');
+select ok(has_function_privilege('service_role','public.mme_pos_record_drawer_cash_movement(uuid,uuid,text,bigint,text,text,text)','EXECUTE'),'service_role can record cash movements');
+select ok(not has_function_privilege('authenticated','public.mme_pos_record_drawer_cash_movement(uuid,uuid,text,bigint,text,text,text)','EXECUTE'),'authenticated cannot record cash movements directly');
+select ok(has_function_privilege('service_role','public.mme_pos_request_cash_adjustment(uuid,uuid,text,bigint,text,text,text)','EXECUTE'),'service_role can request cash adjustments');
+select ok(not has_function_privilege('authenticated','public.mme_pos_request_cash_adjustment(uuid,uuid,text,bigint,text,text,text)','EXECUTE'),'authenticated cannot request cash adjustments directly');
+select ok(has_function_privilege('service_role','public.mme_pos_decide_cash_adjustment(uuid,uuid,text,text)','EXECUTE'),'service_role can decide cash adjustments');
+select ok(not has_function_privilege('authenticated','public.mme_pos_decide_cash_adjustment(uuid,uuid,text,text)','EXECUTE'),'authenticated cannot decide cash adjustments directly');
+select ok(has_function_privilege('service_role','public.mme_pos_close_cash_drawer(uuid,uuid,bigint,text)','EXECUTE'),'service_role can close cash drawers');
+select ok(not has_function_privilege('authenticated','public.mme_pos_close_cash_drawer(uuid,uuid,bigint,text)','EXECUTE'),'authenticated cannot close cash drawers directly');
+select ok(has_function_privilege('service_role','public.mme_pos_record_drawer_cash_sale(uuid,uuid,uuid,text)','EXECUTE'),'service_role can link captured cash sales');
+select ok(not has_function_privilege('authenticated','public.mme_pos_record_drawer_cash_sale(uuid,uuid,uuid,text)','EXECUTE'),'authenticated cannot link cash sales directly');
+select ok(has_function_privilege('service_role','public.mme_pos_record_drawer_cash_refund(uuid,uuid,uuid,text)','EXECUTE'),'service_role can link completed cash refunds');
+select ok(not has_function_privilege('authenticated','public.mme_pos_record_drawer_cash_refund(uuid,uuid,uuid,text)','EXECUTE'),'authenticated cannot link cash refunds directly');
+
 select * from finish();
 rollback;
