@@ -56,3 +56,8 @@ test("normalizer bounds safe detail and removes control-line injection", () => {
   assert.equal(normalized.safeDetail?.includes("\t"), false);
   assert.equal(normalized.safeDetail?.length, 300);
 });
+
+test("rejects inherited event mappings instead of accepting prototype properties", () => {
+  const mapping = Object.create({ "drawer.failed": "drawer_open_failed" });
+  assert.throws(() => normalizeProviderHardwareEvent({ payload: JSON.parse(body), mapping }));
+});
