@@ -48,41 +48,40 @@ begin
     from public.mme_pos_refund_requests r
     join public.mme_pos_tender_attempts a on a.id=r.tender_attempt_id
    where r.request_type='refund'
-     and r.status='completed'
      and r.provider_refund_reference is not null
      and a.provider=v_record.provider
      and a.provider_account_reference=v_record.provider_account_reference
-     and r.provider_refund_reference=v_record.provider_operation_reference
-     and r.amount_minor=v_record.amount_minor
-     and r.currency=v_record.currency;
+     and r.provider_refund_reference=v_record.provider_operation_reference;
 
   if v_count=0 then
-    v_status:='unmatched'; v_code:='no_exact_completed_refund_match';
+    v_status:='unmatched'; v_code:='no_refund_reference_match';
   elsif v_count>1 then
     v_status:='manual_review'; v_code:='ambiguous_refund_reference_match';
   else
     select r.* into v_request
       from public.mme_pos_refund_requests r
       join public.mme_pos_tender_attempts a on a.id=r.tender_attempt_id
-     where r.request_type='refund' and r.status='completed'
-       and r.provider_refund_reference is not null
+     where r.request_type='refund'
        and a.provider=v_record.provider
        and a.provider_account_reference=v_record.provider_account_reference
        and r.provider_refund_reference=v_record.provider_operation_reference
-       and r.amount_minor=v_record.amount_minor
-       and r.currency=v_record.currency
      limit 1 for update of r;
-    if v_request.settlement_record_id is not null
+    if v_request.status <> 'completed' then
+      v_status:='manual_review'; v_code:='refund_not_completed_in_mme';
+    elsif v_request.amount_minor<>v_record.amount_minor
+       or v_request.currency<>v_record.currency then
+      v_status:='mismatch'; v_code:='refund_amount_or_currency_mismatch';
+    elsif v_request.settlement_record_id is not null
        and v_request.settlement_record_id<>v_record.id then
       v_status:='manual_review'; v_code:='refund_already_linked_to_other_settlement';
     else
       v_status:='matched'; v_code:=null;
-      update public.mme_pos_refund_requests
-         set settlement_record_id=v_record.id,
-             provider_reconciliation_status='matched',
-             provider_reconciled_at=now(),updated_at=now()
-       where id=v_request.id;
     end if;
+    update public.mme_pos_refund_requests
+       set settlement_record_id=case when v_status='matched' then v_record.id else settlement_record_id end,
+           provider_reconciliation_status=v_status,
+           provider_reconciled_at=now(),updated_at=now()
+     where id=v_request.id;
   end if;
 
   update public.mme_pos_provider_settlement_records
