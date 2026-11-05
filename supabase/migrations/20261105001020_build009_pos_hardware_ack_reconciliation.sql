@@ -14,7 +14,7 @@ create table public.mme_pos_hardware_acknowledgments (
   received_at timestamptz not null default now(),
   reconciled_at timestamptz,
   safe_detail text check(safe_detail is null or length(safe_detail)<=300),
-  unique(device_id,provider_event_id),
+  unique(device_id,provider_event_id)
 );
 create index mme_pos_hw_ack_unmatched_idx
   on public.mme_pos_hardware_acknowledgments(device_id,received_at)
@@ -122,7 +122,7 @@ declare v_ack public.mme_pos_hardware_acknowledgments%rowtype; v_state text;
 begin
   if p_device_id is null or p_provider_event_id is null
     or length(btrim(p_provider_event_id)) not between 1 and 160
-    or p_event_type not in ('drawer_open_confirmed','drawer_open_failed')
+    or p_event_type is null or p_event_type not in ('drawer_open_confirmed','drawer_open_failed')
     or p_occurred_at is null
     or (p_provider_command_id is not null and length(p_provider_command_id)>160)
     then
@@ -141,6 +141,7 @@ begin
   select * into v_ack from public.mme_pos_hardware_acknowledgments
     where device_id=p_device_id and provider_event_id=btrim(p_provider_event_id);
   if v_ack.event_type<>p_event_type
+    or v_ack.occurred_at is distinct from p_occurred_at
     or v_ack.command_id is distinct from p_command_id
     or v_ack.provider_command_id is distinct from nullif(btrim(p_provider_command_id),'') then
     raise exception 'Provider event identifier was reused with conflicting acknowledgment data' using errcode='23505';
