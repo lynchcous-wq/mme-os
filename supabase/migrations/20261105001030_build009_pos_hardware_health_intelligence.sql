@@ -82,7 +82,7 @@ create table public.mme_pos_device_baselines (
  threshold_direction text not null check(threshold_direction in ('higher_is_worse','lower_is_worse')),
  enabled boolean not null default true,
  updated_at timestamptz not null default now(),
- check(warning_threshold<>critical_threshold)
+ check((threshold_direction='higher_is_worse' and warning_threshold<critical_threshold) or (threshold_direction='lower_is_worse' and warning_threshold>critical_threshold))
 );
 create unique index mme_pos_device_baseline_key_once on public.mme_pos_device_baselines(device_type,metric_key);
 
@@ -139,6 +139,32 @@ begin
  return v_id;
 end;
 $$;
+
+create or replace function public.mme_pos_record_device_diagnostic(
+ p_device_id uuid,p_diagnostic_type text,p_result text,p_details jsonb default '{}'::jsonb,
+ p_initiated_by text default 'health_engine'
+) returns uuid
+language plpgsql security definer set search_path=pg_catalog,public
+as $
+declare v_id uuid;
+begin
+ if p_device_id is null
+  or p_diagnostic_type not in ('connectivity','heartbeat','printer','drawer','payment_terminal','thermal','general')
+  or p_result not in ('pass','warning','fail','not_supported','unknown')
+  or p_details is null or jsonb_typeof(p_details)<>'object'
+  or octet_length(p_details::text)>4000
+  or p_initiated_by not in ('scheduled','it_user','health_engine') then
+  raise exception 'Invalid device diagnostic record' using errcode='22023';
+ end if;
+ if not exists(select 1 from public.mme_pos_register_devices where id=p_device_id and status<>'retired') then
+  raise exception 'Registered device not found' using errcode='P0002';
+ end if;
+ insert into public.mme_pos_device_diagnostics(device_id,diagnostic_type,result,details,initiated_by)
+ values(p_device_id,p_diagnostic_type,p_result,p_details,p_initiated_by)
+ returning id into v_id;
+ return v_id;
+end;
+$;
 
 create or replace function public.mme_pos_calculate_device_health(p_device_id uuid,p_scored_at timestamptz default now())
 returns uuid
@@ -252,10 +278,10 @@ end;
 $$;
 
 revoke all on function public.mme_pos_ingest_device_telemetry(uuid,text,timestamptz,jsonb) from public,anon,authenticated;
-revoke all on function public.mme_pos_calculate_device_health(uuid,timestamptz) from public,anon,authenticated;
+revoke all on function public.mme_pos_record_device_diagnostic(uuid,text,text,jsonb,text) from public,anon,authenticated;\nrevoke all on function public.mme_pos_calculate_device_health(uuid,timestamptz) from public,anon,authenticated;
 revoke all on function public.mme_pos_sweep_device_health(integer,timestamptz) from public,anon,authenticated;
 grant execute on function public.mme_pos_ingest_device_telemetry(uuid,text,timestamptz,jsonb) to service_role;
-grant execute on function public.mme_pos_calculate_device_health(uuid,timestamptz) to service_role;
+grant execute on function public.mme_pos_record_device_diagnostic(uuid,text,text,jsonb,text) to service_role;\ngrant execute on function public.mme_pos_calculate_device_health(uuid,timestamptz) to service_role;
 grant execute on function public.mme_pos_sweep_device_health(integer,timestamptz) to service_role;
 
 comment on table public.mme_pos_device_health_scores is 'Explainable deterministic health scores based only on observed registry, heartbeat, incident and optional telemetry evidence; not an AI diagnosis.';
