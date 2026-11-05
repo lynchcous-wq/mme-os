@@ -40,6 +40,7 @@ jobs:
           npm run test:build004-inspection-resolve-runtime
           npm run test:build004-inspection-history-photos
           npm run test:build004-inspection-history-runtime
+          npm run test:build004-inspection-photos-runtime
           npm run test:workflow-cancellation
           npm run test:workflow-reconciliation-decision
           npm run test:workflow-reconciliation-history
