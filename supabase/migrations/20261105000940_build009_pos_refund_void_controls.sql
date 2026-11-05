@@ -136,7 +136,7 @@ begin
   if not found then raise exception 'Tender attempt not found' using errcode = 'P0002'; end if;
 
   if not public.mme_person_authorize_pos_action(
-    p_actor_person_id,'pos.refund.request',
+    p_actor_person_id,case when p_request_type='void' then 'pos.tender.void' else 'pos.refund.request' end,
     (select order_id from public.mme_pos_transactions where id = v_attempt.transaction_id)
   ) then
     raise exception 'Refund request permission denied' using errcode = '42501';
@@ -255,11 +255,15 @@ begin
      or p_lease_seconds is null or p_lease_seconds < 15 or p_lease_seconds > 600 then
     raise exception 'Invalid refund worker claim limits' using errcode = '22023';
   end if;
+  update public.mme_pos_refund_requests
+     set status='failed',failure_code=coalesce(failure_code,'max_attempts_exceeded'),
+         lease_token=null,lease_expires_at=null,updated_at=now()
+   where attempts >= 8 and status='processing' and lease_expires_at < now();
   return query
   with candidates as (
     select r.id from public.mme_pos_refund_requests r
-     where r.status='approved'
-        or (r.status='processing' and r.lease_expires_at < now())
+     where r.attempts < 8 and (r.status='approved'
+        or (r.status='processing' and r.lease_expires_at < now()))
      order by r.created_at
      for update skip locked limit p_limit
   ), claimed as (
