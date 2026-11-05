@@ -7,6 +7,7 @@ Connect authoritative MME POS orders and finalized transactions to Build 009.32 
 
 ## Delivered
 - `supabase/migrations/20261105001170_build009_pos_native_financial_adapter.sql`
+- Renumbered the pre-existing duplicate-version Build 009 tender-reconciliation migration from `20261105000930` to `20261105000931` so a fresh Supabase migration replay can proceed.
 - `app/api/cron/pos-native-financial-export/route.ts`
 - `app/api/pos/transactions/[transactionId]/register/route.ts`
 - Updated `app/api/pos/financial-connectors/route.ts`
