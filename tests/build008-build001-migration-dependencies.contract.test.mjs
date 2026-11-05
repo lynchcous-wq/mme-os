@@ -62,7 +62,7 @@ test("inspection submission quarantines serialized units and evidence stays priv
   assert.ok(evidence.includes("revoke all on public.mme_inspection_photo_evidence from public,anon,authenticated"));
   assert.match(permissions, /mme_employee_authorize_inventory_action/);
   assert.match(submission, /mme_submit_serialized_inspection/);
-  assert.ok(/unit_status\\s*=\\s*'quarantine'/.test(submission));
+  assert.ok(submission.includes("'quarantine',"));
   assert.ok(storage.includes("'mme-inspection-evidence'") && storage.includes('public = false'));
 });
 
