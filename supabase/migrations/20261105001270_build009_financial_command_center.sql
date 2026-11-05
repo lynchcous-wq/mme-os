@@ -61,6 +61,10 @@ declare
  v_overdue integer;
  v_open integer;
  v_delayed integer;
+ v_total_exposure bigint;
+ v_total_open integer;
+ v_total_overdue integer;
+ v_total_delayed integer;
  v_score integer;
  v_band text;
  v_store_count integer;
@@ -86,6 +90,7 @@ begin
   order by r.currency
  loop
   v_count:=0;v_exposure:=0;v_overdue:=0;v_open:=0;v_delayed:=0;v_score:=0;
+  v_total_exposure:=0;v_total_open:=0;v_total_overdue:=0;v_total_delayed:=0;
   v_band:='low';v_store_count:=0;v_runs:='{}';v_text:='';
   for v_location in select unnest(p_location_ids) loop
    select * into v_run from public.mme_pos_stripe_financial_intelligence_runs r
@@ -111,22 +116,13 @@ begin
    where b.location_id=v_location and b.provider='stripe' and b.currency=v_currency.currency
     and b.expected_arrival_at is not null and b.expected_arrival_at<now()
     and (b.settled_at is null or b.settled_at>b.expected_arrival_at);
-   insert into public.mme_pos_financial_command_center_briefing_stores(
-    briefing_id,location_id,currency,intelligence_run_id,risk_score,risk_band,
-    unresolved_exposure_minor,open_exception_count,overdue_exception_count,delayed_settlement_count
-   ) values(null,v_location,v_currency.currency,v_run.id,v_run.risk_score,v_run.risk_band,
-    v_exposure,v_open,v_overdue,v_delayed);
+   v_total_exposure:=v_total_exposure+v_exposure;
+   v_total_open:=v_total_open+v_open;
+   v_total_overdue:=v_total_overdue+v_overdue;
+   v_total_delayed:=v_total_delayed+v_delayed;
    v_count:=v_count+1;
-   v_exposure:=v_exposure; v_open:=v_open; v_overdue:=v_overdue; v_delayed:=v_delayed;
   end loop;
   if v_store_count=0 then continue; end if;
-  select coalesce(sum(x.unresolved_exposure_minor),0)::bigint,
-   coalesce(sum(x.open_exception_count),0)::integer,
-   coalesce(sum(x.overdue_exception_count),0)::integer,
-   coalesce(sum(x.delayed_settlement_count),0)::integer
-  into v_exposure,v_open,v_overdue,v_delayed
-  from public.mme_pos_financial_command_center_briefing_stores x
-  where x.briefing_id is null and false;
   v_text:='Financial command briefing for '||v_currency.currency||': '||v_store_count||
    ' store(s) have intelligence snapshots. Highest observed risk band is '||v_band||
    ' with a maximum store risk score of '||v_score||' out of 100. Review store-level exception exposure and delayed settlement counts before making financial decisions. Currency totals are isolated; this briefing is advisory and does not confirm bank deposits or authorize money movement.';
@@ -135,14 +131,27 @@ begin
    aggregate_risk_score,highest_risk_band,unresolved_exposure_minor,open_exception_count,
    overdue_exception_count,delayed_settlement_count,executive_briefing,source_run_ids
   ) values(p_actor_person_id,p_as_of_date,cardinality(p_location_ids),v_currency.currency,
-   v_store_count,v_score,v_band,0,0,0,0,v_text,v_runs)
+   v_store_count,v_score,v_band,v_total_exposure,v_total_open,v_total_overdue,v_total_delayed,v_text,v_runs)
   returning id into v_briefing;
   -- Store details are copied after the briefing id exists; each store row remains currency scoped.
   insert into public.mme_pos_financial_command_center_briefing_stores(
    briefing_id,location_id,currency,intelligence_run_id,risk_score,risk_band,
    unresolved_exposure_minor,open_exception_count,overdue_exception_count,delayed_settlement_count
   )
-  select v_briefing,r.location_id,r.currency,r.id,r.risk_score,r.risk_band,0,0,0,r.delayed_settlement_count
+  select v_briefing,r.location_id,r.currency,r.id,r.risk_score,r.risk_band,
+   coalesce((select sum(abs(c.amount_minor))::bigint from public.mme_pos_stripe_settlement_exception_cases c
+    where c.location_id=r.location_id and c.currency=r.currency
+     and c.status not in ('resolved','accepted_variance','false_positive')),0),
+   (select count(*)::integer from public.mme_pos_stripe_settlement_exception_cases c
+    where c.location_id=r.location_id and c.currency=r.currency
+     and c.status not in ('resolved','accepted_variance','false_positive')),
+   (select count(*)::integer from public.mme_pos_stripe_settlement_exception_cases c
+    where c.location_id=r.location_id and c.currency=r.currency
+     and c.status not in ('resolved','accepted_variance','false_positive') and c.due_at<=now()),
+   (select count(*)::integer from public.mme_pos_settlement_batches b
+    where b.location_id=r.location_id and b.provider='stripe' and b.currency=r.currency
+     and b.expected_arrival_at is not null and b.expected_arrival_at<now()
+     and (b.settled_at is null or b.settled_at>b.expected_arrival_at))
   from public.mme_pos_stripe_financial_intelligence_runs r
   where r.id=any(v_runs);
   return next v_briefing;
