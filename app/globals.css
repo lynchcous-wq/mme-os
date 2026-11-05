@@ -53,3 +53,24 @@
 .cart-added-message{font-size:11px;color:#27664b}
 .cart-added-message a{font-weight:700;text-decoration:underline}
 @media(max-width:700px){.cart-shell{width:88%;grid-template-columns:1fr;gap:24px}.cart-summary{position:static}.cart-line{grid-template-columns:58px 1fr;gap:12px}.cart-line-mark{height:58px}.cart-line-total{grid-column:2}.cart-add-panel .button{width:100%}}
+
+
+/* Build 001 authenticated checkout */
+.checkout-shell { display: block; }
+.checkout-main { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(280px, .75fr); gap: 3rem; align-items: start; }
+.checkout-details, .checkout-summary, .checkout-payment-section { background: #fff; border: 1px solid #e7e8eb; border-radius: 18px; padding: 1.5rem; }
+.checkout-details { display: grid; gap: 1rem; }
+.checkout-details h2, .checkout-summary h2, .checkout-payment-section h2 { margin: .25rem 0 .75rem; }
+.checkout-details label { display: grid; gap: .45rem; font-size: .9rem; font-weight: 600; }
+.checkout-details input, .checkout-details select { width: 100%; min-height: 46px; padding: .7rem .8rem; border: 1px solid #cfd2d8; border-radius: 9px; background: #fff; color: #17191d; font: inherit; }
+.checkout-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 1rem; }
+.checkout-summary { position: sticky; top: 1rem; }
+.checkout-line { display: grid; gap: .25rem; padding: .85rem 0; border-bottom: 1px solid #eceef1; }
+.checkout-line span { font-weight: 600; }
+.checkout-line small, .checkout-summary > p { color: #6b7078; }
+.checkout-summary .cart-subtotal { display: flex; justify-content: space-between; gap: 1rem; margin-top: 1.25rem; padding-top: 1rem; border-top: 1px solid #dfe2e6; }
+.checkout-payment-section { margin-top: 1.5rem; display: grid; gap: 1rem; }
+.checkout-payment { display: grid; gap: 1.25rem; }
+.checkout-status { padding: .9rem 1rem; border-radius: 10px; background: #edf5ff; color: #174477; }
+.checkout-payment .button:disabled, .checkout-details .button:disabled { opacity: .6; cursor: not-allowed; }
+@media (max-width: 760px) { .checkout-main { grid-template-columns: 1fr; gap: 1rem; } .checkout-summary { position: static; } .checkout-grid { grid-template-columns: 1fr; } }
