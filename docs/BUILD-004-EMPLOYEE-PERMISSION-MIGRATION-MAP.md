@@ -44,9 +44,9 @@ Legacy scope rules are not uniform:
 - Catalog authorization accepts global `{}` or product ID scope.
 - Task authorization allows only global, department, department+location, or location-only scopes and explicitly rejects unknown keys.
 
-Build 004 currently uses JSONB containment (`@>`) for both assignment and grant scope. That is not automatically equivalent to the legacy inventory OR-scope behavior, and arbitrary object containment is not a substitute for the task scope allowlist.
+The Build 004 authorization parity migration adds a server-only scope evaluator for the mapped legacy resources. It preserves inventory product-OR-location matching, catalog product scope, task department/location combinations, and global `{}` scopes while retaining strict JSON containment for unmapped resources. The helper rejects malformed UUIDs and unknown task scope keys. This evaluator is still subject to CI validation and route-level trusted-scope derivation.
 
-**Required before migration:**
+**Still required before permission migration:**
 1. Define per-resource allowed scope keys and value types.
 2. Normalize trusted scope values (especially UUIDs and departments).
 3. Preserve the exact legacy OR semantics where intended, or deliberately tighten them with an approved access-change record.
