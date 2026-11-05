@@ -156,7 +156,7 @@ $;
 
 revoke all on function public.mme_person_authorize_pos_action(uuid,text,uuid)
   from public, anon, authenticated;
-grant execute on function public.mme_person_authorize_pos_action(uuid,text)
+grant execute on function public.mme_person_authorize_pos_action(uuid,text,uuid)
   to service_role;
 
 create or replace function public.mme_pos_create_transaction(
@@ -281,8 +281,9 @@ begin
       when 'finalization_confirmed' then 'pos.transaction.finalize'
       when 'cancelled' then 'pos.transaction.cancel'
       else null
-    end
-  ), v_tx.order_id) then
+    end,
+    v_tx.order_id
+  ) then
     raise exception 'POS transaction event permission denied' using errcode = '42501';
   end if;
   v_fingerprint := md5(jsonb_build_object(
