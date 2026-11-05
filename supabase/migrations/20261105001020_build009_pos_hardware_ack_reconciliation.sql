@@ -13,6 +13,7 @@ create table public.mme_pos_hardware_acknowledgments (
   occurred_at timestamptz not null,
   received_at timestamptz not null default now(),
   reconciled_at timestamptz,
+  reconciliation_detail text check(reconciliation_detail is null or length(reconciliation_detail)<=300),
   safe_detail text check(safe_detail is null or length(safe_detail)<=300),
   unique(device_id,provider_event_id)
 );
