@@ -61,6 +61,7 @@ export async function POST(request: Request) {
       const form = new URLSearchParams({
         payment_intent: job.provider_payment_reference,
         amount: String(job.amount_minor),
+        currency: job.currency.toLowerCase(),
         'metadata[mme_refund_request_id]': job.refund_request_id
       });
       const stripeHeaders: Record<string, string> = {
@@ -81,8 +82,9 @@ export async function POST(request: Request) {
       let payload: any = {};
       try { payload = await providerResponse.json(); } catch { /* retain safe failure path */ }
       if (providerResponse.ok && typeof payload.id === "string" && payload.id.startsWith("re_")) {
-        // Webhook reconciliation is authoritative; never mark a refund complete from a synchronous response.
-        await finish(base, serviceKey, job, "unknown_reconciliation", payload.id, payload.id, null);
+        // The signed webhook is authoritative. Leave the lease in place for the short
+        // delivery window; if delivery is delayed, the same provider idempotency key
+        // makes a later retry safe. A webhook may already have completed the request.
         submitted++;
       } else if (providerResponse.status >= 400 && providerResponse.status < 500 && providerResponse.status !== 429) {
         await finish(base, serviceKey, job, "failed", null, null, "STRIPE_REQUEST_REJECTED");
