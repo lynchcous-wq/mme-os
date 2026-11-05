@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {readFile} from "node:fs/promises";
+import {readFile,readdir} from "node:fs/promises";
 const migration=await readFile(new URL("../supabase/migrations/20261105001170_build009_pos_native_financial_adapter.sql",import.meta.url),"utf8");
 const tenderMigration=await readFile(new URL("../supabase/migrations/20261105000931_build009_pos_tender_reconciliation.sql",import.meta.url),"utf8");
 const posCreate=await readFile(new URL("../app/api/pos/transactions/route.ts",import.meta.url),"utf8");
@@ -81,4 +81,15 @@ test("financial schema retains chargeback reversals as offsets",()=>{
 test("all Build 009 migrations use distinct versions",()=>{
  assert.match(tenderMigration,/Build 009/);
  assert.ok(!tenderMigration.includes("native POS financial export"));
+});
+
+test("Build 009 migration versions are unique and function delimiters are paired",async()=>{
+ const names=(await readdir(new URL("../supabase/migrations/",import.meta.url))).filter(n=>/^2026110500(09|10|11)/.test(n)&&n.endsWith(".sql")).sort();
+ const versions=names.map(n=>n.slice(0,14));
+ assert.equal(new Set(versions).size,versions.length,"migration versions must be unique");
+ for(const name of names){
+  const sql=await readFile(new URL("../supabase/migrations/"+name,import.meta.url),"utf8");
+  assert.doesNotMatch(sql,/^as \$$/m, name+" has a malformed function opening delimiter");
+  assert.doesNotMatch(sql,/^\$;$/m, name+" has a malformed function closing delimiter");
+ }
 });
