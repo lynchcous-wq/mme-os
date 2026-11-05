@@ -88,6 +88,7 @@ begin
  if p_receipt_id is null or p_actor_person_id is null or p_approved_by_person_id is null
   or p_actor_person_id=p_approved_by_person_id
   or p_component_reference is null or length(btrim(p_component_reference)) not between 1 and 120
+  or p_component_type is null or p_allocation_method is null
   or p_component_type not in ('freight','shipping','auction_fee','customs','refurbishment','insurance','other')
   or p_amount_cents is null or p_amount_cents<=0
   or p_allocation_method not in ('extended_cost','quantity') then
@@ -95,13 +96,13 @@ begin
  end if;
  select * into v_receipt from public.mme_inventory_receipts where id=p_receipt_id for update;
  if not found then raise exception 'Inventory receipt not found' using errcode='P0002'; end if;
- if not public.mme_pos_authorize_hardware_action(p_actor_person_id,'pos.inventory.cost.manage',
-   (select location_id from public.mme_inventory_movements where receipt_id=p_receipt_id order by id limit 1)) then
-  raise exception 'Landed-cost management permission denied' using errcode='42501';
+ if not exists(select 1 from public.mme_inventory_movements where receipt_id=p_receipt_id and movement_type='receipt') then
+  raise exception 'Receipt has no receiving movement records' using errcode='23514';
  end if;
- if not public.mme_pos_authorize_hardware_action(p_approved_by_person_id,'pos.inventory.cost.approve',
-   (select location_id from public.mme_inventory_movements where receipt_id=p_receipt_id order by id limit 1)) then
-  raise exception 'Landed-cost approval permission denied' using errcode='42501';
+ if exists(select 1 from public.mme_inventory_movements m where m.receipt_id=p_receipt_id and m.movement_type='receipt'
+  and (not public.mme_pos_authorize_hardware_action(p_actor_person_id,'pos.inventory.cost.manage',m.location_id)
+   or not public.mme_pos_authorize_hardware_action(p_approved_by_person_id,'pos.inventory.cost.approve',m.location_id))) then
+  raise exception 'Landed-cost management or approval permission denied for one or more stores' using errcode='42501';
  end if;
  if exists(select 1 from public.mme_inventory_receipt_cost_components where receipt_id=p_receipt_id and component_reference=btrim(p_component_reference)) then
   raise exception 'Landed-cost component reference already exists' using errcode='23505';
@@ -197,7 +198,7 @@ as $$
 declare v_receipt_id uuid; v_item record; v_product record; v_balance record; v_serial_id uuid; v_sum bigint:=0;
 begin
  if p_receipt_reference is null or length(btrim(p_receipt_reference))<3 or length(p_receipt_reference)>100
-  or p_source_type not in ('auction_pallet','supplier','customer_return','other')
+  or p_source_type is null or p_source_type not in ('auction_pallet','supplier','customer_return','other')
   or p_actor_person_id is null or p_approved_by_person_id is null or p_actor_person_id=p_approved_by_person_id
   or p_items is null or jsonb_typeof(p_items)<>'array' or jsonb_array_length(p_items)<1 or jsonb_array_length(p_items)>200 then
   raise exception 'Invalid serialized receipt' using errcode='22023';
@@ -596,6 +597,7 @@ revoke all on function public.mme_pos_allocate_receipt_landed_cost(uuid,uuid,uui
 revoke all on function public.mme_pos_receive_serialized_inventory(text,text,text,uuid,uuid,jsonb,text) from public,anon,authenticated;
 revoke all on function public.mme_pos_assign_serial_unit_to_order_line(uuid,uuid,uuid,timestamptz) from public,anon,authenticated;
 revoke all on function public.mme_pos_export_finalized_transaction_financial_facts(uuid,uuid,uuid,text) from public,anon,authenticated;
+revoke all on function public.mme_pos_apply_inventory_sale_and_snapshot_cogs() from public,anon,authenticated;
 grant execute on function public.mme_pos_allocate_receipt_landed_cost(uuid,uuid,uuid,text,text,bigint,text) to service_role;
 grant execute on function public.mme_pos_receive_serialized_inventory(text,text,text,uuid,uuid,jsonb,text) to service_role;
 grant execute on function public.mme_pos_assign_serial_unit_to_order_line(uuid,uuid,uuid,timestamptz) to service_role;
