@@ -33,6 +33,7 @@ test("Tender worker records outcomes without exposing worker RPCs to user roles"
 
 test("Provider operation references and captured amounts are validated", () => {
   assert.match(migration, /Provider operation reference is already assigned/);
+  assert.match(migration, /p_provider_payment_reference is null[\\s\\S]*p_provider_operation_reference is null/);
   assert.match(migration, /p_captured_amount_minor > p_authorized_amount_minor/);
   assert.match(migration, /v_attempt\.operation <> 'sale'/);
 });
