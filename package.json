@@ -15,7 +15,8 @@
     "test:build009:events": "node --test tests/build009-pos-event-api.contract.test.mjs",
     "test:build009:tenders": "node --test tests/build009-pos-tender-ledger.contract.test.mjs",
     "test:build009:tender-api": "node --test tests/build009-pos-tender-api.contract.test.mjs",
-    "test:build009:worker": "node --test tests/build009-pos-tender-worker.contract.test.mjs"
+    "test:build009:worker": "node --test tests/build009-pos-tender-worker.contract.test.mjs",
+    "test:build009:reconciliation": "node --test tests/build009-pos-reconciliation.contract.test.mjs"
   },
   "dependencies": {
     "next": "^15.2.4",
