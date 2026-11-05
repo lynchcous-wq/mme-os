@@ -1,3 +1,4 @@
+import {createHash} from "node:crypto";
 export type StripeBalanceTransaction={
  id:string;type:string;reporting_category?:string;amount:number;fee:number;currency:string;created:number;
  source?:string|null;description?:string|null;
@@ -21,6 +22,11 @@ export async function fetchStripeBalanceTransactions(input:{
  if(!Array.isArray(body.data)||typeof body.has_more!=="boolean")throw new Error("STRIPE_BALANCE_TRANSACTION_RESPONSE_INVALID");
  return body;
 }
+function localBusinessDate(date:Date,timezone:string){
+ const parts=new Intl.DateTimeFormat("en-US",{timeZone:timezone,year:"numeric",month:"2-digit",day:"2-digit"}).formatToParts(date);
+ const part=(type:string)=>parts.find(p=>p.type===type)?.value||"";
+ return part("year")+"-"+part("month")+"-"+part("day");
+}
 export function normalizeStripeBalanceTransactions(input:{
  data:StripeBalanceTransaction[];timezone:string;
 }):{records:NormalizedFinancialRecord[];ignored:number}{
@@ -35,10 +41,10 @@ export function normalizeStripeBalanceTransactions(input:{
   else if(category==="dispute"||category==="dispute_reversal")factType="chargeback";
   if(!factType){ignored++;continue;}
   const occurred=new Date(tx.created*1000);
-  const common={business_date:occurred.toLocaleDateString("en-CA",{timeZone:input.timezone}),occurred_at:occurred.toISOString(),
+  const common={business_date:localBusinessDate(occurred,input.timezone),occurred_at:occurred.toISOString(),
    business_timezone:input.timezone,currency:tx.currency.toUpperCase(),quantity_milli:null,product_category:null,
    sku_reference:null,register_reference:null,employee_person_id:null,source_transaction_reference:tx.source||tx.id,
-   source_digest_sha256:""};
+   source_digest_sha256:createHash("sha256").update(JSON.stringify(tx)).digest("hex")};
   records.push({...common,source_line_reference:tx.id+":"+factType,fact_type:factType,amount_minor:tx.amount});
   if(tx.fee!==0)records.push({...common,source_line_reference:tx.id+":processor_fee",fact_type:"processor_fee",amount_minor:-Math.abs(tx.fee)});
  }
