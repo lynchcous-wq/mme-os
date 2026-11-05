@@ -142,12 +142,10 @@ begin
     register_reference,location_id,assigned_person_id,opened_by_person_id,currency,opening_float_minor,expected_cash_minor
   ) values(p_register_reference,p_location_id,p_assigned_person_id,p_actor_person_id,p_currency,p_opening_float_minor,p_opening_float_minor)
   returning id into v_id;
-  insert into public.mme_pos_cash_drawer_movements(
-    drawer_session_id,movement_type,amount_minor,currency,reason_code,actor_person_id,idempotency_key
-  ) values(v_id,'opening_float',greatest(p_opening_float_minor,1),p_currency,'opening_float',p_actor_person_id,p_idempotency_key)
-  on conflict(drawer_session_id,idempotency_key) do nothing;
-  if p_opening_float_minor=0 then
-    delete from public.mme_pos_cash_drawer_movements where drawer_session_id=v_id and idempotency_key=p_idempotency_key;
+  if p_opening_float_minor>0 then
+    insert into public.mme_pos_cash_drawer_movements(
+      drawer_session_id,movement_type,amount_minor,currency,reason_code,actor_person_id,idempotency_key
+    ) values(v_id,'opening_float',p_opening_float_minor,p_currency,'opening_float',p_actor_person_id,p_idempotency_key);
   end if;
   return v_id;
 end;
@@ -174,6 +172,9 @@ begin
   v_permission:=case when p_movement_type='cash_in' then 'pos.drawer.cash_in' else 'pos.drawer.cash_out' end;
   if not public.mme_pos_authorize_drawer_action(p_actor_person_id,v_permission,v_session.location_id) then
     raise exception 'Drawer movement permission denied' using errcode='42501';
+  end if;
+  if p_movement_type='cash_out' and p_amount_minor>v_session.expected_cash_minor then
+    raise exception 'Cash out exceeds expected drawer balance' using errcode='23514';
   end if;
   insert into public.mme_pos_cash_drawer_movements(
     drawer_session_id,movement_type,amount_minor,currency,reason_code,reason_detail,actor_person_id,idempotency_key
@@ -231,6 +232,9 @@ begin
   if v_session.status<>'open' then raise exception 'Drawer must remain open for adjustment approval' using errcode='23514'; end if;
   if not public.mme_pos_authorize_drawer_action(p_approver_person_id,'pos.drawer.adjust.approve',v_session.location_id) then
     raise exception 'Cash adjustment approval permission denied' using errcode='42501';
+  end if;
+  if p_decision='approve' and v_request.direction='out' and v_request.amount_minor>v_session.expected_cash_minor then
+    raise exception 'Approved cash adjustment exceeds expected drawer balance' using errcode='23514';
   end if;
   update public.mme_pos_cash_adjustment_requests set
     status=case when p_decision='approve' then 'approved' else 'rejected' end,
