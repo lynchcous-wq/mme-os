@@ -103,7 +103,10 @@ begin
   if p_outbox_id is null or p_lease_token is null
      or p_outcome is null or p_outcome not in ('authorized','captured','declined','unknown_reconciliation')
      or p_authorized_amount_minor is null or p_authorized_amount_minor < 0
-     or p_captured_amount_minor is null or p_captured_amount_minor < 0 then
+     or p_captured_amount_minor is null or p_captured_amount_minor < 0
+     or (p_outcome in ('authorized','captured') and
+         (p_provider_payment_reference is null or length(btrim(p_provider_payment_reference)) = 0
+          or p_provider_operation_reference is null or length(btrim(p_provider_operation_reference)) = 0)) then
     raise exception 'Invalid tender dispatch outcome' using errcode = '22023';
   end if;
 
