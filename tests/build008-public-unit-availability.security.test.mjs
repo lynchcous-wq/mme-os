@@ -14,7 +14,7 @@ test("public availability never exposes serials, IMEIs, or internal location cod
   for (const field of ["serial_number", "imei", "location_code", "storage_key", "supplier_cost", "inspection_evidence"]) {
     assert.doesNotMatch(source, new RegExp(field, "i"), field + " must not be exposed");
   }
-  assert.match(source, /location_name: locationName/);
+  assert.match(source, /location_name: locationById\.get\(locationId\)/);
 });
 
 test("unit availability is uncached and fails closed on unavailable data", () => {
