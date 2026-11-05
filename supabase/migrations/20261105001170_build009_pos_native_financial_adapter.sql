@@ -26,7 +26,7 @@ returns trigger language plpgsql security definer set search_path=pg_catalog,pub
 as $$
 declare v_location_count integer; v_location_id uuid;
 begin
- select count(distinct rl.location_id),min(rl.location_id) into v_location_count,v_location_id
+ select count(distinct rl.location_id),(array_agg(distinct rl.location_id))[1] into v_location_count,v_location_id
  from public.mme_inventory_reservations r
  join public.mme_inventory_reservation_lines rl on rl.reservation_id=r.id
  where r.order_id=new.order_id and r.status='active' and r.expires_at>now();
@@ -379,6 +379,24 @@ begin
   v_fact_count:=v_fact_count+1;
  end if;
 
+ for v_line in
+  select id,method,operation,captured_amount_minor,currency,provider_operation_reference,provider_payment_reference,updated_at
+  from public.mme_pos_tender_attempts where transaction_id=p_transaction_id
+   and captured_amount_minor>0 and status in ('captured','partially_refunded','refunded')
+  order by id
+ loop
+  v_reference:='pos:'||p_transaction_id::text||':tender-capture:'||v_line.id::text;
+  v_digest:=encode(digest(jsonb_build_object('transaction_id',p_transaction_id,'tender_id',v_line.id,
+   'method',v_line.method,'operation',v_line.operation,'captured_amount_minor',v_line.captured_amount_minor,
+   'currency',v_line.currency,'provider_operation_reference',v_line.provider_operation_reference,
+   'provider_payment_reference',v_line.provider_payment_reference)::text,'sha256'),'hex');
+  perform public.mme_pos_import_financial_fact(v_tx.location_id,p_worker_person_id,'pos',v_reference,
+   'payment_capture',(v_tx.finalized_at at time zone p_business_timezone)::date,v_tx.finalized_at,p_business_timezone,
+   v_line.currency,v_line.captured_amount_minor,null,null,null,v_tx.register_reference,
+   v_tx.created_by_person_id,p_transaction_id::text,v_digest);
+  v_fact_count:=v_fact_count+1;
+ end loop;
+
  for v_refund in
   select id,amount_minor,currency,updated_at from public.mme_pos_refund_requests
   where transaction_id=p_transaction_id and request_type='refund' and status='completed'
@@ -389,6 +407,14 @@ begin
    'amount_minor',v_refund.amount_minor,'currency',v_refund.currency,'completed_at',v_refund.updated_at)::text,'sha256'),'hex');
   perform public.mme_pos_import_financial_fact(v_tx.location_id,p_worker_person_id,'pos',v_reference,
    'refund',(v_refund.updated_at at time zone p_business_timezone)::date,v_refund.updated_at,p_business_timezone,
+   v_refund.currency,-v_refund.amount_minor,null,null,null,v_tx.register_reference,
+   v_tx.created_by_person_id,p_transaction_id::text,v_digest);
+  v_fact_count:=v_fact_count+1;
+  v_reference:='pos:'||p_transaction_id::text||':payment-refund:'||v_refund.id::text;
+  v_digest:=encode(digest(jsonb_build_object('transaction_id',p_transaction_id,'refund_id',v_refund.id,
+   'payment_amount_minor',v_refund.amount_minor,'currency',v_refund.currency,'completed_at',v_refund.updated_at)::text,'sha256'),'hex');
+  perform public.mme_pos_import_financial_fact(v_tx.location_id,p_worker_person_id,'pos',v_reference,
+   'payment_refund',(v_refund.updated_at at time zone p_business_timezone)::date,v_refund.updated_at,p_business_timezone,
    v_refund.currency,-v_refund.amount_minor,null,null,null,v_tx.register_reference,
    v_tx.created_by_person_id,p_transaction_id::text,v_digest);
   v_fact_count:=v_fact_count+1;
