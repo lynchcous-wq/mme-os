@@ -1,7 +1,7 @@
 # Build 004 — Protected Route Authorization Cutover Readiness
 
 **Branch:** `integration/build004-identity-validation`  
-**Status:** Route-level Build 004 dual authorization is implemented for the four inventory-inspection endpoints below. CI validation is pending for the latest route changes. Legacy checks remain active; no permission migration or production cutover has occurred.
+**Status:** Route-level Build 004 dual authorization is implemented for the four inventory-inspection endpoints below. The latest CI run passed all registered checks. The runtime route suites use mocked Supabase/Auth responses and are not equivalent to a live Supabase-backed authorization integration test. Legacy checks remain active; no permission migration or production cutover has occurred.
 
 ## Route implementation status
 
@@ -20,11 +20,25 @@
 
 The route contract tests verify Build 004 helper usage, database-derived scope, distinct Auth/person identity mapping, retention of legacy checks, and selected evidence safeguards. They are source-contract tests, not live authorization integration tests.
 
+## CI validation record
+
+- CI run: `41960019841` (push) — success.
+- CI run: `41960024834` (pull request) — success.
+- Validated commit: `ebd1278c75b6878938de4fb45acd2426a95eaaaf`.
+- TypeScript check and optimized Next.js production build: passed.
+- Supabase Edge Function type-check: passed.
+- Complete migration chain applied to a fresh local Supabase database: passed.
+- Full pgTAP database test step: passed.
+- Build 004 inspection contract tests: 17 assertions/tests passed across the three contract suites.
+- Build 004 inspection runtime handler tests: 21 tests passed across submission (6), resolution (4), history (5), and photo evidence (6).
+- Identity authorization helper tests: 11 tests passed across contract and runtime suites.
+- CI dependency installation reported two npm audit advisories (one moderate, one high); exact affected packages and remediation have not yet been reviewed.
+
 ## Remaining validation gates
 
-1. Confirm latest CI run passes fresh Supabase migration reset, all pgTAP tests, route contract tests, TypeScript, production build, and Edge Function checks.
-2. Add or run request-level tests for allow, deny, terminated employee, frozen access, CEO bypass, mismatched scope, malformed/missing record, and authorization-service outage for each route.
-3. Confirm database RPC identity parameter contracts and transactional invariants for each route.
+1. Add or run live Supabase-backed request-level tests for allow, deny, terminated employee, frozen access, CEO bypass, mismatched scope, malformed/missing record, and authorization-service outage for each route. Current route runtime tests mock Auth and database HTTP responses.
+2. Confirm database RPC identity parameter contracts and transactional invariants for each route under the local Supabase test environment.
+3. Review the exact npm audit advisories and select compatible, non-breaking remediation; do not run force upgrades.
 4. Review the combined diff and rollback plan.
 5. Only then consider permission migration or production cutover, requiring explicit approval.
 
@@ -38,4 +52,4 @@ The route contract tests verify Build 004 helper usage, database-derived scope, 
 - A route-level authorization check does not replace atomic database enforcement.
 - No production permissions, live authorization switch, or deployment was changed by this route integration.
 
-**Current decision:** The four route integrations are committed on the feature branch, but the latest CI is pending and additional behavioral/security test coverage remains. Keep permission migration and production cutover blocked.
+**Current decision:** The four route integrations and registered CI checks are green on the validated commit. Additional live Supabase-backed behavioral/security coverage and dependency-advisory review remain. Keep permission migration and production cutover blocked.
