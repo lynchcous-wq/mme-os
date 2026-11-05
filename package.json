@@ -37,7 +37,8 @@
     "test:build009:settlement-integrity": "node --test tests/build009-pos-settlement-reconciliation.test.mjs",
     "test:build009:financial-close": "node --test tests/build009-pos-financial-close-exceptions.test.mjs",
     "test:build009:financial-reporting": "node --test tests/build009-pos-financial-reporting.test.mjs",
-    "test:build009:financial-dashboard": "node --test tests/build009-pos-financial-dashboard.test.mjs"
+    "test:build009:financial-dashboard": "node --test tests/build009-pos-financial-dashboard.test.mjs",
+    "test:build009:financial-connectors": "node --test tests/build009-pos-financial-source-connectors.test.mjs"
   },
   "dependencies": {
     "next": "^15.2.4",
