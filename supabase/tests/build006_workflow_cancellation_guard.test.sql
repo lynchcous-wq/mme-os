@@ -1,5 +1,5 @@
 begin;
-select plan(20);
+select plan(24);
 
 select has_function('public','mme_cancel_workflow_execution',
   array['uuid','uuid','text'],'workflow cancellation RPC exists');
@@ -90,6 +90,27 @@ select ok(exists (select 1 from pg_proc p join pg_namespace n on n.oid=p.proname
     and pg_get_functiondef(p.oid) like '%execution_status=''cancelled''%'
     and pg_get_functiondef(p.oid) like '%finished_at=now()%'),
   'execution is marked terminal with a completion timestamp');
+
+select ok(exists (select 1 from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+  where n.nspname='public' and p.proname='mme_complete_workflow_step'
+    and pg_get_functiondef(p.oid) like '%v_step.step_status<>''running''%'),
+  'late worker completion is rejected after cancellation changes the step out of running');
+
+select ok(exists (select 1 from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+  where n.nspname='public' and p.proname='mme_complete_workflow_step'
+    and pg_get_functiondef(p.oid) like '%v_execution.execution_status<>''running''%'),
+  'late worker completion is rejected after parent execution is cancelled');
+
+select ok(exists (select 1 from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+  where n.nspname='public' and p.proname='mme_cancel_workflow_execution'
+    and pg_get_functiondef(p.oid) like '%when step_status=''running'' then ''manual_review''%'),
+  'cancellation preserves running-step uncertainty for manual reconciliation');
+
+select ok(exists (select 1 from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+  where n.nspname='public' and p.proname='mme_cancel_workflow_execution'
+    and pg_get_functiondef(p.oid) like '%execution_status=''cancelled''%'
+    and pg_get_functiondef(p.oid) like '%manual_review_resume_authorized=false%'),
+  'cancelled execution cannot be automatically resumed after reconciliation is required');
 
 select * from finish();
 rollback;
