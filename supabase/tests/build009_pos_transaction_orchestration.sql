@@ -1,6 +1,6 @@
 -- Build 009 schema contract checks on disposable local Supabase CI.
 begin;
-select plan(139);
+select plan(140);
 
 select has_table('public', 'mme_pos_transactions', 'POS transaction envelope exists');
 select has_table('public', 'mme_pos_transaction_events', 'POS append-only event history exists');
@@ -175,5 +175,6 @@ select ok(to_regclass('public.mme_pos_hardware_active_incident_once') is not nul
 select ok(position('p_occurred_at<now()-interval ''5 minutes''' in pg_get_functiondef('public.mme_pos_record_hardware_heartbeat(uuid,text,timestamp with time zone)'::regprocedure))>0,'Heartbeat ingestion rejects stale events');
 select ok(position('p_occurred_at>now()+interval ''60 seconds''' in pg_get_functiondef('public.mme_pos_record_hardware_heartbeat(uuid,text,timestamp with time zone)'::regprocedure))>0,'Heartbeat ingestion rejects future-dated events');
 
+select ok(to_regclass('public.mme_pos_hardware_one_enabled_adapter_per_provider') is not null,'Only one enabled hardware webhook adapter version can exist per provider');
 select * from finish();
 rollback;
