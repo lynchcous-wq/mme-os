@@ -56,8 +56,9 @@ function fixture({ legacyStatus = 200, rows = [{ id: INSPECTION_ID, product_id: 
 
 test("history returns only own inspections after Build 004 and legacy view authorization", async () => {
   const buildCalls = [];
-  const { handler, calls } = fixture();
+  const calls = [];
   const fetchImpl = async (url, init = {}) => {
+    calls.push({ url: String(url), init });
     const u = String(url);
     if (u.endsWith("/auth/v1/user")) return json({ id: AUTH_ID });
     if (u.includes("/mme_person_identities?")) return json([{ id: PERSON_ID }]);
@@ -82,7 +83,6 @@ test("history returns only own inspections after Build 004 and legacy view autho
   const identityQuery = calls.find(x => x.url.includes("/mme_person_identities?"));
   assert.ok(identityQuery);
   assert.ok(identityQuery.url.includes(encodeURIComponent(AUTH_ID)) || identityQuery.url.includes(AUTH_ID));
-  void handler;
 });
 
 test("history filters records denied by Build 004 without exposing them", async () => {
