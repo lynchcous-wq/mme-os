@@ -36,3 +36,9 @@ test("resolution database RPC remains the final transactional authority", () => 
   assert.ok(source.includes("mme_resolve_serialized_inspection"));
   assert.ok(source.includes("mme_resolve_aggregate_inspection"));
 });
+
+test("legacy authorization service outages fail closed with 503, distinct from denial", () => {
+  assert.ok(source.includes('if (!permission.ok)'));
+  assert.ok(source.includes('status: 503'));
+  assert.ok(source.includes('if (permission.data !== true)'));
+});
