@@ -1,0 +1,21 @@
+name: Build 009.42 Stripe refund webhook contracts
+on:
+  push:
+    branches:
+      - implementation/build-009-42-stripe-refund-adapter-webhook
+  pull_request:
+    branches:
+      - implementation/build-009-41-serialized-return-refund-reconciliation
+jobs:
+  stripe-refund-contracts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - run: npm run lint
+      - run: npm run test:build009:stripe-refunds
+      - run: npm run test:build009:serialized-return-refunds
