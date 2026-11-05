@@ -49,7 +49,7 @@ test("COGS is exported as a negative inventory fact with idempotent transaction-
  assert.match(migration,/cost_of_goods_sold/);
  assert.match(migration,/:cogs:/);
  assert.match(migration,/v_line\.total_cost_cents/);
- assert.match(exportMigration,/mme_pos_inventory_cogs_snapshots/);
+ assert.match(migration,/mme_pos_inventory_cogs_snapshots/);
  assert.match(reporting,/cost_of_goods_sold_minor/);
 });
 test("new inventory costing tables are RLS protected and client access is revoked",()=>{
