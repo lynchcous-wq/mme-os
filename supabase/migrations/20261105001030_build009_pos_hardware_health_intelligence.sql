@@ -278,10 +278,12 @@ end;
 $$;
 
 revoke all on function public.mme_pos_ingest_device_telemetry(uuid,text,timestamptz,jsonb) from public,anon,authenticated;
-revoke all on function public.mme_pos_record_device_diagnostic(uuid,text,text,jsonb,text) from public,anon,authenticated;\nrevoke all on function public.mme_pos_calculate_device_health(uuid,timestamptz) from public,anon,authenticated;
+revoke all on function public.mme_pos_record_device_diagnostic(uuid,text,text,jsonb,text) from public,anon,authenticated;
+revoke all on function public.mme_pos_calculate_device_health(uuid,timestamptz) from public,anon,authenticated;
 revoke all on function public.mme_pos_sweep_device_health(integer,timestamptz) from public,anon,authenticated;
 grant execute on function public.mme_pos_ingest_device_telemetry(uuid,text,timestamptz,jsonb) to service_role;
-grant execute on function public.mme_pos_record_device_diagnostic(uuid,text,text,jsonb,text) to service_role;\ngrant execute on function public.mme_pos_calculate_device_health(uuid,timestamptz) to service_role;
+grant execute on function public.mme_pos_record_device_diagnostic(uuid,text,text,jsonb,text) to service_role;
+grant execute on function public.mme_pos_calculate_device_health(uuid,timestamptz) to service_role;
 grant execute on function public.mme_pos_sweep_device_health(integer,timestamptz) to service_role;
 
 comment on table public.mme_pos_device_health_scores is 'Explainable deterministic health scores based only on observed registry, heartbeat, incident and optional telemetry evidence; not an AI diagnosis.';
