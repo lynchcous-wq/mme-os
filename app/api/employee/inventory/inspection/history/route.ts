@@ -68,7 +68,10 @@ export async function GET(request: Request) {
         }),
         cache: "no-store",
       });
-      if (permission.ok && await permission.json() === true) authorized.push(item);
+      if (!permission.ok) {
+        return NextResponse.json({ error: "Inspection history authorization is temporarily unavailable." }, { status: 503 });
+      }
+      if (await permission.json() === true) authorized.push(item);
     }
     const inspectionIds = authorized.map((item) => String(item.id));
     let dispositions: Array<Record<string, unknown>> = [];
