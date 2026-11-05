@@ -47,3 +47,9 @@ test("history distinguishes authorization denial from authorization service fail
   assert.ok(history.includes('status: 503'));
   assert.ok(history.includes("if (await permission.json() === true) authorized.push(item)"));
 });
+
+test("photo authorization service outage fails closed separately from a denied permission", () => {
+  assert.ok(photos.includes("if (!authorization.ok)"));
+  assert.ok(photos.includes('status: 503'));
+  assert.ok(photos.includes("if (authorization.data !== true)"));
+});
