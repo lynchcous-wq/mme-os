@@ -49,7 +49,13 @@ export async function GET(request: Request) {
         "view",
         { product_id: String(item.product_id), location_id: String(item.location_id) },
       );
-      if (!build004.ok || build004.actorUserId !== user.id) continue;
+      if (!build004.ok) {
+        if (build004.status === 403) continue;
+        return NextResponse.json({ error: build004.error }, { status: build004.status });
+      }
+      if (build004.actorUserId !== user.id) {
+        return NextResponse.json({ error: "Employee session changed during authorization." }, { status: 401 });
+      }
 
       const permission = await fetch(`${base}/rest/v1/rpc/mme_employee_authorize_inventory_action`, {
         method: "POST",
