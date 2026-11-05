@@ -1,6 +1,6 @@
 begin;
 
-select plan(13);
+select plan(14);
 
 select has_function(
   'public',
@@ -43,6 +43,9 @@ values
   ('b0040000-0000-4000-8000-000000000005', 'catalog.approve',
    '{"product_id":"22222222-2222-4222-8222-222222222222"}'::jsonb,
    'b0040000-0000-4000-8000-000000000005', 'Build 004 dry-run fixture'),
+  ('b0040000-0000-4000-8000-000000000005', 'catalog.publish',
+   '{"product_id":"not-a-uuid"}'::jsonb,
+   'b0040000-0000-4000-8000-000000000005', 'Build 004 dry-run fixture'),
   ('b0040000-0000-4000-8000-000000000005', 'tasks.assign',
    '{"department":"sales","location_id":"33333333-3333-4333-8333-333333333333"}'::jsonb,
    'b0040000-0000-4000-8000-000000000005', 'Build 004 dry-run fixture'),
@@ -68,6 +71,14 @@ select is(
    order by source_grant_id limit 1),
   'approve',
   'catalog permission key maps to the proposed approve action'
+);
+
+select is(
+  (select mapping_status from public.mme_employee_permission_migration_dry_run()
+   where source_permission_key = 'catalog.publish'
+   order by source_grant_id limit 1),
+  'review_required',
+  'malformed product UUID scope requires review'
 );
 
 select ok(
@@ -110,7 +121,7 @@ select is(
   (select count(*)::integer
    from public.mme_employee_permission_migration_dry_run()
    where legacy_user_id = 'b0040000-0000-4000-8000-000000000005'),
-  5,
+  6,
   'all source grants are represented in dry-run output'
 );
 
@@ -124,7 +135,7 @@ select ok(
 );
 
 select ok(
-  (select count(*) = 5
+  (select count(*) = 6
    from public.employee_permission_grants
    where employee_user_id = 'b0040000-0000-4000-8000-000000000005'),
   'dry run leaves all legacy grants unchanged'
