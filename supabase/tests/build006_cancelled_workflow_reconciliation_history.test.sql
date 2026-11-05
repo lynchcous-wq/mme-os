@@ -1,0 +1,13 @@
+begin;
+select plan(9);
+select has_function('public','mme_list_cancelled_workflow_reconciliations',array['uuid','integer'],'inbox function exists');
+select ok((select prosecdef from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='mme_list_cancelled_workflow_reconciliations'),'inbox is SECURITY DEFINER');
+select ok(not has_function_privilege('anon','public.mme_list_cancelled_workflow_reconciliations(uuid,integer)','execute'),'anon cannot read history');
+select ok(not has_function_privilege('authenticated','public.mme_list_cancelled_workflow_reconciliations(uuid,integer)','execute'),'authenticated cannot directly call privileged inbox');
+select ok(has_function_privilege('service_role','public.mme_list_cancelled_workflow_reconciliations(uuid,integer)','execute'),'service role can call inbox');
+select ok(exists(select 1 from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='mme_list_cancelled_workflow_reconciliations' and pg_get_functiondef(p.oid) like '%tasks.workflow.review%' and pg_get_functiondef(p.oid) like '%owner_department%'),'department authorization remains enforced');
+select ok(exists(select 1 from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='mme_list_cancelled_workflow_reconciliations' and pg_get_functiondef(p.oid) like '%decision_history%' and pg_get_functiondef(p.oid) like '%evidence_references%' and pg_get_functiondef(p.oid) like '%decided_by_user_id%' and pg_get_functiondef(p.oid) like '%decided_at%'),'decision details and evidence are returned');
+select ok(exists(select 1 from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='mme_list_cancelled_workflow_reconciliations' and pg_get_functiondef(p.oid) like '%step_status=''manual_review''%' and pg_get_functiondef(p.oid) like '%execution_status=''cancelled''%'),'only cancelled manual-review steps appear');
+select ok(exists(select 1 from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='mme_list_cancelled_workflow_reconciliations' and pg_get_functiondef(p.oid) not like '%update public.mme_workflow_executions%' and pg_get_functiondef(p.oid) not like '%mme_review_workflow_step%'),'inbox does not mutate or resume workflows');
+select * from finish();
+rollback;
