@@ -178,7 +178,9 @@ begin
      or p_provider_account_reference is null or length(btrim(p_provider_account_reference))=0
      or p_provider_dispute_reference is null or length(btrim(p_provider_dispute_reference))=0
      or p_provider_event_reference is null or length(btrim(p_provider_event_reference))=0
+     or p_event_type is null
      or p_event_type not in ('opened','evidence_due','under_review','won','lost','reversed','manual_review')
+     or p_occurred_at is null
      or p_amount_minor is null or p_amount_minor<=0
      or p_currency is null or p_currency !~ '^[A-Z]{3}$'
      or p_event_digest is null or p_event_digest !~ '^[a-fA-F0-9]{64}$' then
