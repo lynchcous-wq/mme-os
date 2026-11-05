@@ -25,6 +25,7 @@ The authorization-engine pgTAP suite now checks:
 - Existing active role/grant and scope behavior.
 - Whole-login lock, termination, inactive role, expired assignment, malformed input.
 - Global employee freeze denies an otherwise authorized employee.
+- Global `{}` role assignment and grant scopes authorize across requested scopes, while narrower scopes remain constrained.
 - A correctly provisioned and active CEO retains the legacy inventory inspection bypass.
 - CEO does not receive automatic bypass for a new resource family.
 
