@@ -7,7 +7,7 @@ begin;
 create or replace function public.mme_pos_authorize_hardware_action(
  p_actor_person_id uuid,p_permission_key text,p_location_id uuid
 ) returns boolean language plpgsql security definer set search_path=pg_catalog,public
-as $
+as $$
 declare v_person_status text; v_ceo_person_id uuid; v_frozen boolean; v_employment_status text;
 begin
  if p_actor_person_id is null or p_location_id is null or p_permission_key not in (
@@ -30,7 +30,7 @@ begin
   and g.permission_key=p_permission_key and g.revoked_at is null and (g.expires_at is null or g.expires_at>now())
   and (g.scope='{}'::jsonb or g.scope->>'location_id'=p_location_id::text));
 end;
-$;
+$$;
 
 create table public.mme_pos_payment_disputes (
  id uuid primary key default gen_random_uuid(),

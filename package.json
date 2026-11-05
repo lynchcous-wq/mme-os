@@ -33,7 +33,8 @@
     "test:build009:network-security": "node --test tests/build009-pos-network-connectivity-security.test.mjs",
     "test:build009:disaster-recovery": "node --test tests/build009-pos-disaster-recovery-continuity.test.mjs",
     "test:build009:security-intelligence": "node --test tests/build009-pos-security-intelligence.test.mjs",
-    "test:build009:fraud-intelligence": "node --test tests/build009-pos-fraud-anomaly-intelligence.test.mjs"
+    "test:build009:fraud-intelligence": "node --test tests/build009-pos-fraud-anomaly-intelligence.test.mjs",
+    "test:build009:settlement-integrity": "node --test tests/build009-pos-settlement-reconciliation.test.mjs"
   },
   "dependencies": {
     "next": "^15.2.4",
