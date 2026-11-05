@@ -31,7 +31,8 @@
     "test:build009:hardware-fleet-administration": "node --test tests/build009-pos-hardware-fleet-administration.test.mjs",
     "test:build009:firmware-orchestration": "node --test tests/build009-pos-firmware-config-orchestration.test.mjs",
     "test:build009:network-security": "node --test tests/build009-pos-network-connectivity-security.test.mjs",
-    "test:build009:disaster-recovery": "node --test tests/build009-pos-disaster-recovery-continuity.test.mjs"
+    "test:build009:disaster-recovery": "node --test tests/build009-pos-disaster-recovery-continuity.test.mjs",
+    "test:build009:security-intelligence": "node --test tests/build009-pos-security-intelligence.test.mjs"
   },
   "dependencies": {
     "next": "^15.2.4",
