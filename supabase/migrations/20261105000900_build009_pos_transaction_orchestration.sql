@@ -85,7 +85,7 @@ returns boolean
 language plpgsql
 security definer
 set search_path = pg_catalog, public
-as $
+as $$
 declare
   v_person_status text;
   v_ceo_person_id uuid;
@@ -152,7 +152,7 @@ begin
        )
   );
 end;
-$;
+$$;
 
 revoke all on function public.mme_person_authorize_pos_action(uuid,text,uuid)
   from public, anon, authenticated;
