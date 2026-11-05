@@ -1,5 +1,5 @@
 begin;
-select plan(13);
+select plan(12);
 
 select has_column('public','mme_employee_notifications','approval_request_id','approval request link is stored');
 select has_column('public','mme_employee_notifications','approval_event_id','approval event link is stored');
