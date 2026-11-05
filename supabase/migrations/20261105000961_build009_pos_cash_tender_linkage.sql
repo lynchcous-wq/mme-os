@@ -74,6 +74,9 @@ begin
     if v_existing.drawer_session_id<>p_drawer_session_id then raise exception 'Cash refund already assigned to another drawer' using errcode='23505'; end if;
     return v_existing.id;
   end if;
+  if v_request.amount_minor>v_session.expected_cash_minor then
+    raise exception 'Cash refund exceeds expected drawer balance; manager review required' using errcode='23514';
+  end if;
   insert into public.mme_pos_cash_drawer_movements(
     drawer_session_id,movement_type,amount_minor,currency,reason_code,actor_person_id,
     source_refund_request_id,idempotency_key
