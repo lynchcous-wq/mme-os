@@ -19,7 +19,8 @@ export async function POST(request:Request){
  try{
   const active=await rpc(baseUrl,serviceKey,"mme_pos_authorize_financial_worker",{p_worker_person_id:workerPersonId});
   if(active!==true)return NextResponse.json({error:"Configured worker identity is not authorized."},{status:403,headers});
-  const expired=Number(await rpc(baseUrl,serviceKey,"mme_pos_expire_financial_import_jobs",{p_worker_person_id:workerPersonId}));\n  let enqueued=Number(await rpc(baseUrl,serviceKey,"mme_pos_enqueue_financial_import_jobs",{p_actor_person_id:workerPersonId,p_limit:100}));
+  const expired=Number(await rpc(baseUrl,serviceKey,"mme_pos_expire_financial_import_jobs",{p_worker_person_id:workerPersonId}));
+  let enqueued=Number(await rpc(baseUrl,serviceKey,"mme_pos_enqueue_financial_import_jobs",{p_actor_person_id:workerPersonId,p_limit:100}));
   let processed=0,retried=0,deadLettered=0;
   for(let i=0;i<10;i++){
    const claimed=await rpc(baseUrl,serviceKey,"mme_pos_claim_financial_import_job",{p_worker_person_id:workerPersonId,p_lease_seconds:180}) as null|{job_id:string;batch_id:string;lease_token:string};

@@ -220,8 +220,8 @@ begin
    ('gross_sale','discount','refund','subscription_revenue','sales_tax','cost_of_goods_sold','processor_fee','chargeback','cash_over_short','inventory_adjustment') then
    raise exception 'Import row % is missing a valid source reference or financial fact type',v_row using errcode='22023';
   end if;
-  v_digest:=encode(digest(v_record::text,'sha256'),'hex');
-  insert into public.mme_pos_financial_import_rows(batch_id,row_number,source_line_reference,fact_type,normalized_record,row_digest_sha256)
+  v_digest:=md5(v_record::text);
+  insert into public.mme_pos_financial_import_rows(batch_id,row_number,source_line_reference,fact_type,normalized_record,row_fingerprint_md5)
   values(v_batch,v_row,v_line,v_type,v_record,v_digest);
  end loop;
  insert into public.mme_pos_financial_connector_events(connector_id,batch_id,location_id,actor_person_id,event_type,reason,metadata)

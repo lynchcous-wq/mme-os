@@ -3,6 +3,10 @@
     {
       "path": "/api/cron/pos-financial-import",
       "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/pos-financial-provider-sync",
+      "schedule": "*/5 * * * *"
     }
   ]
 }
