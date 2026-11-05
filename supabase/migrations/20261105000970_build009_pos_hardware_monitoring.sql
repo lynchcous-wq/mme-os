@@ -120,6 +120,32 @@ begin
 end;
 $$;
 
+create or replace function public.mme_pos_register_drawer_hardware_device(
+  p_register_reference text,p_device_reference text,p_device_type text,p_provider text,
+  p_location_id uuid,p_actor_person_id uuid
+) returns uuid
+language plpgsql security definer set search_path=pg_catalog,public
+as $
+declare v_id uuid;
+begin
+  if p_register_reference is null or length(btrim(p_register_reference)) not between 1 and 80
+    or p_device_reference is null or length(btrim(p_device_reference)) not between 1 and 120
+    or p_device_type not in ('cash_drawer','receipt_printer','payment_terminal','register_controller')
+    or p_provider is null or length(btrim(p_provider)) not between 1 and 80
+    or p_location_id is null or p_actor_person_id is null then
+    raise exception 'Invalid POS hardware registration' using errcode='22023';
+  end if;
+  if not public.mme_pos_authorize_hardware_action(p_actor_person_id,'pos.hardware.register',p_location_id) then
+    raise exception 'Hardware registration permission denied' using errcode='42501';
+  end if;
+  insert into public.mme_pos_register_devices(
+    register_reference,device_reference,device_type,provider,location_id,registered_by_person_id
+  ) values(btrim(p_register_reference),btrim(p_device_reference),p_device_type,btrim(p_provider),p_location_id,p_actor_person_id)
+  returning id into v_id;
+  return v_id;
+end;
+$;
+
 create or replace function public.mme_pos_record_drawer_hardware_command_intent(
   p_device_id uuid,p_drawer_session_id uuid,p_actor_person_id uuid,
   p_command_type text,p_idempotency_key text
@@ -162,7 +188,7 @@ create or replace function public.mme_pos_ingest_drawer_hardware_event(
 language plpgsql security definer set search_path=pg_catalog,public
 as $$
 declare v_device public.mme_pos_register_devices%rowtype; v_event_id uuid; v_event public.mme_pos_drawer_hardware_events%rowtype;
-  v_session_id uuid; v_incident_type text; v_title text; v_description text; v_status text;
+  v_session_id uuid; v_incident_type text; v_title text; v_description text; v_status text; v_command_type text;
 begin
   if p_device_id is null or p_provider_event_id is null or length(btrim(p_provider_event_id)) not between 1 and 160
     or p_event_type not in ('heartbeat','device_online','device_offline','drawer_open_confirmed','drawer_open_failed',
@@ -206,11 +232,21 @@ begin
     where id=p_command_attempt_id and status in ('requested','acknowledged');
   end if;
 
-  v_incident_type:=case when p_event_type='drawer_open_failed' then 'drawer_open_failed'
+  if p_command_attempt_id is not null then
+    select command_type into v_command_type from public.mme_pos_drawer_hardware_commands where id=p_command_attempt_id;
+  end if;
+  v_incident_type:=case
+    when p_event_type='drawer_open_failed' and v_command_type='open_drawer'
+      and v_session_id is not null and exists(
+        select 1 from public.mme_pos_cash_drawer_movements m
+        where m.drawer_session_id=v_session_id and m.movement_type='cash_sale'
+      ) then 'sale_drawer_failure'
+    when p_event_type='drawer_open_failed' then 'drawer_open_failed'
     when p_event_type='device_offline' then 'device_offline'
     when p_event_type='connection_lost' then 'connection_lost' end;
   if v_incident_type is not null then
     v_title:=case v_incident_type when 'drawer_open_failed' then 'Cash drawer failed to open'
+      when 'sale_drawer_failure' then 'Sale completed but cash drawer failed to open'
       when 'device_offline' then 'POS device offline' else 'POS device connection lost' end;
     v_description:=left(coalesce(p_safe_detail,'Device reported a hardware failure')||' Register: '||v_device.register_reference,500);
     insert into public.mme_pos_drawer_it_incidents(
@@ -263,10 +299,12 @@ end;
 $$;
 
 revoke all on function public.mme_pos_authorize_hardware_action(uuid,text,uuid) from public,anon,authenticated;
+revoke all on function public.mme_pos_register_drawer_hardware_device(text,text,text,text,uuid,uuid) from public,anon,authenticated;
 revoke all on function public.mme_pos_record_drawer_hardware_command_intent(uuid,uuid,uuid,text,text) from public,anon,authenticated;
 revoke all on function public.mme_pos_ingest_drawer_hardware_event(uuid,text,text,timestamptz,uuid,text) from public,anon,authenticated;
 revoke all on function public.mme_pos_update_drawer_it_incident(uuid,uuid,text,text) from public,anon,authenticated;
 grant execute on function public.mme_pos_authorize_hardware_action(uuid,text,uuid) to service_role;
+grant execute on function public.mme_pos_register_drawer_hardware_device(text,text,text,text,uuid,uuid) to service_role;
 grant execute on function public.mme_pos_record_drawer_hardware_command_intent(uuid,uuid,uuid,text,text) to service_role;
 grant execute on function public.mme_pos_ingest_drawer_hardware_event(uuid,text,text,timestamptz,uuid,text) to service_role;
 grant execute on function public.mme_pos_update_drawer_it_incident(uuid,uuid,text,text) to service_role;
