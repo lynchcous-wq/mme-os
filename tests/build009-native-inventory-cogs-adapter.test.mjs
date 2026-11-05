@@ -4,6 +4,9 @@ import {readFile} from "node:fs/promises";
 const migration=await readFile(new URL("../supabase/migrations/20261105001180_build009_native_inventory_cogs_adapter.sql",import.meta.url),"utf8");
 const exportMigration=await readFile(new URL("../supabase/migrations/20261105001170_build009_pos_native_financial_adapter.sql",import.meta.url),"utf8");
 const reporting=await readFile(new URL("../supabase/migrations/20261105001130_build009_pos_financial_reporting.sql",import.meta.url),"utf8");
+const serialRoute=await readFile(new URL("../app/api/pos/inventory/serialized/assign/route.ts",import.meta.url),"utf8");
+const connectorRoute=await readFile(new URL("../app/api/pos/financial-connectors/route.ts",import.meta.url),"utf8");
+const dashboard=await readFile(new URL("../app/internal/financial-connectors/page.tsx",import.meta.url),"utf8");
 test("landed cost components require dual approval and use explicit allocation bases",()=>{
  assert.match(migration,/mme_inventory_receipt_cost_components/);
  assert.match(migration,/actor_identity_id<>approved_by_identity_id/);
@@ -59,4 +62,18 @@ test("inventory sale trigger and privileged RPCs are not directly executable by 
  assert.match(migration,/revoke all on function public\.mme_pos_apply_inventory_sale_and_snapshot_cogs\(\) from public,anon,authenticated/);
  assert.match(migration,/revoke all on function public\.mme_pos_receive_serialized_inventory/);
  assert.match(migration,/grant execute on function public\.mme_pos_export_finalized_transaction_financial_facts/);
+});
+
+test("serialized inventory assignment API authenticates employee and accepts only identifiers",()=>{
+ assert.match(serialRoute,/authenticatePosRequest/);
+ assert.match(serialRoute,/isUuid\(b\.order_line_id\)/);
+ assert.match(serialRoute,/isUuid\(b\.serial_unit_id\)/);
+ assert.match(serialRoute,/mme_pos_assign_serial_unit_to_order_line/);
+ assert.doesNotMatch(serialRoute,/serial_number|imei/);
+});
+test("finance connector workspace exposes store-scoped COGS snapshots",()=>{
+ assert.match(connectorRoute,/mme_pos_inventory_cogs_snapshots/);
+ assert.match(connectorRoute,/cogs_snapshots:cogsSnapshots/);
+ assert.match(dashboard,/POS cost of goods sold snapshots/);
+ assert.match(dashboard,/data\.cogs_snapshots/);
 });
