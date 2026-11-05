@@ -21,6 +21,8 @@ jobs:
         run: supabase start
       - name: Apply the complete migration chain to a fresh local database
         run: supabase db reset --local
+      - name: Execute isolated PostgreSQL identity resolver tests
+        run: supabase test db --local
       - name: Check migrated database for SQL issues
         run: supabase db lint --local
       - name: Stop isolated local Supabase stack
