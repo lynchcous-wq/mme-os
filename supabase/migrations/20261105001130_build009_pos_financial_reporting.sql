@@ -317,4 +317,92 @@ comment on table public.mme_pos_financial_reporting_facts is 'Append-only, sourc
 comment on table public.mme_pos_financial_report_runs is 'Immutable reporting run metadata and source cutoff for reproducible financial reports.';
 comment on table public.mme_pos_financial_report_rows is 'Daily store, product-category, register and employee reporting aggregates.';
 comment on table public.mme_pos_financial_report_summaries is 'Settlement, bank deposit and cash control summaries for a report run.';
+
+-- Immutable source facts and report snapshots. Corrections require a new attributable source record and report run.
+create or replace function public.mme_pos_financial_reporting_prevent_mutation()
+returns trigger language plpgsql set search_path=pg_catalog,public
+as $
+begin
+ raise exception 'Financial reporting facts and snapshots are immutable; submit a correcting source record or create a new report run' using errcode='55000';
+end;
+$;
+create trigger mme_pos_financial_facts_immutable before update or delete on public.mme_pos_financial_reporting_facts
+ for each row execute function public.mme_pos_financial_reporting_prevent_mutation();
+create trigger mme_pos_financial_report_runs_immutable before update or delete on public.mme_pos_financial_report_runs
+ for each row execute function public.mme_pos_financial_reporting_prevent_mutation();
+create trigger mme_pos_financial_report_rows_immutable before update or delete on public.mme_pos_financial_report_rows
+ for each row execute function public.mme_pos_financial_reporting_prevent_mutation();
+create trigger mme_pos_financial_report_summaries_immutable before update or delete on public.mme_pos_financial_report_summaries
+ for each row execute function public.mme_pos_financial_reporting_prevent_mutation();
+revoke update,delete,truncate on public.mme_pos_financial_reporting_facts,
+ public.mme_pos_financial_report_runs,public.mme_pos_financial_report_rows,
+ public.mme_pos_financial_report_summaries from service_role;
+
+create table public.mme_pos_financial_forecast_runs (
+ id uuid primary key default gen_random_uuid(),
+ location_id uuid not null,currency char(3) not null check(currency ~ '^[A-Z]{3}),
+ business_timezone text not null,as_of_date date not null,forecast_start date not null,forecast_end date not null,
+ model_key text not null check(model_key='weekday_28_day_baseline_v1'),built_by_person_id uuid not null,
+ built_at timestamptz not null default now(),source_fact_count bigint not null check(source_fact_count>=0),
+ status text not null default 'illustrative_projection' check(status='illustrative_projection'),
+ check(forecast_end>=forecast_start)
+);
+create table public.mme_pos_financial_forecast_rows (
+ id uuid primary key default gen_random_uuid(),
+ forecast_run_id uuid not null references public.mme_pos_financial_forecast_runs(id) on delete restrict,
+ forecast_date date not null,currency char(3) not null check(currency ~ '^[A-Z]{3}),
+ projected_net_sales_minor bigint not null,historical_observation_count integer not null check(historical_observation_count>=4),
+ model_key text not null,unique(forecast_run_id,forecast_date)
+);
+alter table public.mme_pos_financial_forecast_runs enable row level security;
+alter table public.mme_pos_financial_forecast_rows enable row level security;
+revoke all on public.mme_pos_financial_forecast_runs,public.mme_pos_financial_forecast_rows from public,anon,authenticated;
+grant select,insert on public.mme_pos_financial_forecast_runs,public.mme_pos_financial_forecast_rows to service_role;
+revoke update,delete,truncate on public.mme_pos_financial_forecast_runs,public.mme_pos_financial_forecast_rows from service_role;
+
+create or replace function public.mme_pos_build_financial_forecast(
+ p_location_id uuid,p_actor_person_id uuid,p_as_of_date date,p_currency text,p_business_timezone text
+) returns uuid language plpgsql security definer set search_path=pg_catalog,public
+as $
+declare v_run uuid; v_fact_count bigint;
+begin
+ if not public.mme_pos_authorize_hardware_action(p_actor_person_id,'pos.finance.report.build',p_location_id) then
+  raise exception 'Financial forecast build permission denied' using errcode='42501';
+ end if;
+ if p_as_of_date is null or p_currency !~ '^[A-Z]{3}
+  or not exists(select 1 from pg_timezone_names where name=p_business_timezone) then
+  raise exception 'Invalid forecast date, currency or IANA timezone' using errcode='22023';
+ end if;
+ select count(*) into v_fact_count from public.mme_pos_financial_reporting_facts f
+ where f.location_id=p_location_id and f.currency=p_currency
+  and f.business_date between p_as_of_date-28 and p_as_of_date-1;
+ insert into public.mme_pos_financial_forecast_runs(location_id,currency,business_timezone,as_of_date,
+  forecast_start,forecast_end,model_key,built_by_person_id,source_fact_count)
+ values(p_location_id,p_currency,p_business_timezone,p_as_of_date,p_as_of_date+1,p_as_of_date+7,
+  'weekday_28_day_baseline_v1',p_actor_person_id,v_fact_count) returning id into v_run;
+ insert into public.mme_pos_financial_forecast_rows(forecast_run_id,forecast_date,currency,
+  projected_net_sales_minor,historical_observation_count,model_key)
+ with historical_daily as (
+  select f.business_date,sum(f.amount_minor)::bigint net_sales
+  from public.mme_pos_financial_reporting_facts f
+  where f.location_id=p_location_id and f.currency=p_currency
+   and f.business_date between p_as_of_date-28 and p_as_of_date-1
+   and f.fact_type in ('gross_sale','discount','refund','subscription_revenue')
+  group by f.business_date
+ ), weekday_baseline as (
+  select extract(isodow from business_date)::integer weekday,
+   round(avg(net_sales))::bigint projected_amount,count(*)::integer observations
+  from historical_daily group by extract(isodow from business_date)
+ )
+ select v_run,d::date,p_currency,w.projected_amount,w.observations,'weekday_28_day_baseline_v1'
+ from generate_series(p_as_of_date+1,p_as_of_date+7,interval '1 day') d
+ join weekday_baseline w on w.weekday=extract(isodow from d)::integer
+ where w.observations>=4;
+ return v_run;
+end;
+$;
+revoke all on function public.mme_pos_build_financial_forecast(uuid,uuid,date,text,text) from public,anon,authenticated;
+grant execute on function public.mme_pos_build_financial_forecast(uuid,uuid,date,text,text) to service_role;
+comment on table public.mme_pos_financial_forecast_rows is 'Illustrative seven-day weekday baseline projections; not actual results, budgets or guaranteed forecasts.';
+
 commit;
