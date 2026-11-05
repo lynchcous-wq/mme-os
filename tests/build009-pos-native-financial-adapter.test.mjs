@@ -71,3 +71,8 @@ test("existing POS transaction creation API remains idempotent and authenticated
  assert.match(posCreate,/Idempotency-Key/);
  assert.match(posCreate,/mme_pos_create_transaction/);
 });
+
+test("financial schema retains chargeback reversals as offsets",()=>{
+ assert.ok(migration.includes("chargeback_reversal"));
+ assert.ok(migration.includes("fact_type in ('chargeback','chargeback_reversal')"));
+});
