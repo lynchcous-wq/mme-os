@@ -29,12 +29,22 @@ as $$
       e.id as build004_employee_relationship_id,
       g.permission_key as source_permission_key,
       g.scope as source_scope,
-      coalesce((
-        select s.ceo_user_id is not null
-           and s.employee_access_frozen is false
+      exists (
+        select 1
         from public.employee_security_settings s
+        join public.employee_relationships ceo_legacy
+          on ceo_legacy.user_id = s.ceo_user_id
+         and ceo_legacy.employment_status = 'active'
+        join public.mme_person_identities ceo_person
+          on ceo_person.auth_user_id = s.ceo_user_id
+         and ceo_person.security_status = 'active'
+        join public.mme_employee_relationships ceo_employee
+          on ceo_employee.person_identity_id = ceo_person.id
+         and ceo_employee.status = 'active'
         where s.singleton is true
-      ), false) as legacy_controls_ready,
+          and s.ceo_user_id is not null
+          and s.employee_access_frozen is false
+      ) as legacy_controls_ready,
       case
         when g.revoked_at is not null then 'revoked'
         when g.expires_at is not null and g.expires_at <= statement_timestamp() then 'expired'
@@ -130,7 +140,7 @@ as $$
       case when a.proposed_resource_key is not null and not a.scope_is_compatible
         then 'scope is not canonical for the proposed resource' end,
       case when not a.legacy_controls_ready
-        then 'legacy CEO provisioning is missing or global employee access is frozen; parity review required' end
+        then 'legacy CEO provisioning/linkage is incomplete, CEO is not active, or global employee access is frozen; parity review required' end
     ], null)::text[]
   from assessed a
   order by a.legacy_user_id, a.source_permission_key, a.source_grant_id;
