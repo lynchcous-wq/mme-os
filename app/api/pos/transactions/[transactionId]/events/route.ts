@@ -5,8 +5,7 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 const eventTypes = new Set([
-  "pricing_confirmed", "tender_submitted", "tender_result",
-  "reconciliation_result", "finalization_started", "finalization_confirmed", "cancelled",
+  "tender_submitted", "finalization_started", "cancelled",
 ]);
 
 const nextStatuses = new Set([
@@ -47,7 +46,8 @@ export async function POST(
       !Number.isSafeInteger(input.expected_revision) || (input.expected_revision as number) < 0 ||
       typeof input.event_type !== "string" || !eventTypes.has(input.event_type) ||
       typeof input.next_status !== "string" || !nextStatuses.has(input.next_status) ||
-      !input.event_data || typeof input.event_data !== "object" || Array.isArray(input.event_data)) {
+      !input.event_data || typeof input.event_data !== "object" || Array.isArray(input.event_data) ||
+      (input.event_type !== "tender_submitted" && Object.keys(input.event_data as object).length !== 0)) {
     return NextResponse.json({ error: "Event fields are invalid." }, { status: 400 });
   }
 
