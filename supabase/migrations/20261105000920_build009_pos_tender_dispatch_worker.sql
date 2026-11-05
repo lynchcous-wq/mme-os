@@ -118,7 +118,9 @@ begin
   select * into v_attempt from public.mme_pos_tender_attempts
    where id = v_outbox.tender_attempt_id for update;
 
-  if p_authorized_amount_minor > v_attempt.amount_minor
+  if (v_attempt.operation = 'authorize' and p_outcome = 'captured')
+     or (v_attempt.operation = 'sale' and p_outcome = 'authorized')
+     or p_authorized_amount_minor > v_attempt.amount_minor
      or p_captured_amount_minor > v_attempt.amount_minor
      or (v_attempt.operation <> 'sale' and p_captured_amount_minor > p_authorized_amount_minor)
      or (p_outcome = 'captured' and p_captured_amount_minor <= 0)
