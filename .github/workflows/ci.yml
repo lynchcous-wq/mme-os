@@ -36,6 +36,7 @@ jobs:
           npm run test:identity-authorization-runtime
           npm run test:build004-inspection-submit
           npm run test:build004-inspection-resolve
+          npm run test:build004-inspection-resolve-runtime
           npm run test:build004-inspection-history-photos
           npm run test:workflow-cancellation
           npm run test:workflow-reconciliation-decision
