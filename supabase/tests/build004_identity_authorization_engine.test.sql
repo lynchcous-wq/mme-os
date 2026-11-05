@@ -108,7 +108,7 @@ select ok(
 select ok(
   not public.mme_authorize_employee_action(
     'b0040000-0000-4000-8000-000000000002',
-    'inventory', 'inspection.submit', '{"store_id":"other"}'::jsonb
+    'inventory.inspection', 'submit', '{"store_id":"other"}'::jsonb
   ),
   'out-of-scope request is denied'
 );
@@ -122,7 +122,7 @@ where auth_user_id = 'b0040000-0000-4000-8000-000000000002';
 select ok(
   not public.mme_authorize_employee_action(
     'b0040000-0000-4000-8000-000000000002',
-    'inventory', 'inspection.submit', '{"store_id":"mableton"}'::jsonb
+    'inventory.inspection', 'submit', '{"store_id":"mableton"}'::jsonb
   ),
   'whole-login security lock denies access'
 );
@@ -141,7 +141,7 @@ where employee_number = 'B004-AUTHZ-TEST';
 select ok(
   not public.mme_authorize_employee_action(
     'b0040000-0000-4000-8000-000000000002',
-    'inventory', 'inspection.submit', '{"store_id":"mableton"}'::jsonb
+    'inventory.inspection', 'submit', '{"store_id":"mableton"}'::jsonb
   ),
   'terminated employee is denied'
 );
@@ -157,7 +157,7 @@ where role_key = 'build004_authz_test';
 select ok(
   not public.mme_authorize_employee_action(
     'b0040000-0000-4000-8000-000000000002',
-    'inventory', 'inspection.submit', '{"store_id":"mableton"}'::jsonb
+    'inventory.inspection', 'submit', '{"store_id":"mableton"}'::jsonb
   ),
   'inactive role is denied'
 );
@@ -181,14 +181,14 @@ where id = (
 select ok(
   not public.mme_authorize_employee_action(
     'b0040000-0000-4000-8000-000000000002',
-    'inventory', 'inspection.submit', '{"store_id":"mableton"}'::jsonb
+    'inventory.inspection', 'submit', '{"store_id":"mableton"}'::jsonb
   ),
   'expired role assignment is denied'
 );
 
 select ok(
   not public.mme_authorize_employee_action(
-    null, 'inventory', 'inspection.submit', '{}'::jsonb
+    null, 'inventory.inspection', 'submit', '{}'::jsonb
   ),
   'null actor is denied'
 );
@@ -196,7 +196,7 @@ select ok(
 select ok(
   not public.mme_authorize_employee_action(
     'b0040000-0000-4000-8000-000000000002',
-    'inventory', 'inspection.submit', '[]'::jsonb
+    'inventory.inspection', 'submit', '[]'::jsonb
   ),
   'non-object requested scope is denied'
 );
