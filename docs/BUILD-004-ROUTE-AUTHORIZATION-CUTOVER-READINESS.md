@@ -32,13 +32,13 @@ The route contract tests verify Build 004 helper usage, database-derived scope, 
 - Build 004 inspection contract tests: 17 assertions/tests passed across the three contract suites.
 - Build 004 inspection runtime handler tests: 21 tests passed across submission (6), resolution (4), history (5), and photo evidence (6).
 - Identity authorization helper tests: 11 tests passed across contract and runtime suites.
-- CI dependency installation reported two npm audit advisories (one moderate, one high); exact affected packages and remediation have not yet been reviewed.
+- Before the PostCSS override, CI reported two npm audit advisories: direct `next` (moderate) and transitive `postcss` (high, affected through 8.5.22). The compatible `postcss` override is committed in `package.json`; on commit `abeaf37cb1d5fd5eefcedfbb6bc07671fc11d8de`, CI dependency installation reported `found 0 vulnerabilities`. The full Supabase migration/pgTAP job was still running when this record was updated. The `next` major-version upgrade was not applied.
 
 ## Remaining validation gates
 
 1. Add or run live Supabase-backed request-level tests for allow, deny, terminated employee, frozen access, CEO bypass, mismatched scope, malformed/missing record, and authorization-service outage for each route. Current route runtime tests mock Auth and database HTTP responses.
 2. Confirm database RPC identity parameter contracts and transactional invariants for each route under the local Supabase test environment.
-3. Review the exact npm audit advisories and select compatible, non-breaking remediation; do not run force upgrades.
+3. Keep monitoring dependency advisories and assess the separate Next.js major-version upgrade on its own compatibility branch; do not run force upgrades.
 4. Review the combined diff and rollback plan.
 5. Only then consider permission migration or production cutover, requiring explicit approval.
 
