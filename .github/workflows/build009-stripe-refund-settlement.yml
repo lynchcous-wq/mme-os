@@ -1,0 +1,24 @@
+name: Build 009.44 Stripe refund settlement contracts
+on:
+  push:
+    branches:
+      - implementation/build-009-44-stripe-refund-settlement-ledger
+  pull_request:
+    branches:
+      - implementation/build-009-43-stripe-refund-dispatch-worker
+jobs:
+  stripe-refund-settlement:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - run: npm run lint
+      - run: npm run test:build009:stripe-refund-settlement
+      - run: npm run test:build009:stripe-refunds
+      - run: npm run test:build009:serialized-return-refunds
+      - run: npm run test:build009:settlement-integrity
+      - run: npm run test:build009:financial-reporting
