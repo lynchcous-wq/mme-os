@@ -72,10 +72,10 @@ export async function POST(request:Request) {
  if(b.action==="stage_batch") {
   if(!isUuid(b.connector_id)||typeof b.source_batch_reference!=="string"||typeof b.idempotency_key!=="string"||!Array.isArray(b.records)||b.records.length<1||b.records.length>250)
    return NextResponse.json({error:"A connector, batch reference, idempotency key and 1–250 normalized rows are required."},{status:400,headers});
+  if(!await authorize(auth.context,"pos.finance.report.import",b.location_id))return NextResponse.json({error:"Financial import permission denied."},{status:403,headers});
   try {
    const connectors=await read(auth.context,`mme_pos_financial_connectors?select=id,location_id&id=eq.${b.connector_id}&limit=1`);
    if(!connectors.length||connectors[0].location_id!==b.location_id)return NextResponse.json({error:"Connector does not belong to the requested store."},{status:404,headers});
-   if(!await authorize(auth.context,"pos.finance.report.import",b.location_id))return NextResponse.json({error:"Financial import permission denied."},{status:403,headers});
    const id=await rpc(auth.context,"mme_pos_stage_financial_import_batch",{p_connector_id:b.connector_id,p_actor_person_id:auth.context.personId,p_source_batch_reference:b.source_batch_reference,p_idempotency_key:b.idempotency_key,p_records:b.records,p_source_digest_sha256:b.source_digest_sha256??null});
    return NextResponse.json({batch_id:id},{status:201,headers});
   }catch(e){return NextResponse.json({error:e instanceof Error?e.message:"Batch staging failed."},{status:503,headers});}
