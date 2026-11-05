@@ -156,6 +156,12 @@ begin
  if found then
   if v_existing_fact.business_date<>p_business_date or v_existing_fact.currency<>p_currency
    or v_existing_fact.amount_minor<>p_amount_minor or v_existing_fact.occurred_at<>p_occurred_at
+   or v_existing_fact.quantity_milli is distinct from p_quantity_milli
+   or v_existing_fact.product_category is distinct from p_product_category
+   or v_existing_fact.sku_reference is distinct from p_sku_reference
+   or v_existing_fact.register_reference is distinct from p_register_reference
+   or v_existing_fact.employee_person_id is distinct from p_employee_person_id
+   or v_existing_fact.source_transaction_reference is distinct from p_source_transaction_reference
    or v_existing_fact.source_digest_sha256 is distinct from p_source_digest_sha256 then
    raise exception 'Source reference already exists with conflicting financial content; quarantine for review' using errcode='23505';
   end if;
