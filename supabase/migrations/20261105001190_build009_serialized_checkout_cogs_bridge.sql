@@ -13,6 +13,10 @@ create unique index if not exists mme_inventory_serial_cost_legacy_unit_unique
  on public.mme_inventory_serial_cost_units(legacy_serialized_unit_id)
  where legacy_serialized_unit_id is not null;
 
+alter table public.mme_inventory_serial_cost_events alter column actor_person_id drop not null;
+alter table public.mme_inventory_serial_cost_events add column if not exists actor_kind text not null default 'person'
+ check(actor_kind in ('person','customer','system'));
+
 create table public.mme_order_inventory_cogs_snapshots (
  id uuid primary key default gen_random_uuid(),
  order_id uuid not null references public.mme_orders(id) on delete restrict,
@@ -117,9 +121,9 @@ begin
   where id=v_unit.id and status='available';
  if not found then raise exception 'Serialized cost unit was concurrently reserved' using errcode='40001'; end if;
  update public.mme_order_lines set inventory_serial_unit_id=v_unit.id where id=new.id;
- insert into public.mme_inventory_serial_cost_events(serial_unit_id,event_type,actor_person_id,order_id,event_data)
- values(v_unit.id,'reserved',coalesce((select customer_identity_id from public.mme_orders where id=new.order_id),v_unit.id),
-  new.order_id,jsonb_build_object('legacy_serialized_unit_id',new.serialized_unit_id));
+ insert into public.mme_inventory_serial_cost_events(serial_unit_id,event_type,actor_person_id,actor_kind,order_id,event_data)
+ values(v_unit.id,'reserved',null,'customer',new.order_id,
+  jsonb_build_object('legacy_serialized_unit_id',new.serialized_unit_id,'initiated_by','serialized_checkout'));
  return new;
 end;
 $$;
@@ -151,8 +155,8 @@ begin
  delete from public.mme_inventory_reservation_lines
   where reservation_id=new.reservation_id and inventory_balance_id=v_balance.id and quantity=1;
  update public.mme_inventory_serial_cost_units set status='available',reserved_order_id=null where id=v_unit.id;
- insert into public.mme_inventory_serial_cost_events(serial_unit_id,event_type,actor_person_id,order_id,event_data)
- values(v_unit.id,'released',v_unit.id,new.order_id,jsonb_build_object('legacy_reservation_status',new.status));
+ insert into public.mme_inventory_serial_cost_events(serial_unit_id,event_type,actor_person_id,actor_kind,order_id,event_data)
+ values(v_unit.id,'released',null,'system',new.order_id,jsonb_build_object('legacy_reservation_status',new.status));
  return new;
 end;
 $$;
@@ -204,9 +208,9 @@ begin
    where reservation_id=v_res.id and inventory_balance_id=v_balance.id and quantity=1;
   update public.mme_inventory_serial_cost_units set status='sold',reserved_order_id=null,
    sold_order_id=new.id,sold_at=new.paid_at where id=v_unit.id;
-  insert into public.mme_inventory_serial_cost_events(serial_unit_id,event_type,actor_person_id,order_id,event_data)
-  values(v_unit.id,'sold',coalesce(new.customer_identity_id,v_unit.id),new.id,
-   jsonb_build_object('order_line_id',v_line.id,'unit_cost_cents',v_unit.unit_cost_cents));
+  insert into public.mme_inventory_serial_cost_events(serial_unit_id,event_type,actor_person_id,actor_kind,order_id,event_data)
+  values(v_unit.id,'sold',null,'system',new.id,
+   jsonb_build_object('order_line_id',v_line.id,'unit_cost_cents',v_unit.unit_cost_cents,'initiated_by','verified_payment_event'));
   insert into public.mme_order_inventory_cogs_snapshots(
    order_id,order_line_id,location_id,product_id,serial_cost_unit_id,sku_reference,
    product_category,quantity,unit_cost_cents,total_cost_cents,source_cost_reference,captured_at
