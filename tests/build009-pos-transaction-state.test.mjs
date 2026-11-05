@@ -62,7 +62,8 @@ test("unknown provider outcome enters reconciliation and cannot be retried as a 
   });
   assert.equal(tx.status, "reconciliation_required");
   assert.throws(() => transitionPosTransaction(tx, { type: "tender_submitted" }), PosTransitionError);
-  assert.throws(() => transitionPosTransaction(tx, { type: "reconciliation_result", allocations: [], matched: false }), error => error instanceof PosTransitionError === false);
+  const stillBlocked = transitionPosTransaction(tx, { type: "reconciliation_result", allocations: [], matched: false });
+  assert.equal(stillBlocked.status, "reconciliation_required");
 });
 
 test("split tender accumulates captured minor units and blocks overpayment", () => {
