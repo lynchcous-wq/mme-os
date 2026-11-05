@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "test:build008:catalog-routes": "node --test tests/build008-*.test.mjs"
   },
   "dependencies": {
     "next": "^15.2.4",
