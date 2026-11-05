@@ -85,8 +85,8 @@ begin
   raise exception 'Return must have a resolved inspection and no active refund' using errcode='23514';
  end if;
  select * into v_line from public.mme_order_lines where id=v_return.order_line_id;
- if not found or v_line.quantity<>1 or p_amount_minor>v_line.line_total_cents then
-  raise exception 'Refund amount must be positive and no greater than the serialized order-line value' using errcode='23514';
+ if not found or v_line.quantity<>1 or p_amount_minor<>v_line.line_total_cents then
+  raise exception 'Automated serialized return refund must equal the full serialized order-line amount; partial or adjusted refunds require manual review' using errcode='23514';
  end if;
  select * into v_tx from public.mme_pos_transactions where order_id=v_return.order_id;
  if not found then
