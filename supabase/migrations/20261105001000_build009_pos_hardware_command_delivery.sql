@@ -24,7 +24,7 @@ language plpgsql security definer set search_path=pg_catalog,public
 as $$
 declare v_device public.mme_pos_register_devices%rowtype; v_id uuid; v_existing public.mme_pos_drawer_hardware_commands%rowtype;
 begin
-  if p_device_id is null or p_actor_person_id is null
+  if p_device_id is null or p_actor_person_id is null or p_command_type is null
     or p_command_type not in ('open_drawer','status_check')
     or p_idempotency_key is null or length(btrim(p_idempotency_key)) not between 8 and 160 then
     raise exception 'Invalid drawer hardware command intent' using errcode='22023';
