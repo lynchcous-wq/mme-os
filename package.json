@@ -10,7 +10,8 @@
     "test:build008:catalog-routes": "node --import tsx --test tests/build008-*.test.mjs",
     "test:build009:payments": "node --test tests/build009-payments-center-contract.test.mjs",
     "test:build009:pos-state": "node --import tsx --test tests/build009-pos-transaction-state.test.mjs",
-    "test:build009:persistence": "node --test tests/build009-pos-persistence.contract.test.mjs"
+    "test:build009:persistence": "node --test tests/build009-pos-persistence.contract.test.mjs",
+    "test:build009:api": "node --test tests/build009-pos-authenticated-api.contract.test.mjs"
   },
   "dependencies": {
     "next": "^15.2.4",
