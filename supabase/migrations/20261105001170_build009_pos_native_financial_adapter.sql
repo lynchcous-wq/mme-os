@@ -11,7 +11,7 @@ alter table public.mme_pos_transactions
 update public.mme_pos_transactions t
  set location_id=src.location_id
  from (
-  select r.order_id,min(rl.location_id) as location_id
+  select r.order_id,(array_agg(distinct rl.location_id))[1] as location_id
   from public.mme_inventory_reservations r
   join public.mme_inventory_reservation_lines rl on rl.reservation_id=r.id
   group by r.order_id having count(distinct rl.location_id)=1
