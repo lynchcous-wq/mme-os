@@ -1,41 +1,41 @@
 # Build 004 — Protected Route Authorization Cutover Readiness
 
 **Branch:** `integration/build004-identity-validation`  
-**Reviewed baseline:** `24ade7890fd0e66e93b4ceceea6a390aa4d012e9`  
-**Status:** Read-only route review. No route behavior, production authorization, or permission data was changed.
+**Status:** Route-level Build 004 dual authorization is implemented for the four inventory-inspection endpoints below. CI validation is pending for the latest route changes. Legacy checks remain active; no permission migration or production cutover has occurred.
 
-## Decision
+## Route implementation status
 
-Build 004's server-only authorization helper is available, but the inspected employee inventory-inspection routes still authorize through the legacy `mme_employee_authorize_inventory_action` RPC. The new helper is not yet integrated into these routes. Keep legacy authorization active; do not migrate grants or cut over protected routes until route-specific scope derivation and parity tests are complete.
+| Route | Build 004 check | Trusted scope / identity | Legacy and transactional controls |
+|---|---|---|---|
+| `POST /api/employee/inventory/inspection` | `inventory.inspection / submit` | Product and location from the serialized-unit database lookup; Auth subject maps to `mme_person_identities.id`. | Legacy atomic submit RPC remains; actor Auth UUID and person identity are passed separately. |
+| `POST /api/employee/inventory/inspection/resolve` | Both `approve` and `resolve` | Product and location from the protected inspection row; Auth subject maps to person identity. | Legacy approve/resolve checks and final resolution RPC remain. |
+| `GET /api/employee/inventory/inspection/history` | `inventory.inspection / view` per returned row | Auth subject maps to person identity; query is constrained to the mapped inspector identity; product/location come from each database row. | Legacy view check remains. Build 004 denial filters the row; helper/service errors fail closed with their 401/503 status. |
+| `POST /api/employee/inventory/inspection/photos` | `inventory.inspection / submit` | Product/location from protected inspection row; Auth subject maps to person identity; uploader must be the mapped submitting identity. | Legacy submit check remains. Private storage, file signature/size checks, metadata registration, and rollback behavior remain. |
 
-## Route findings
+## Contract tests registered in CI
 
-| Route | Current authorization behavior | Required Build 004 migration work |
-|---|---|---|
-| `POST /api/employee/inventory/inspection` | Validates the bearer with Supabase Auth, derives actor from the Auth response, then the submit RPC applies the legacy permission check. Product/unit lookup is server-side. | After the unit lookup, derive product and location from the protected serialized-unit/product records, not the request body. Call the Build 004 helper with `inventory.inspection` / `submit` and that trusted scope. Preserve the database submit RPC's transactional validation and ensure it cannot bypass the new decision. |
-| `POST /api/employee/inventory/inspection/resolve` | Authenticates the bearer; fetches the inspection row with service role; derives product/location from that row; calls legacy approve and resolve checks; then invokes resolution RPC. | Use the row's database-derived product/location scope with Build 004 for both `approve` and `resolve`. Retain pending-state and transactional resolution guards. Avoid trusting inspection IDs or scope fields as authorization by themselves. |
-| `GET /api/employee/inventory/inspection/history` | Authenticates the bearer; queries only records inspected by that actor; then filters each row through legacy `view` authorization using stored product/location. | Use Build 004 `view` per row or a safe batch authorization RPC. Preserve actor-owned filtering, result limit, and private no-store response. Ensure a failure denies the affected row or whole request consistently. |
-| `POST /api/employee/inventory/inspection/photos` | Authenticates bearer; fetches inspection record; enforces submitting-employee ownership and pending state; checks legacy `submit` permission using stored product/location; validates file signature and registers private evidence. | Replace the legacy permission decision with Build 004 `submit` using the fetched row's product/location. Preserve ownership, pending-state, MIME/signature, size, private storage, checksum, and rollback controls. |
+- `test:build004-inspection-submit`
+- `test:build004-inspection-resolve`
+- `test:build004-inspection-history-photos`
 
-## Important constraints
+The route contract tests verify Build 004 helper usage, database-derived scope, distinct Auth/person identity mapping, retention of legacy checks, and selected evidence safeguards. They are source-contract tests, not live authorization integration tests.
 
-1. The request body, query parameters, path parameters, and client-supplied actor IDs are not trusted authorization scope.
-2. Actor identity must come only from a successfully validated Supabase Auth response.
-3. Product, location, department, and ownership context must come from service-role database reads or database functions that enforce row visibility and invariants.
-4. The Build 004 helper is server-only and fail-closed. It returns 401 for missing/invalid sessions, 403 for denied decisions, and 503 for configuration/RPC failures.
-5. Do not remove legacy checks until the same fixture matrix proves equivalent or intentionally stricter decisions for every affected route.
-6. Route cutover must preserve transactional checks inside the write RPCs. A route-level authorization precheck alone is not a substitute for atomic database enforcement.
-7. No service-role credential may be exposed to browser code.
+## Remaining validation gates
 
-## Validation gates before cutover
+1. Confirm latest CI run passes fresh Supabase migration reset, all pgTAP tests, route contract tests, TypeScript, production build, and Edge Function checks.
+2. Add or run request-level tests for allow, deny, terminated employee, frozen access, CEO bypass, mismatched scope, malformed/missing record, and authorization-service outage for each route.
+3. Confirm database RPC identity parameter contracts and transactional invariants for each route.
+4. Review the combined diff and rollback plan.
+5. Only then consider permission migration or production cutover, requiring explicit approval.
 
-- Add route contract tests proving actor IDs are never accepted from client input.
-- Add tests proving scope is read from protected database records, not request JSON.
-- Exercise allow, deny, terminated employee, frozen access, CEO bypass, mismatched product/location, malformed/missing record, and authorization-service failure for each route.
-- Verify RPC parameter names and SQL transaction guards match the route's requested resource/action.
-- Run full fresh-database migration reset, pgTAP suite, TypeScript, production build, and Edge Function checks.
-- Review route-by-route diff and retain rollback path. No production permission migration or live authorization switch without explicit approval.
+## Security and rollout decision
 
-## Current conclusion
+- Request body, query, and path values are not trusted authorization scope.
+- Actor identity originates from a validated Supabase Auth response.
+- Build 004 person identity is resolved separately; Auth UUID is not assumed to be the person-identity primary key.
+- Legacy checks and transactional RPC safeguards remain active as defense in depth.
+- Service-role credentials remain server-side.
+- A route-level authorization check does not replace atomic database enforcement.
+- No production permissions, live authorization switch, or deployment was changed by this route integration.
 
-Build 004 database parity tests are green on the reviewed baseline, but those tests do not prove that every protected application route uses Build 004. The inspected inventory-inspection routes remain on legacy authorization. Route integration and route-level security validation are the next workstream; permission migration remains blocked.
+**Current decision:** The four route integrations are committed on the feature branch, but the latest CI is pending and additional behavioral/security test coverage remains. Keep permission migration and production cutover blocked.
