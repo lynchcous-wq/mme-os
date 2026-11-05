@@ -91,7 +91,7 @@ declare
   v_frozen boolean;
   v_employment_status text;
 begin
-  if p_actor_person_id is null
+  if p_actor_person_id is null or p_permission_key is null
      or p_permission_key not in (
        'pos.transaction.create','pos.transaction.price','pos.tender.create',
        'pos.tender.capture','pos.tender.reconcile','pos.transaction.finalize',
