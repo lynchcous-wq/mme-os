@@ -183,7 +183,9 @@ begin
        or (p_resource_key = 'tasks'
          and p_action_key ~ '^[a-z][a-z0-9_.:-]{0,80}$')
      ) then
-    return exists (
+    return public.mme_employee_permission_scope_allows(
+      p_resource_key, '{}'::jsonb, p_requested_scope
+    ) and exists (
       select 1
       from public.mme_person_identities p
       join public.mme_employee_relationships e
