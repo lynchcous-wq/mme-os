@@ -62,9 +62,9 @@ Legacy authorization requires:
 - Active employee relationship.
 - Explicit CEO bypass or a valid direct permission grant.
 
-Build 004 currently checks person security status, active employee relationship, active role/assignment, and matching grant. It does **not** currently reproduce the legacy singleton CEO provisioning or global employee-access freeze. A CEO must not receive blanket authority merely because of a client claim, role label, or email address.
+The Build 004 authorization engine now has an additive integration-branch migration that checks the legacy singleton CEO provisioning and global employee-access freeze before every decision. It preserves CEO bypass only for the legacy inventory-inspection, catalog, and task permission families, and only when the provisioned CEO has active legacy and Build 004 employee relationships plus an active/unlocked person identity. New resource families (including CRM) still require explicit Build 004 grants. This parity migration is awaiting fresh-database CI validation. A CEO must never receive authority from a client claim, role label, or email address.
 
-**Required:** define how CEO authority is represented in the Build 004 role/assignment model, who can provision/revoke it, and how the legacy global freeze maps to a centrally enforced deny condition. Preserve the separate person-level whole-login lock.
+**Still required:** approve who may provision/revoke the legacy CEO singleton and how that control is administered operationally. Preserve the separate person-level whole-login lock. Validate that every protected route uses the centralized decision and that no route bypasses the global freeze.
 
 ## Identity linkage and lifecycle
 
