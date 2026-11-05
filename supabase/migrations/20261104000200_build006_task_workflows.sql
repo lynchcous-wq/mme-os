@@ -2,7 +2,7 @@
 -- Actor UUIDs must be resolved from a validated Supabase Auth session by trusted server code.
 begin;
 
-create function public.mme_employee_authorize_task_action(
+create or replace function public.mme_employee_authorize_task_action(
   p_actor_user_id uuid,
   p_permission_key text,
   p_department text,
@@ -63,7 +63,7 @@ begin
 end;
 $$;
 
-create function public.mme_create_task(
+create or replace function public.mme_create_task(
   p_actor_user_id uuid,
   p_title text,
   p_instructions text,
@@ -194,7 +194,7 @@ begin
 end;
 $$;
 
-create function public.mme_transition_task(
+create or replace function public.mme_transition_task(
   p_actor_user_id uuid,
   p_task_id uuid,
   p_new_status text,
