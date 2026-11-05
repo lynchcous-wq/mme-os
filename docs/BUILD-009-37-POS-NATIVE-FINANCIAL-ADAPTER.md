@@ -35,7 +35,7 @@ Connect authoritative MME POS orders and finalized transactions to Build 009.32 
 - Each provider-confirmed captured tender -> `payment_capture` evidence fact.
 - Each completed refund -> negative `refund` fact plus a separate negative `payment_refund` evidence fact.
 - `payment_capture` and `payment_refund` are explicitly excluded from net-sales aggregation. Stripe maps to the same movement-only fact types, avoiding duplicate revenue.
-- Chargebacks and processor fees continue to come from payment provider activity and are not invented from POS orders.
+- Chargebacks, positive chargeback reversals and processor fees continue to come from payment provider activity and are not invented from POS orders. Financial report rebuilds net chargeback and reversal facts together.
 - COGS is not guessed from retail price or an equal-cost allocation; inventory/COGS source integration remains a separate adapter dependency.
 
 ## Idempotency, retry and closed periods
