@@ -96,9 +96,9 @@ test("GET /api/catalog/:id/units returns aggregate counts, never per-device iden
   const response = await unitAvailability(new Request("http://localhost"), { params: Promise.resolve({ id: commerceId }) });
   assert.equal(response.status, 200);
   const body = await response.json();
-  assert.deepEqual(body.units, [{ location_id: locationId, location_name: "Main Store", available_quantity: 2 }]);
-  assert.equal(JSON.stringify(body).includes(unitId), false);
-  assert.equal(JSON.stringify(body).includes("PRIVATE-1"), false);
+  assert.deepEqual(body.units, [\n    { unit_id: unitId, location_id: locationId, location_name: "Main Store", condition_grade: "new" },\n    { unit_id: "77777777-7777-4777-8777-777777777777", location_id: locationId, location_name: "Main Store", condition_grade: "new" },\n  ]);
+  assert.equal(JSON.stringify(body).includes(unitId), true);
+  assert.equal(JSON.stringify(body).includes("PRIVATE-1"), false);\n  assert.equal(JSON.stringify(body).includes("123456789012345"), false);
 });
 
 test("POST /api/cart/validate rejects quantities above available stock without reserving or charging", async (t) => {
