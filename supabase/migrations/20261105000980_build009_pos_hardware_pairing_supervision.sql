@@ -55,7 +55,7 @@ language plpgsql security definer set search_path=pg_catalog,public
 as $$
 declare v_device public.mme_pos_register_devices%rowtype; v_id uuid;
 begin
-  if p_device_id is null or p_actor_person_id is null
+  if p_device_id is null or p_actor_person_id is null or p_challenge_digest is null
     or p_challenge_digest !~ '^[a-f0-9]{64}$'
     or p_expires_at is null or p_expires_at<=now() or p_expires_at>now()+interval '15 minutes' then
     raise exception 'Invalid hardware pairing challenge' using errcode='22023';
@@ -129,13 +129,28 @@ create or replace function public.mme_pos_record_hardware_heartbeat(
 ) returns uuid
 language plpgsql security definer set search_path=pg_catalog,public
 as $$
-declare v_event_id uuid;
+declare v_event_id uuid; v_device_status text;
 begin
+  if p_device_id is null or p_provider_event_id is null
+    or length(btrim(p_provider_event_id)) not between 1 and 160
+    or p_occurred_at is null
+    or p_occurred_at<now()-interval '5 minutes'
+    or p_occurred_at>now()+interval '60 seconds' then
+    raise exception 'Invalid or out-of-window hardware heartbeat' using errcode='22023';
+  end if;
+  select status into v_device_status from public.mme_pos_register_devices
+    where id=p_device_id for update;
+  if not found or v_device_status='retired' then
+    raise exception 'Registered active device not found' using errcode='P0002';
+  end if;
+  select id into v_event_id from public.mme_pos_drawer_hardware_events
+    where device_id=p_device_id and provider_event_id=p_provider_event_id;
+  if v_event_id is not null then return v_event_id; end if;
   v_event_id:=public.mme_pos_ingest_drawer_hardware_event(
     p_device_id,p_provider_event_id,'heartbeat',p_occurred_at,null,'Provider heartbeat'
   );
-  update public.mme_pos_register_devices set last_heartbeat_at=p_occurred_at,status='online',
-    paired_at=coalesce(paired_at,now()),last_seen_at=now(),updated_at=now()
+  update public.mme_pos_register_devices set last_heartbeat_at=greatest(coalesce(last_heartbeat_at,p_occurred_at),p_occurred_at),
+    status='online',paired_at=coalesce(paired_at,now()),last_seen_at=now(),updated_at=now()
     where id=p_device_id and status<>'retired';
   return v_event_id;
 end;
