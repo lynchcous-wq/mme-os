@@ -12,6 +12,14 @@ type AuditEvent = {
 };
 
 type DecisionDraft = { outcome: string; reason: string; evidenceJson: string };
+type ReconciliationDecision = {
+  id: number;
+  outcome: string;
+  reason: string;
+  evidence_references: Array<{ kind: string; reference: string; sha256?: string }>;
+  decided_by_user_id: string;
+  decided_at: string;
+};
 type ReconciliationItem = {
   step_run_id: number;
   execution_id: string;
@@ -32,7 +40,7 @@ type ReconciliationItem = {
   last_error_summary: string | null;
   correlation_id: string | null;
   execution_created_at: string;
-  audit_history: AuditEvent[];
+  audit_history: AuditEvent[];\n  decision_history: ReconciliationDecision[];
 };
 
 export default function WorkflowReconciliationPage() {
@@ -235,6 +243,24 @@ export default function WorkflowReconciliationPage() {
             <p style={{ fontSize: 12, overflowWrap: "anywhere" }}><b>Execution ID:</b> {item.execution_id}</p>
             {item.idempotency_key && <p style={{ fontSize: 12, overflowWrap: "anywhere" }}>Idempotency key: {item.idempotency_key}</p>}
             {item.correlation_id && <p style={{ fontSize: 12, overflowWrap: "anywhere" }}>Correlation ID: {item.correlation_id}</p>}
+            <details style={{ marginTop: 14 }}>
+              <summary style={{ cursor: "pointer", fontWeight: 700 }}>
+                Supervisor decision history ({item.decision_history?.length ?? 0})
+              </summary>
+              {(item.decision_history ?? []).map(decision => (
+                <div key={decision.id} style={{ background: "#f7f8fa", padding: 12, borderRadius: 8, marginTop: 8 }}>
+                  <b>{decision.outcome.replaceAll("_", " ")}</b>
+                  <div style={{ color: "#667085", fontSize: 12, marginTop: 4 }}>
+                    Decision #{decision.id} · {decision.decided_at} · Reviewer {decision.decided_by_user_id}
+                  </div>
+                  <p style={{ whiteSpace: "pre-wrap" }}>{decision.reason}</p>
+                  <b style={{ fontSize: 12 }}>Evidence references</b>
+                  <pre style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere", fontSize: 11 }}>
+                    {JSON.stringify(decision.evidence_references, null, 2)}
+                  </pre>
+                </div>
+              ))}
+            </details>
             <details style={{ marginTop: 14 }}>
               <summary style={{ cursor: "pointer", fontWeight: 700 }}>Audit history ({item.audit_history?.length ?? 0})</summary>
               {(item.audit_history ?? []).map((event, index) => (
