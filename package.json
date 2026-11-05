@@ -23,7 +23,8 @@
     "test:build009:hardware": "node --test tests/build009-pos-hardware-monitoring.contract.test.mjs",
     "test:build009:hardware-supervision": "node --test tests/build009-pos-hardware-monitoring.contract.test.mjs",
     "test:build009:hardware-provider": "node --import tsx --test tests/build009-pos-hardware-provider.test.mjs",
-    "test:build009:hardware-webhook": "node --test tests/build009-pos-hardware-webhook-route.test.mjs"
+    "test:build009:hardware-webhook": "node --test tests/build009-pos-hardware-webhook-route.test.mjs",
+    "test:build009:hardware-command-delivery": "node --test tests/build009-pos-hardware-command-delivery.test.mjs"
   },
   "dependencies": {
     "next": "^15.2.4",
