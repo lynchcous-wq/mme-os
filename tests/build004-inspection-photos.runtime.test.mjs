@@ -88,7 +88,7 @@ test("photo route accepts valid private evidence and registers hash and mapped a
   assert.equal(response.status, 200);
   assert.equal(data.uploaded, true);
   assert.equal(buildCalls.length, 1);
-  assert.deepEqual(buildCalls[0], {
+  assert.deepEqual(JSON.parse(JSON.stringify(buildCalls[0])), {
     resource: "inventory.inspection", action: "submit",
     scope: { product_id: PRODUCT_ID, location_id: LOCATION_ID },
   });
