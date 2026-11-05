@@ -70,6 +70,7 @@ create table public.mme_serialized_warranty_claims(
  warranty_id uuid not null references public.mme_serialized_warranties(id) on delete restrict,
  idempotency_key text not null unique,
  claim_reference text not null unique,
+ request_fingerprint text not null,
  reason text not null check(length(btrim(reason)) between 5 and 1000),
  evidence jsonb not null default '{}'::jsonb check(jsonb_typeof(evidence)='object'),
  status text not null default 'submitted'
@@ -263,7 +264,7 @@ begin
  v_inspection_id:=public.mme_submit_serialized_inspection(
   p_reference,v_return.serialized_unit_id,'customer_return',p_reason,p_findings,
   null,'not_applicable','not_applicable','not_applicable','not_applicable','not_applicable',
-  'not_applicable','not_applicable','not_applicable',null,p_actor_user_id,p_actor_identity_id
+  'not_applicable','not_applicable','not_applicable',left(p_reason,4000),p_actor_user_id,p_actor_identity_id
  );
  update public.mme_serialized_return_requests set status='inspection_pending',
   inspection_id=v_inspection_id,received_at=now(),updated_at=now() where id=v_return.id;
@@ -329,7 +330,7 @@ create or replace function public.mme_pos_submit_serialized_warranty_claim(
  p_reason text,p_evidence jsonb
 ) returns uuid language plpgsql security definer set search_path=pg_catalog,public
 as $$
-declare v_warranty public.mme_serialized_warranties%rowtype; v_id uuid;
+declare v_warranty public.mme_serialized_warranties%rowtype; v_id uuid; v_fp text; v_existing public.mme_serialized_warranty_claims%rowtype;
 begin
  if p_warranty_id is null or p_customer_identity_id is null
   or p_claim_reference is null or length(btrim(p_claim_reference)) not between 3 and 100
@@ -343,8 +344,15 @@ begin
   or v_warranty.status not in ('active','claim_pending') or now()>v_warranty.expires_at then
   raise exception 'Warranty is not active for this customer' using errcode='23514';
  end if;
- insert into public.mme_serialized_warranty_claims(warranty_id,idempotency_key,claim_reference,reason,evidence)
- values(v_warranty.id,p_idempotency_key,btrim(p_claim_reference),btrim(p_reason),p_evidence)
+ v_fp:=encode(digest(jsonb_build_object('warranty_id',p_warranty_id,'customer_identity_id',p_customer_identity_id,
+  'claim_reference',btrim(p_claim_reference),'reason',btrim(p_reason),'evidence',p_evidence)::text,'sha256'),'hex');
+ select * into v_existing from public.mme_serialized_warranty_claims where idempotency_key=p_idempotency_key for update;
+ if found then
+  if v_existing.request_fingerprint<>v_fp then raise exception 'Warranty claim idempotency key reused with different request' using errcode='23505'; end if;
+  return v_existing.id;
+ end if;
+ insert into public.mme_serialized_warranty_claims(warranty_id,idempotency_key,claim_reference,request_fingerprint,reason,evidence)
+ values(v_warranty.id,p_idempotency_key,btrim(p_claim_reference),v_fp,btrim(p_reason),p_evidence)
  returning id into v_id;
  update public.mme_serialized_warranties set status='claim_pending',updated_at=now() where id=v_warranty.id;
  return v_id;
