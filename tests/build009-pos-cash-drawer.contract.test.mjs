@@ -49,8 +49,8 @@ test("Cash sales and refunds are tied to completed cash ledger outcomes exactly 
   assert.ok(linkage.includes("mme_pos_record_drawer_cash_refund"));
   assert.ok(linkage.includes("v_request.status<>'completed'"));
   assert.ok(linkage.includes("Cash refund exceeds expected drawer balance"));
-  assert.ok(linkage.includes("mme_pos_drawer_tender_sale_once"));
-  assert.ok(linkage.includes("mme_pos_drawer_refund_once"));
+  assert.ok(sql.includes("mme_pos_drawer_tender_sale_once"));
+  assert.ok(sql.includes("mme_pos_drawer_refund_once"));
 });
 
 test("Cash drawer data and RPCs are not directly exposed to authenticated clients", () => {
