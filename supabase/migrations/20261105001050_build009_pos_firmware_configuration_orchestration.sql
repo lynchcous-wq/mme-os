@@ -337,7 +337,7 @@ create or replace function public.mme_pos_request_deployment_recovery(
 ) returns uuid language plpgsql security definer set search_path=pg_catalog,public
 as $$
 declare v_target public.mme_pos_deployment_targets%rowtype; v_campaign public.mme_pos_deployment_campaigns%rowtype;
-declare v_id uuid; v_location uuid;
+v_id uuid; v_location uuid;
 begin
  if p_target_id is null or p_actor_person_id is null
   or p_recovery_type not in ('vendor_rollback','reinstall_previous_version','manual_vendor_recovery')
