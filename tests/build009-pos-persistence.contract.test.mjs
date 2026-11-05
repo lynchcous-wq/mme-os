@@ -11,7 +11,13 @@ test("POS persistence reuses Build 001 order and active inventory reservation", 
   assert.doesNotMatch(migration, /create table public\.mme_pos_inventory_balances/i);
 });
 
-test("POS transaction creation is idempotent and linked to an existing pending order", () => {
+test("POS transaction creation is idempotent, linked to a pending order, and person-authorized", () => {
+  assert.match(migration, /mme_person_authorize_pos_action/);
+  assert.match(migration, /employee_access_frozen/);
+  assert.match(migration, /lifecycle_status is distinct from 'active'/);
+  assert.match(migration, /employment_status is distinct from 'active'/);
+  assert.match(migration, /pos\.transaction\.create/);
+  assert.match(migration, /POS transaction event permission denied/);
   assert.match(migration, /idempotency_key text not null unique/);
   assert.match(migration, /v_order\.status <> 'pending_payment'/);
   assert.match(migration, /p_order_id or idempotency_key = p_idempotency_key/);
