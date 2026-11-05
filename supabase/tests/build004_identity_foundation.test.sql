@@ -1,6 +1,6 @@
 begin;
 
-select plan(24);
+select plan(29);
 
 select has_table('public', 'mme_person_identities', 'person identity table exists');
 select has_table('public', 'mme_customer_relationships', 'customer relationship table exists');
