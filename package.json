@@ -28,7 +28,8 @@
     "test:build009:hardware-dispatch": "node --test tests/build009-pos-hardware-dispatch-worker.test.mjs",
     "test:build009:hardware-ack-reconciliation": "node --test tests/build009-pos-hardware-ack-reconciliation.test.mjs",
     "test:build009:hardware-health-intelligence": "node --test tests/build009-pos-hardware-health-intelligence.test.mjs",
-    "test:build009:hardware-fleet-administration": "node --test tests/build009-pos-hardware-fleet-administration.test.mjs"
+    "test:build009:hardware-fleet-administration": "node --test tests/build009-pos-hardware-fleet-administration.test.mjs",
+    "test:build009:firmware-orchestration": "node --test tests/build009-pos-firmware-config-orchestration.test.mjs"
   },
   "dependencies": {
     "next": "^15.2.4",
