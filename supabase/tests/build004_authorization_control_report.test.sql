@@ -1,6 +1,6 @@
 begin;
 
-select plan(11);
+select plan(12);
 
 select has_function(
   'public',
@@ -47,6 +47,12 @@ select is(
    from public.mme_employee_authorization_control_report()),
   false,
   'unprovisioned CEO is not reported as an active legacy employee'
+);
+select is(
+  (select build004_whole_login_locked
+   from public.mme_employee_authorization_control_report()),
+  false,
+  'missing CEO identity does not produce a null whole-login lock diagnostic'
 );
 
 update public.employee_security_settings
