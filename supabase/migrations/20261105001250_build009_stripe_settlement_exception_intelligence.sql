@@ -73,6 +73,7 @@ as $$
 declare
  v_batch public.mme_pos_settlement_batches%rowtype;
  v_match public.mme_pos_stripe_refund_settlement_matches%rowtype;
+ v_refund record;
  v_line public.mme_pos_settlement_lines%rowtype;
  v_case uuid;
  v_type text;
@@ -160,7 +161,7 @@ begin
   end if;
  end loop;
 
- for v_match in
+ for v_refund in
   select r.id as refund_request_id,r.tender_attempt_id,r.amount_minor,r.currency,r.updated_at,
    r.provider_refund_reference,r.provider_operation_reference
   from public.mme_pos_refund_requests r
