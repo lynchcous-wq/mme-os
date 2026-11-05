@@ -85,12 +85,12 @@ test("GET /api/catalog/:id returns public media fields and no internal storage k
   assert.equal(JSON.stringify(body).includes("private/internal"), false);
 });
 
-test("GET /api/catalog/:id/units returns aggregate counts, never per-device identity", async (t) => {
+test("GET /api/catalog/:id/units returns opaque cart references but never serial or IMEI values", async (t) => {
   setupFetch(t, {
     mme_products: [{ ...commerceProduct(true) }],
     mme_serialized_units: [
-      { id: unitId, product_id: commerceId, location_id: locationId, unit_status: "in_stock", serial_number: "PRIVATE-1", imei: "123456789012345" },
-      { id: "77777777-7777-4777-8777-777777777777", product_id: commerceId, location_id: locationId, unit_status: "in_stock", serial_number: "PRIVATE-2" },
+      { id: unitId, product_id: commerceId, location_id: locationId, unit_status: "in_stock", condition_grade: "new", serial_number: "PRIVATE-1", imei: "123456789012345" },
+      { id: "77777777-7777-4777-8777-777777777777", product_id: commerceId, location_id: locationId, unit_status: "in_stock", condition_grade: "new", serial_number: "PRIVATE-2" },
     ],
   });
   const response = await unitAvailability(new Request("http://localhost"), { params: Promise.resolve({ id: commerceId }) });
