@@ -8,6 +8,7 @@ const noStore = { "Cache-Control": "no-store, private" };
 const uuid = (value: string | null) => isUuid(value);
 const datePattern = /^\d{4}-\d{2}-\d{2}$/;
 const currencyPattern = /^[A-Z]{3}$/;
+const validDate = (value: string) => datePattern.test(value) && !Number.isNaN(Date.parse(value)) && new Date(value).toISOString().slice(0,10) === value;
 const validTimezone = (value: unknown): value is string => {
   if (typeof value !== "string" || value.length > 80) return false;
   try { new Intl.DateTimeFormat("en-US", { timeZone: value }); return true; } catch { return false; }
@@ -43,7 +44,7 @@ export async function GET(request: Request) {
   const periodEnd = params.get("period_end");
   const currency = params.get("currency") ?? "USD";
   if (!uuid(locationId) || !periodStart || !periodEnd || !datePattern.test(periodStart) ||
-      !datePattern.test(periodEnd) || periodEnd < periodStart || !currencyPattern.test(currency)) {
+      !validDate(periodStart) || !validDate(periodEnd) || periodEnd < periodStart || !currencyPattern.test(currency)) {
     return NextResponse.json({ error: "Provide a valid store, date range and ISO currency." }, { status: 400, headers: noStore });
   }
   if (!(await authorized(context, "pos.finance.report.view", locationId))) {
@@ -55,11 +56,11 @@ export async function GET(request: Request) {
     const report = runs[0] ?? null;
     if (!report) return NextResponse.json({ report: null, rows: [], summary: null }, { headers: noStore });
     const reportId = String(report.id);
-    const [rows, summaries] = await Promise.all([
+    const [allRows, summaries] = await Promise.all([
       readRows(context, `mme_pos_financial_report_rows?select=*&report_run_id=eq.${reportId}&order=business_date.asc`),
       readRows(context, `mme_pos_financial_report_summaries?select=*&report_run_id=eq.${reportId}&limit=1`),
     ]);
-    return NextResponse.json({ report, rows, summary: summaries[0] ?? null }, { headers: noStore });
+    const rows = allRows.filter((row) => row.grouping_level !== "employee");\n    return NextResponse.json({ report, rows, summary: summaries[0] ?? null }, { headers: noStore });
   } catch {
     return NextResponse.json({ error: "Financial reporting data is temporarily unavailable." }, { status: 503, headers: noStore });
   }
