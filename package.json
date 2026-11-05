@@ -13,7 +13,8 @@
     "test:build009:persistence": "node --test tests/build009-pos-persistence.contract.test.mjs",
     "test:build009:api": "node --test tests/build009-pos-authenticated-api.contract.test.mjs",
     "test:build009:events": "node --test tests/build009-pos-event-api.contract.test.mjs",
-    "test:build009:tenders": "node --test tests/build009-pos-tender-ledger.contract.test.mjs"
+    "test:build009:tenders": "node --test tests/build009-pos-tender-ledger.contract.test.mjs",
+    "test:build009:tender-api": "node --test tests/build009-pos-tender-api.contract.test.mjs"
   },
   "dependencies": {
     "next": "^15.2.4",
