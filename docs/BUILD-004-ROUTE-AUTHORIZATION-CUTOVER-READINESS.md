@@ -22,17 +22,16 @@ The route contract tests verify Build 004 helper usage, database-derived scope, 
 
 ## CI validation record
 
-- CI run: `41960019841` (push) — success.
-- CI run: `41960024834` (pull request) — success.
-- Validated commit: `ebd1278c75b6878938de4fb45acd2426a95eaaaf`.
+- CI run: `41962123496` (push) — success.
+- CI run: `41962118153` (pull request) — success.
+- Validated commit: `93243f1f6c7a90783ee938f5d39daaef2ff59255`.
 - TypeScript check and optimized Next.js production build: passed.
 - Supabase Edge Function type-check: passed.
 - Complete migration chain applied to a fresh local Supabase database: passed.
-- Full pgTAP database test step: passed.
-- Build 004 inspection contract tests: 17 assertions/tests passed across the three contract suites.
-- Build 004 inspection runtime handler tests: 21 tests passed across submission (6), resolution (4), history (5), and photo evidence (6).
-- Identity authorization helper tests: 11 tests passed across contract and runtime suites.
-- Before the PostCSS override, CI reported two npm audit advisories: direct `next` (moderate) and transitive `postcss` (high, affected through 8.5.22). The compatible `postcss` override is committed in `package.json`; on commit `abeaf37cb1d5fd5eefcedfbb6bc07671fc11d8de`, CI dependency installation reported `found 0 vulnerabilities`. The full Supabase migration/pgTAP job was still running when this record was updated. The `next` major-version upgrade was not applied.
+- Full pgTAP suite: **98 files, 1,025 tests; all successful**.
+- Registered route runtime and contract tests: passed in CI. These execute route handlers with mocked Auth/database/storage responses; they are not live Supabase-backed request tests.
+- npm dependency audit: `found 0 vulnerabilities` on this validated commit.
+- The PostCSS override remains in `package.json`; the separate Next.js major-version upgrade was not applied.
 
 ## Remaining validation gates
 
