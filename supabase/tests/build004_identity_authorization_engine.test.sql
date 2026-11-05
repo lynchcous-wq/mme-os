@@ -1,6 +1,6 @@
 begin;
 
-select plan(18);
+select plan(22);
 
 select has_function(
   'public',
@@ -34,6 +34,14 @@ select id, 'B004-AUTHZ-TEST', 'active'
 from public.mme_person_identities
 where auth_user_id = 'b0040000-0000-4000-8000-000000000002'
 on conflict (employee_number) do nothing;
+
+insert into public.employee_relationships
+  (user_id, employment_status, employee_number, department)
+values
+  ('b0040000-0000-4000-8000-000000000002', 'active', 'B004-AUTHZ-TEST', 'sales')
+on conflict (user_id) do update
+  set employment_status = 'active', department = 'sales',
+      terminated_at = null;
 
 insert into auth.users (id, email)
 values ('b0040000-0000-4000-8000-000000000003', 'build004-authz-ceo@example.invalid')
@@ -105,6 +113,102 @@ join public.mme_employee_relationships e on e.id = ra.employee_relationship_id
 join public.mme_person_identities p on p.id = e.person_identity_id
 where p.auth_user_id = 'b0040000-0000-4000-8000-000000000002'
   and ra.scope = '{}'::jsonb;
+
+insert into public.employee_permission_grants
+  (employee_user_id, permission_key, scope, granted_by_user_id, reason)
+values
+  ('b0040000-0000-4000-8000-000000000002',
+   'inventory.inspection.submit',
+   '{"product_id":"11111111-1111-4111-8111-111111111111"}'::jsonb,
+   'b0040000-0000-4000-8000-000000000003',
+   'Build 004 parity test'),
+  ('b0040000-0000-4000-8000-000000000002',
+   'tasks.create',
+   '{"department":"sales","location_id":"22222222-2222-4222-8222-222222222222"}'::jsonb,
+   'b0040000-0000-4000-8000-000000000003',
+   'Build 004 parity test');
+
+insert into public.mme_role_assignments
+  (employee_relationship_id, role_id, scope, status, effective_from)
+select e.id, r.id,
+       '{"department":"sales","location_id":"22222222-2222-4222-8222-222222222222"}'::jsonb,
+       'active', now() - interval '1 hour'
+from public.mme_employee_relationships e
+join public.mme_person_identities p on p.id = e.person_identity_id
+join public.mme_roles r on r.role_key = 'build004_authz_test'
+where p.auth_user_id = 'b0040000-0000-4000-8000-000000000002';
+
+insert into public.mme_permission_grants
+  (role_assignment_id, resource_key, action_key, scope, status)
+select ra.id, 'tasks', 'create',
+       '{"department":"sales","location_id":"22222222-2222-4222-8222-222222222222"}'::jsonb,
+       'active'
+from public.mme_role_assignments ra
+join public.mme_employee_relationships e on e.id = ra.employee_relationship_id
+join public.mme_person_identities p on p.id = e.person_identity_id
+join public.mme_roles r on r.id = ra.role_id
+where p.auth_user_id = 'b0040000-0000-4000-8000-000000000002'
+  and r.role_key = 'build004_authz_test'
+  and ra.scope = '{"department":"sales","location_id":"22222222-2222-4222-8222-222222222222"}'::jsonb
+  and not exists (
+    select 1 from public.mme_permission_grants g
+    where g.role_assignment_id = ra.id and g.resource_key = 'tasks' and g.action_key = 'create'
+  );
+
+select is(
+  public.mme_employee_authorize_inventory_action(
+    'b0040000-0000-4000-8000-000000000002',
+    'inventory.inspection.submit',
+    '11111111-1111-4111-8111-111111111111',
+    '22222222-2222-4222-8222-222222222222'
+  ),
+  public.mme_authorize_employee_action(
+    'b0040000-0000-4000-8000-000000000002',
+    'inventory.inspection', 'submit',
+    '{"product_id":"11111111-1111-4111-8111-111111111111","location_id":"22222222-2222-4222-8222-222222222222"}'::jsonb
+  ),
+  'legacy and Build 004 inventory decisions agree for matching product scope'
+);
+select is(
+  public.mme_employee_authorize_inventory_action(
+    'b0040000-0000-4000-8000-000000000002',
+    'inventory.inspection.submit',
+    '33333333-3333-4333-8333-333333333333',
+    '22222222-2222-4222-8222-222222222222'
+  ),
+  public.mme_authorize_employee_action(
+    'b0040000-0000-4000-8000-000000000002',
+    'inventory.inspection', 'submit',
+    '{"product_id":"33333333-3333-4333-8333-333333333333","location_id":"22222222-2222-4222-8222-222222222222"}'::jsonb
+  ),
+  'legacy and Build 004 inventory decisions agree for mismatched product scope'
+);
+select is(
+  public.mme_employee_authorize_task_action(
+    'b0040000-0000-4000-8000-000000000002',
+    'tasks.create', 'sales',
+    '22222222-2222-4222-8222-222222222222'
+  ),
+  public.mme_authorize_employee_action(
+    'b0040000-0000-4000-8000-000000000002',
+    'tasks', 'create',
+    '{"department":"sales","location_id":"22222222-2222-4222-8222-222222222222"}'::jsonb
+  ),
+  'legacy and Build 004 task decisions agree for matching department and location'
+);
+select is(
+  public.mme_employee_authorize_task_action(
+    'b0040000-0000-4000-8000-000000000002',
+    'tasks.create', 'warehouse',
+    '22222222-2222-4222-8222-222222222222'
+  ),
+  public.mme_authorize_employee_action(
+    'b0040000-0000-4000-8000-000000000002',
+    'tasks', 'create',
+    '{"department":"warehouse","location_id":"22222222-2222-4222-8222-222222222222"}'::jsonb
+  ),
+  'legacy and Build 004 task decisions agree for department mismatch'
+);
 
 select ok(
   public.mme_authorize_employee_action(
