@@ -212,7 +212,7 @@ begin
   ])<>'{}'::jsonb then
    raise exception 'Import row % has an invalid shape or unsupported fields',v_row using errcode='22023';
   end if;
-  if exists(select 1 from jsonb_object_keys(v_record) k where k ~* '(card_number|pan|cvv|cvc|pin|track_data|magstripe|password|access_token|refresh_token|email|phone|address)') then
+  if exists(select 1 from jsonb_object_keys(v_record) as keys(key) where key ~* '(card_number|pan|cvv|cvc|pin|track_data|magstripe|password|access_token|refresh_token|email|phone|address)') then
    raise exception 'Import row % contains prohibited sensitive fields',v_row using errcode='22023';
   end if;
   v_line:=v_record->>'source_line_reference'; v_type:=v_record->>'fact_type';
@@ -325,6 +325,37 @@ begin
  return true;
 end;
 $$;
+
+
+create or replace function public.mme_pos_set_financial_connector_status(
+ p_connector_id uuid,p_actor_person_id uuid,p_next_status text,p_reason text
+) returns boolean language plpgsql security definer set search_path=pg_catalog,public
+as $
+declare v_connector public.mme_pos_financial_connectors%rowtype; v_event text;
+begin
+ select * into v_connector from public.mme_pos_financial_connectors where id=p_connector_id for update;
+ if not found then raise exception 'Financial connector not found' using errcode='P0002'; end if;
+ if not public.mme_pos_authorize_hardware_action(p_actor_person_id,'pos.finance.connector.manage',v_connector.location_id) then
+  raise exception 'Financial connector management permission denied' using errcode='42501';
+ end if;
+ if p_next_status not in ('active','paused','revoked') or length(btrim(coalesce(p_reason,'')))<8
+  or v_connector.status in ('revoked','error') then
+  raise exception 'Valid connector status transition and reason required' using errcode='22023';
+ end if;
+ if p_next_status='active' and v_connector.credential_reference is null then
+  raise exception 'Connector cannot be activated without an externally managed credential reference' using errcode='55000';
+ end if;
+ update public.mme_pos_financial_connectors set status=p_next_status,updated_at=now() where id=p_connector_id;
+ v_event:=case when p_next_status='active' then 'connector_activated'
+  when p_next_status='paused' then 'connector_paused' else 'connector_revoked' end;
+ insert into public.mme_pos_financial_connector_events(connector_id,location_id,actor_person_id,event_type,reason)
+ values(p_connector_id,v_connector.location_id,p_actor_person_id,v_event,p_reason);
+ return true;
+end;
+$;
+
+revoke all on function public.mme_pos_set_financial_connector_status(uuid,uuid,text,text) from public,anon,authenticated;
+grant execute on function public.mme_pos_set_financial_connector_status(uuid,uuid,text,text) to service_role;
 
 revoke all on function public.mme_pos_register_financial_connector(uuid,uuid,text,text,text,text) from public,anon,authenticated;
 revoke all on function public.mme_pos_stage_financial_import_batch(uuid,uuid,text,text,jsonb,text) from public,anon,authenticated;
