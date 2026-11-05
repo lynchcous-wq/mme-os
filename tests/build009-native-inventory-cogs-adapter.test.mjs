@@ -55,8 +55,10 @@ test("COGS is exported as a negative inventory fact with idempotent transaction-
 test("new inventory costing tables are RLS protected and client access is revoked",()=>{
  for(const table of ["mme_inventory_receipt_cost_components","mme_inventory_receipt_cost_allocations","mme_inventory_serial_cost_units","mme_inventory_serial_cost_events","mme_pos_inventory_cogs_snapshots"]){
   assert.ok(migration.includes("alter table public."+table+" enable row level security"));
-  assert.ok(migration.includes("public."+table+" from public,anon,authenticated"));
  }
+ assert.match(migration,/revoke all on public\.mme_inventory_receipt_cost_components,public\.mme_inventory_receipt_cost_allocations from public,anon,authenticated/);
+ assert.match(migration,/revoke all on public\.mme_inventory_serial_cost_units,public\.mme_inventory_serial_cost_events from public,anon,authenticated/);
+ assert.match(migration,/revoke all on public\.mme_pos_inventory_cogs_snapshots from public,anon,authenticated/);
 });
 test("inventory sale trigger and privileged RPCs are not directly executable by clients",()=>{
  assert.match(migration,/revoke all on function public\.mme_pos_apply_inventory_sale_and_snapshot_cogs\(\) from public,anon,authenticated/);
