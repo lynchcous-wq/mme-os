@@ -17,6 +17,8 @@ test("serialized order line reservation also reserves exactly one matching cost 
  assert.match(bridge,/legacy_serialized_unit_id=new\.serialized_unit_id/);
  assert.match(bridge,/reserved_quantity=reserved_quantity\+1/);
  assert.match(bridge,/inventory_serial_unit_id=v_unit\.id/);
+ assert.match(bridge,/actor_kind in \('person','customer','system'\)/);
+ assert.match(bridge,/values\(v_unit\.id,'reserved',null,'customer'/);
 });
 test("legacy release and expiry release the linked cost reservation",()=>{
  assert.match(checkout,/mme_release_serialized_order_reservation/);
@@ -32,6 +34,7 @@ test("verified Stripe success captures serialized COGS only after consumed reser
  assert.match(bridge,/status='consumed'/);
  assert.match(bridge,/v_unit\.status<>'reserved'/);
  assert.match(bridge,/status='sold',reserved_order_id=null/);
+ assert.match(bridge,/values\(v_unit\.id,'sold',null,'system'/);
  assert.match(bridge,/mme_order_inventory_cogs_snapshots/);
  assert.match(bridge,/unit_cost_cents/);
 });
