@@ -1,5 +1,5 @@
 begin;
-select plan(13);
+select plan(14);
 
 select has_column('public','mme_workflow_step_runs','recovery_resolution','human recovery outcome is stored');
 select has_column('public','mme_workflow_step_runs','recovery_review_evidence','review evidence is stored');
@@ -47,7 +47,7 @@ select ok(exists (
 select ok(exists (
   select 1 from pg_proc p join pg_namespace n on n.oid=p.pronamespace
    where n.nspname='public' and p.proname='mme_review_workflow_step'
-     and pg_get_functiondef(p.oid) like '%FOR UPDATE%'
+     and lower(pg_get_functiondef(p.oid)) like '%for update%'
 ),'review locks the step before changing its recovery state');
 
 select ok(exists (
