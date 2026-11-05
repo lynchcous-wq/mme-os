@@ -1,6 +1,6 @@
 begin;
 
-select plan(30);
+select plan(34);
 
 select has_function(
   'public',
@@ -509,6 +509,80 @@ select ok(
     '{"product_id":"44444444-4444-4444-8444-444444444444"}'::jsonb
   ),
   'Build 004 catalog engine rejects creator self-approval based on protected product row'
+);
+
+update public.employee_relationships
+set employment_status = 'terminated',
+    terminated_at = now()
+where user_id = 'b0040000-0000-4000-8000-000000000002';
+
+update public.mme_employee_relationships
+set status = 'terminated'
+where employee_number = 'B004-AUTHZ-TEST';
+
+select is(
+  public.mme_employee_authorize_inventory_action(
+    'b0040000-0000-4000-8000-000000000002',
+    'inventory.inspection.submit',
+    '11111111-1111-4111-8111-111111111111',
+    '22222222-2222-4222-8222-222222222222'
+  ),
+  public.mme_authorize_employee_action(
+    'b0040000-0000-4000-8000-000000000002',
+    'inventory.inspection', 'submit',
+    '{"product_id":"11111111-1111-4111-8111-111111111111","location_id":"22222222-2222-4222-8222-222222222222"}'::jsonb
+  ),
+  'legacy and Build 004 both deny inventory access after employee termination'
+);
+select is(
+  public.mme_employee_authorize_task_action(
+    'b0040000-0000-4000-8000-000000000002',
+    'tasks.create', 'sales',
+    '22222222-2222-4222-8222-222222222222'
+  ),
+  public.mme_authorize_employee_action(
+    'b0040000-0000-4000-8000-000000000002',
+    'tasks', 'create',
+    '{"department":"sales","location_id":"22222222-2222-4222-8222-222222222222"}'::jsonb
+  ),
+  'legacy and Build 004 both deny task access after employee termination'
+);
+
+update public.employee_relationships
+set employment_status = 'active',
+    terminated_at = null
+where user_id = 'b0040000-0000-4000-8000-000000000002';
+
+update public.mme_employee_relationships
+set status = 'active'
+where employee_number = 'B004-AUTHZ-TEST';
+
+select is(
+  public.mme_employee_authorize_inventory_action(
+    'b0040000-0000-4000-8000-000000000002',
+    'inventory.inspection.resolve',
+    '11111111-1111-4111-8111-111111111111',
+    '22222222-2222-4222-8222-222222222222'
+  ),
+  public.mme_authorize_employee_action(
+    'b0040000-0000-4000-8000-000000000002',
+    'inventory.inspection', 'resolve',
+    '{"product_id":"11111111-1111-4111-8111-111111111111","location_id":"22222222-2222-4222-8222-222222222222"}'::jsonb
+  ),
+  'legacy and Build 004 both deny inventory action without a matching grant'
+);
+select is(
+  public.mme_employee_authorize_task_action(
+    'b0040000-0000-4000-8000-000000000002',
+    'tasks.delete', 'sales',
+    '22222222-2222-4222-8222-222222222222'
+  ),
+  public.mme_authorize_employee_action(
+    'b0040000-0000-4000-8000-000000000002',
+    'tasks', 'delete',
+    '{"department":"sales","location_id":"22222222-2222-4222-8222-222222222222"}'::jsonb
+  ),
+  'legacy and Build 004 both deny task action without a matching grant'
 );
 
 select * from finish();
