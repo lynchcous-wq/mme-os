@@ -39,7 +39,7 @@ These are compatibility diagnostics, not permission decisions. The legacy invent
 - `unsupported`: no approved permission-key crosswalk exists.
 - `inactive`: source grant is revoked or expired.
 
-No classification automatically authorizes a migration. CEO provisioning, global employee freeze, source-grant provenance, role taxonomy, and dual-check rollout remain separate approval gates.
+No classification automatically authorizes a migration. The dry run now also forces `review_required` when the legacy CEO is unprovisioned or global employee access is frozen. CEO identity linkage, source-grant provenance, role taxonomy, and dual-check rollout remain separate approval gates.
 
 ## Validation
 
