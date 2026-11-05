@@ -82,5 +82,28 @@ export async function POST(request: Request, context: { params: Promise<{ provid
   if (!ingestResponse.ok) return NextResponse.json({ error: "Hardware event could not be recorded." }, { status: 502 });
   const eventId = await ingestResponse.json() as unknown;
   if (typeof eventId !== "string") return NextResponse.json({ error: "Hardware event service returned an invalid result." }, { status: 502 });
-  return NextResponse.json({ accepted: true, event_id: eventId }, { status: 202, headers: { "Cache-Control": "no-store" } });
+
+  let acknowledgment: unknown = null;
+  if (event.eventType === "drawer_open_confirmed" || event.eventType === "drawer_open_failed") {
+    const acknowledgmentResponse = await fetch(baseUrl + "/rest/v1/rpc/mme_pos_ingest_hardware_acknowledgment", {
+      method: "POST",
+      headers: { apikey: serviceKey, Authorization: "Bearer " + serviceKey, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        p_device_id: device.id,
+        p_provider_event_id: event.providerEventId,
+        p_event_type: event.eventType,
+        p_occurred_at: event.occurredAt,
+        p_command_id: null,
+        p_provider_command_id: event.providerCommandId ?? null,
+        p_safe_detail: event.safeDetail ?? null,
+      }),
+      cache: "no-store",
+    });
+    if (!acknowledgmentResponse.ok) {
+      return NextResponse.json({ error: "Hardware acknowledgment could not be reconciled." }, { status: 502 });
+    }
+    acknowledgment = await acknowledgmentResponse.json() as unknown;
+  }
+
+  return NextResponse.json({ accepted: true, event_id: eventId, acknowledgment }, { status: 202, headers: { "Cache-Control": "no-store" } });
 }

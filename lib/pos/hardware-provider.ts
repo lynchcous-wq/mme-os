@@ -6,6 +6,7 @@ export type PosHardwareEventType =
 
 export type NormalizedHardwareEvent = {
   providerEventId: string;
+  providerCommandId?: string;
   deviceReference: string;
   eventType: PosHardwareEventType;
   occurredAt: string;
@@ -69,12 +70,13 @@ export function normalizeProviderHardwareEvent(input: {
   const value = payload as Record<string, unknown>;
   const providerEventId = typeof value.event_id === "string" ? value.event_id.trim() : "";
   const deviceReference = typeof value.device_id === "string" ? value.device_id.trim() : "";
+  const providerCommandId = typeof value.provider_command_id === "string" ? value.provider_command_id.trim() : "";
   const providerType = typeof value.event_type === "string" ? value.event_type.trim() : "";
   const occurredAt = typeof value.occurred_at === "string" ? value.occurred_at : "";
   const epoch = Date.parse(occurredAt);
   const eventType = Object.hasOwn(mapping, providerType) ? mapping[providerType] : undefined;
   if (!providerEventId || providerEventId.length > 160 ||
-      !deviceReference || deviceReference.length > 120 ||
+      !deviceReference || deviceReference.length > 120 || providerCommandId.length > 160 ||
       typeof eventType !== "string" || !Number.isFinite(epoch)) {
     throw new Error("Provider event is missing a valid identifier, device, mapped type, or timestamp.");
   }
@@ -83,6 +85,7 @@ export function normalizeProviderHardwareEvent(input: {
     : undefined;
   return {
     providerEventId,
+    ...(providerCommandId ? { providerCommandId } : {}),
     deviceReference,
     eventType,
     occurredAt: new Date(epoch).toISOString(),
