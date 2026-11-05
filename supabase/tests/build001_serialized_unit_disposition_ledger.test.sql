@@ -127,32 +127,32 @@ select ok(
 
 
 select throws_ok(
-  $select public.mme_resolve_serialized_inspection(
+  $q$select public.mme_resolve_serialized_inspection(
     '99999999-9999-4999-8999-999999999999',
     'write_off', null, 'test reason',
     null, '22222222-2222-4222-8222-222222222222'
-  )$,
+  )$q$,
   '22023',
   'Invalid serialized inspection resolution',
   'resolver rejects a null acting identity at execution time'
 );
 select throws_ok(
-  $select public.mme_resolve_serialized_inspection(
+  $q$select public.mme_resolve_serialized_inspection(
     '99999999-9999-4999-8999-999999999999',
     'write_off', null, 'test reason',
     '11111111-1111-4111-8111-111111111111', null
-  )$,
+  )$q$,
   '22023',
   'Invalid serialized inspection resolution',
   'resolver rejects a null approving identity at execution time'
 );
 select throws_ok(
-  $select public.mme_resolve_serialized_inspection(
+  $q$select public.mme_resolve_serialized_inspection(
     '99999999-9999-4999-8999-999999999999',
     'write_off', null, 'test reason',
     '11111111-1111-4111-8111-111111111111',
     '22222222-2222-4222-8222-222222222222'
-  )$,
+  )$q$,
   '22023',
   'Invalid serialized inspection resolution',
   'resolver rejects different actor and approver identities at execution time'
