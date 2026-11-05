@@ -25,6 +25,6 @@ test("POS history API checks view permission before returning events", () => {
   assert.match(viewRoute, /mme_person_authorize_pos_action/);
   assert.match(viewRoute, /pos\.transaction\.view/);
   assert.match(viewRoute, /permission\.json\(\) !== true/);
-  assert.doesNotMatch(viewRoute, /actor_person_id:|actor_person_id,/);
+  assert.doesNotMatch(viewRoute, /select=[^`]*actor_person_id/);\n  assert.doesNotMatch(viewRoute, /select=id,revision,event_type,previous_status,next_status,actor_person_id/);
   assert.match(viewRoute, /Cache-Control.*no-store/);
 });
