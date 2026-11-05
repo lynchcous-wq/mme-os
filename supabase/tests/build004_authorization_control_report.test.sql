@@ -1,6 +1,6 @@
 begin;
 
-select plan(10);
+select plan(11);
 
 select has_function(
   'public',
@@ -41,6 +41,12 @@ select is(
    from public.mme_employee_authorization_control_report()),
   false,
   'unprovisioned CEO is not treated as linked'
+);
+select is(
+  (select ceo_legacy_employee_active
+   from public.mme_employee_authorization_control_report()),
+  false,
+  'unprovisioned CEO is not reported as an active legacy employee'
 );
 
 update public.employee_security_settings
