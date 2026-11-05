@@ -15,7 +15,7 @@ test("POS actor identity is resolved server-side from the verified Auth subject"
   assert.match(auth, /mme_resolve_person_for_auth_subject/);
   assert.match(auth, /p_auth_user_id: user\.id/);
   assert.match(route, /p_actor_person_id: context\.personId/);
-  assert.doesNotMatch(route, /actor_person_id/);
+  assert.doesNotMatch(route, /body as \\{[^}]*actor_person_id/);
 });
 test("POS create API accepts only an order ID and requires idempotency", () => {
   assert.match(route, /idempotency-key/);
