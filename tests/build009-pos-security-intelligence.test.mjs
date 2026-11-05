@@ -55,3 +55,14 @@ test("security schema explicitly avoids treating alerts as autonomous containmen
   assert.match(sql, /does not autonomously isolate devices/);
   assert.match(sql, /approved response intent only/);
 });
+
+test("shared hardware authorization gate retains identity protections and recognizes security permissions", async () => {
+  const authSql = await readFile(new URL("../supabase/migrations/20261105001080_build009_pos_security_intelligence.sql", import.meta.url), "utf8");
+  for (const permission of ["pos.security.view","pos.security.manage","pos.security.investigate","pos.security.contain","pos.security.rules.manage"]) {
+    assert.ok(authSql.includes("'" + permission + "'"));
+  }
+  assert.match(authSql, /employee_access_frozen/);
+  assert.match(authSql, /employment_status/);
+  assert.match(authSql, /expires_at is null or g\.expires_at>now\(\)/);
+  assert.match(authSql, /scope->>'location_id'/);
+});
