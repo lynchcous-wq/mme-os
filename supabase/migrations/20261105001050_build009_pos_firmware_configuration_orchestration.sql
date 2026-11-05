@@ -175,6 +175,9 @@ begin
  if cardinality(p_device_ids)<>(select count(distinct x) from unnest(p_device_ids) x) then
   raise exception 'Duplicate devices in deployment campaign' using errcode='22023';
  end if;
+ if (select count(*) from public.mme_pos_register_devices d where d.id=any(p_device_ids))<>cardinality(p_device_ids) then
+  raise exception 'One or more deployment devices do not exist' using errcode='P0002';
+ end if;
  if p_deployment_type='firmware' then
   select target_firmware_version into v_target_version from public.mme_pos_firmware_packages
    where id=p_firmware_package_id and status='verified' and signature_verified=true;
@@ -226,7 +229,7 @@ create or replace function public.mme_pos_decide_deployment_approval(
 language plpgsql security definer set search_path=pg_catalog,public
 as $$
 declare v public.mme_pos_deployment_approvals%rowtype; v_campaign public.mme_pos_deployment_campaigns%rowtype;
-declare v_location uuid;
+v_location uuid;
 begin
  if p_approval_id is null or p_actor_person_id is null or p_decision not in ('approve','reject') then
   raise exception 'Invalid deployment approval decision' using errcode='22023';
@@ -239,8 +242,8 @@ begin
   raise exception 'Deployment approval expired or already decided' using errcode='55000';
  end if;
  if v.requested_by_person_id=p_actor_person_id then raise exception 'Requester cannot approve own deployment' using errcode='42501'; end if;
- if not exists(select 1 from public.mme_pos_deployment_targets t join public.mme_pos_register_devices d on d.id=t.device_id
-  where t.campaign_id=v.campaign_id and public.mme_pos_authorize_hardware_action(p_actor_person_id,'pos.hardware.approve',d.location_id)) then
+ if exists(select 1 from public.mme_pos_deployment_targets t join public.mme_pos_register_devices d on d.id=t.device_id
+  where t.campaign_id=v.campaign_id and not public.mme_pos_authorize_hardware_action(p_actor_person_id,'pos.hardware.approve',d.location_id)) then
   raise exception 'Deployment approval permission denied' using errcode='42501';
  end if;
  update public.mme_pos_deployment_approvals set decision=case when p_decision='approve' then 'approved' else 'rejected' end,
@@ -261,7 +264,7 @@ create or replace function public.mme_pos_record_deployment_preflight(
 language plpgsql security definer set search_path=pg_catalog,public
 as $$
 declare v_target public.mme_pos_deployment_targets%rowtype; v_campaign public.mme_pos_deployment_campaigns%rowtype;
-declare v_location uuid;
+v_location uuid;
 begin
  if p_target_id is null or p_actor_person_id is null or p_idle_verified is distinct from true
   or p_compatibility_verified is distinct from true or p_verification_at is null
