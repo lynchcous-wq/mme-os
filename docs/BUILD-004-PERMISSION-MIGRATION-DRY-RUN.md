@@ -26,8 +26,8 @@ Unknown permission keys are `unsupported`; they are not guessed or wildcard-mapp
 
 ## Scope checks
 
-- Inventory: global `{}`, product-only, or location-only scope.
-- Catalog: global `{}` or product-only scope.
+- Inventory: global `{}`, product-only, or location-only scope; scoped product/location values must be UUID-shaped.
+- Catalog: global `{}` or product-only scope; scoped product values must be UUID-shaped.
 - Tasks: global `{}`, department-only, location-only, or department+location. Unknown keys are rejected from candidacy; location IDs must be UUID-shaped.
 
 These are compatibility diagnostics, not permission decisions. The legacy inventory OR-scope and task scope semantics must still be verified against the protected target data and equivalent authorization fixtures.
@@ -39,7 +39,7 @@ These are compatibility diagnostics, not permission decisions. The legacy invent
 - `unsupported`: no approved permission-key crosswalk exists.
 - `inactive`: source grant is revoked or expired.
 
-No classification automatically authorizes a migration. The dry run now also forces `review_required` when the legacy CEO is unprovisioned or global employee access is frozen. CEO identity linkage, source-grant provenance, role taxonomy, and dual-check rollout remain separate approval gates.
+No classification automatically authorizes a migration. The dry run now also forces `review_required` unless the legacy CEO is provisioned, active in the legacy model, linked to an active Build 004 employee/person identity, unlocked at the person level, and global employee access is unfrozen. CEO identity linkage, source-grant provenance, role taxonomy, and dual-check rollout remain separate approval gates.
 
 ## Validation
 
