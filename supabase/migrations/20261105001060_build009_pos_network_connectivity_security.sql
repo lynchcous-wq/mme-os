@@ -219,8 +219,8 @@ create or replace function public.mme_pos_record_network_connection(
 as $$
 declare v_network public.mme_pos_network_devices%rowtype; v_id uuid; v_location uuid;
 begin
- select n.*,d.location_id into v_network,v_location from public.mme_pos_network_devices n
- join public.mme_pos_register_devices d on d.id=n.device_id where n.device_id=p_device_id;
+ select n.* into v_network from public.mme_pos_network_devices n where n.device_id=p_device_id;
+ select location_id into v_location from public.mme_pos_register_devices where id=p_device_id;
  if not found then raise exception 'Network device enrollment not found' using errcode='P0002'; end if;
  if p_connection_state not in ('connected','degraded','disconnected','blocked','unknown')
   or p_source not in ('trusted_agent','network_monitor','provider_webhook','manual_verification')
