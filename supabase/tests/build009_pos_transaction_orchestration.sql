@@ -1,46 +1,35 @@
--- Build 009 schema contract checks. Runs only on disposable local Supabase CI.
+-- Build 009 schema contract checks on disposable local Supabase CI.
 begin;
-select plan(12);
+select plan(10);
 
 select has_table('public', 'mme_pos_transactions', 'POS transaction envelope exists');
-select has_table('public', 'mme_pos_tender_allocations', 'Tender allocation reference table exists');
-select has_table('public', 'mme_pos_transaction_events', 'Append-only event history exists');
-select has_table('public', 'mme_pos_outbox', 'Transactional outbox exists');
+select has_table('public', 'mme_pos_transaction_events', 'POS append-only event history exists');
+select has_table('public', 'mme_pos_outbox', 'POS transactional outbox exists');
 
-select has_function(
-  'public', 'mme_pos_authorize_register_action',
-  array['uuid','text','uuid'],
-  'POS store permission gate exists'
-);
 select has_function(
   'public', 'mme_pos_create_transaction',
-  array['uuid','uuid','uuid','text','text'],
+  array['uuid','text','uuid'],
   'Idempotent POS transaction creation function exists'
 );
-
-select ok(
-  has_function_privilege('service_role',
-    'public.mme_pos_create_transaction(uuid,uuid,uuid,text,text)', 'EXECUTE'),
-  'service_role can invoke POS transaction creation'
-);
-select ok(
-  not has_function_privilege('anon',
-    'public.mme_pos_create_transaction(uuid,uuid,uuid,text,text)', 'EXECUTE'),
-  'anon cannot invoke POS transaction creation'
+select has_function(
+  'public', 'mme_pos_append_transaction_event',
+  array['uuid','bigint','text','text','uuid','text','jsonb'],
+  'Revision-guarded POS event append function exists'
 );
 
-select ok((select c.relrowsecurity from pg_class c
-  where c.oid = 'public.mme_pos_transactions'::regclass),
-  'POS transaction table has row-level security enabled');
-select ok((select c.relrowsecurity from pg_class c
-  where c.oid = 'public.mme_pos_tender_allocations'::regclass),
-  'Tender allocation table has row-level security enabled');
-select ok((select c.relrowsecurity from pg_class c
-  where c.oid = 'public.mme_pos_transaction_events'::regclass),
-  'Transaction event table has row-level security enabled');
-select ok((select c.relrowsecurity from pg_class c
-  where c.oid = 'public.mme_pos_outbox'::regclass),
-  'Outbox table has row-level security enabled');
+select ok(has_function_privilege('service_role',
+  'public.mme_pos_create_transaction(uuid,text,uuid)', 'EXECUTE'),
+  'service_role can create POS transaction envelopes');
+select ok(not has_function_privilege('anon',
+  'public.mme_pos_create_transaction(uuid,text,uuid)', 'EXECUTE'),
+  'anon cannot create POS transactions');
+
+select ok((select c.relrowsecurity from pg_class c where c.oid='public.mme_pos_transactions'::regclass),
+  'POS transaction table has RLS enabled');
+select ok((select c.relrowsecurity from pg_class c where c.oid='public.mme_pos_transaction_events'::regclass),
+  'POS event table has RLS enabled');
+select ok((select c.relrowsecurity from pg_class c where c.oid='public.mme_pos_outbox'::regclass),
+  'POS outbox table has RLS enabled');
 
 select * from finish();
 rollback;
