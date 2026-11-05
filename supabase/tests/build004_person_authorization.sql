@@ -3,6 +3,8 @@
 -- The surrounding transaction is always rolled back in the disposable CI DB.
 begin;
 
+select plan(1);
+
 do $$
 declare
   v_actor_user uuid := 'f3000000-0000-4000-8000-000000000001';
@@ -142,5 +144,8 @@ begin
   end if;
 end;
 $$;
+
+select pass('Build 004 SQL assertions completed without exception');
+select * from finish();
 
 rollback;
