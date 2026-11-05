@@ -340,9 +340,8 @@ begin
   raise exception 'Invalid serialized warranty claim' using errcode='22023';
  end if;
  select * into v_warranty from public.mme_serialized_warranties where id=p_warranty_id for update;
- if not found or v_warranty.customer_identity_id<>p_customer_identity_id
-  or v_warranty.status not in ('active','claim_pending') or now()>v_warranty.expires_at then
-  raise exception 'Warranty is not active for this customer' using errcode='23514';
+ if not found or v_warranty.customer_identity_id<>p_customer_identity_id then
+  raise exception 'Warranty is not registered to this customer' using errcode='42501';
  end if;
  v_fp:=encode(digest(jsonb_build_object('warranty_id',p_warranty_id,'customer_identity_id',p_customer_identity_id,
   'claim_reference',btrim(p_claim_reference),'reason',btrim(p_reason),'evidence',p_evidence)::text,'sha256'),'hex');
@@ -350,6 +349,9 @@ begin
  if found then
   if v_existing.request_fingerprint<>v_fp then raise exception 'Warranty claim idempotency key reused with different request' using errcode='23505'; end if;
   return v_existing.id;
+ end if;
+ if v_warranty.status not in ('active','claim_pending') or now()>v_warranty.expires_at then
+  raise exception 'Warranty is not active for a new claim' using errcode='23514';
  end if;
  insert into public.mme_serialized_warranty_claims(warranty_id,idempotency_key,claim_reference,request_fingerprint,reason,evidence)
  values(v_warranty.id,p_idempotency_key,btrim(p_claim_reference),v_fp,btrim(p_reason),p_evidence)
