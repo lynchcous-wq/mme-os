@@ -48,7 +48,8 @@
     "test:build009:serialized-return-refunds": "node --test tests/build009-serialized-return-refund-reconciliation.test.mjs",
     "test:build009:stripe-refunds": "node --test tests/build009-stripe-refund-adapter-webhook.test.mjs",
     "test:build009:stripe-refund-dispatch": "node --test tests/build009-stripe-refund-dispatch.test.mjs",
-    "test:build009:stripe-refund-settlement": "node --test tests/build009-stripe-refund-settlement.test.mjs"
+    "test:build009:stripe-refund-settlement": "node --test tests/build009-stripe-refund-settlement.test.mjs",
+    "test:build009:stripe-settlement-exceptions": "node --test tests/build009-stripe-settlement-exceptions.test.mjs"
   },
   "dependencies": {
     "next": "^15.2.4",
