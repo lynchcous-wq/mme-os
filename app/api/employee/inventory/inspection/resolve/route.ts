@@ -121,7 +121,10 @@ export async function POST(request: Request) {
         p_target_product_id: record.product_id,
         p_target_location_id: record.location_id,
       });
-      if (!permission.ok || permission.data !== true) {
+      if (!permission.ok) {
+        return NextResponse.json({ error: "Manager permission service is temporarily unavailable." }, { status: 503 });
+      }
+      if (permission.data !== true) {
         return NextResponse.json({ error: "Your account lacks the required manager approval and resolution permissions." }, { status: 403 });
       }
     }
