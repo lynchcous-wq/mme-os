@@ -123,8 +123,11 @@ begin
  where location_id=p_location_id and currency=p_currency
   and first_detected_at >= p_as_of_date-59 and first_detected_at < p_as_of_date-29
   and status not in ('false_positive');
- select count(*),coalesce(sum(abs(amount_minor)),0)::bigint
- into v_current_batches,v_open_exposure
+ select count(distinct settlement_batch_id)::integer into v_current_batches
+ from public.mme_pos_stripe_settlement_exception_cases
+ where location_id=p_location_id and currency=p_currency
+  and status not in ('false_positive');
+ select coalesce(sum(abs(amount_minor)),0)::bigint into v_open_exposure
  from public.mme_pos_stripe_settlement_exception_cases
  where location_id=p_location_id and currency=p_currency
   and status not in ('resolved','accepted_variance','false_positive');
