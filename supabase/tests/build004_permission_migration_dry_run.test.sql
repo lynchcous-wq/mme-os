@@ -1,6 +1,6 @@
 begin;
 
-select plan(14);
+select plan(15);
 
 select has_function(
   'public',
@@ -139,6 +139,54 @@ select ok(
    from public.employee_permission_grants
    where employee_user_id = 'b0040000-0000-4000-8000-000000000005'),
   'dry run leaves all legacy grants unchanged'
+);
+
+insert into auth.users (id, email)
+values
+  ('b0040000-0000-4000-8000-000000000006', 'build004-dryrun-ceo@example.invalid'),
+  ('b0040000-0000-4000-8000-000000000007', 'build004-dryrun-candidate@example.invalid')
+on conflict (id) do nothing;
+
+insert into public.employee_relationships
+  (user_id, employment_status, employee_number)
+values
+  ('b0040000-0000-4000-8000-000000000006', 'active', 'B004-DRYRUN-CEO'),
+  ('b0040000-0000-4000-8000-000000000007', 'active', 'B004-DRYRUN-CANDIDATE')
+on conflict (user_id) do nothing;
+
+insert into public.mme_employee_relationships
+  (person_identity_id, employee_number, status)
+select p.id,
+       case p.auth_user_id
+         when 'b0040000-0000-4000-8000-000000000006'::uuid then 'B004-DRYRUN-CEO'
+         else 'B004-DRYRUN-CANDIDATE'
+       end,
+       'active'
+from public.mme_person_identities p
+where p.auth_user_id in (
+  'b0040000-0000-4000-8000-000000000006',
+  'b0040000-0000-4000-8000-000000000007'
+)
+on conflict (person_identity_id) do nothing;
+
+update public.employee_security_settings
+set ceo_user_id = 'b0040000-0000-4000-8000-000000000006',
+    employee_access_frozen = false,
+    freeze_reason = null
+where singleton = true;
+
+insert into public.employee_permission_grants
+  (employee_user_id, permission_key, scope, granted_by_user_id, reason)
+values
+  ('b0040000-0000-4000-8000-000000000007', 'catalog.publish', '{}'::jsonb,
+   'b0040000-0000-4000-8000-000000000006', 'Build 004 dry-run positive fixture');
+
+select is(
+  (select mapping_status from public.mme_employee_permission_migration_dry_run()
+   where legacy_user_id = 'b0040000-0000-4000-8000-000000000007'
+     and source_permission_key = 'catalog.publish'),
+  'mapping_candidate',
+  'fully linked employee grant with canonical scope and active CEO controls is a mapping candidate'
 );
 
 select * from finish();
