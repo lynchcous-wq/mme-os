@@ -61,7 +61,7 @@ export async function POST(request: Request) {
       const form = new URLSearchParams({
         payment_intent: job.provider_payment_reference,
         amount: String(job.amount_minor),
-        metadata[mme_refund_request_id]: job.refund_request_id
+        'metadata[mme_refund_request_id]': job.refund_request_id
       });
       const stripeHeaders: Record<string, string> = {
         Authorization: `Bearer ${stripeSecret}`, "Content-Type": "application/x-www-form-urlencoded",
