@@ -294,6 +294,7 @@ begin
  where public.mme_pos_financial_closes.status not in ('approved','closed')
  returning id into v_id;
  if v_id is null then raise exception 'Financial close already approved or closed; reopen through authorized workflow before refresh' using errcode='55000'; end if;
+ delete from public.mme_pos_financial_close_items where close_id=v_id;
  insert into public.mme_pos_financial_close_items(close_id,item_type,source_reference,currency,amount_minor,source_status)
  select v_id,'settlement_run',r.id::text,p_currency,b.net_amount_minor,r.status
  from public.mme_pos_reconciliation_runs r join public.mme_pos_settlement_batches b on b.id=r.batch_id
