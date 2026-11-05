@@ -68,3 +68,14 @@ test("prior connector migration includes corrected SQL delimiters and row finger
  assert.match(prior,/as \$\$\s*declare v_connector public\.mme_pos_financial_connectors/);
  assert.match(prior,/end;\s*\$\$;/);
 });
+
+test("financial connector API exposes per-store worker and webhook monitoring",()=>{
+ const apiSource=readFile(new URL("../app/api/pos/financial-connectors/route.ts",import.meta.url),"utf8");
+ return apiSource.then(api=>{
+  assert.match(api,/mme_pos_financial_import_jobs/);
+  assert.match(api,/mme_pos_financial_webhook_events/);
+ });
+});
+test("worker route supports Vercel cron GET requests",()=>{
+ assert.match(cron,/export async function GET\(request:Request\)/);
+});
