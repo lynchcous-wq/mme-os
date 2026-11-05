@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "tsc --noEmit",
-    "test:build008:catalog-routes": "node --import tsx --test tests/build008-*.test.mjs"
+    "test:build008:catalog-routes": "node --import tsx --test tests/build008-*.test.mjs",
+    "test:build009:payments": "node --test tests/build009-payments-center-contract.test.mjs"
   },
   "dependencies": {
     "next": "^15.2.4",
