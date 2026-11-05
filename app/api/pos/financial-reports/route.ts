@@ -60,7 +60,8 @@ export async function GET(request: Request) {
       readRows(context, `mme_pos_financial_report_rows?select=*&report_run_id=eq.${reportId}&order=business_date.asc`),
       readRows(context, `mme_pos_financial_report_summaries?select=*&report_run_id=eq.${reportId}&limit=1`),
     ]);
-    const rows = allRows.filter((row) => row.grouping_level !== "employee");\n    return NextResponse.json({ report, rows, summary: summaries[0] ?? null }, { headers: noStore });
+    const rows = allRows.filter((row) => row.grouping_level !== "employee");
+    return NextResponse.json({ report, rows, summary: summaries[0] ?? null }, { headers: noStore });
   } catch {
     return NextResponse.json({ error: "Financial reporting data is temporarily unavailable." }, { status: 503, headers: noStore });
   }
@@ -81,8 +82,8 @@ export async function POST(request: Request) {
   const allowed = ["location_id", "period_start", "period_end", "currency", "business_timezone"];
   if (Object.keys(input).some((key) => !allowed.includes(key)) ||
       !isUuid(input.location_id) || typeof input.period_start !== "string" ||
-      typeof input.period_end !== "string" || !datePattern.test(input.period_start) ||
-      !datePattern.test(input.period_end) || input.period_end < input.period_start ||
+      typeof input.period_end !== "string" || !validDate(input.period_start) ||
+      !validDate(input.period_end) || input.period_end < input.period_start ||
       typeof input.currency !== "string" || !currencyPattern.test(input.currency) ||
       !validTimezone(input.business_timezone)) {
     return NextResponse.json({ error: "Provide a valid store, date range, currency and IANA business timezone." }, { status: 400, headers: noStore });
