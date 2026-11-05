@@ -1,6 +1,6 @@
 begin;
 
-select plan(12);
+select plan(13);
 
 select has_function(
   'public',
@@ -68,6 +68,16 @@ select is(
    order by source_grant_id limit 1),
   'approve',
   'catalog permission key maps to the proposed approve action'
+);
+
+select ok(
+  (select review_reasons @> array[
+     'legacy CEO provisioning is missing or global employee access is frozen; parity review required'
+   ]::text[]
+   from public.mme_employee_permission_migration_dry_run()
+   where source_permission_key = 'catalog.approve'
+   order by source_grant_id limit 1),
+  'unconfigured CEO or global freeze prevents migration candidacy'
 );
 
 select is(
