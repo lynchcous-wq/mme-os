@@ -39,7 +39,7 @@ test("Stripe adapter fetches balance transactions with pagination and no-store c
  assert.match(adapter,/cache:"no-store"/);
 });
 test("Stripe normalizer maps sales, refunds, chargebacks and fees while ignoring unrelated balance movements",()=>{
- for(const type of ["gross_sale","refund","chargeback","processor_fee"])assert.ok(adapter.includes(type));
+ for(const type of ["payment_capture","payment_refund","chargeback","chargeback_reversal","processor_fee"])assert.ok(adapter.includes(type));
  assert.match(adapter,/if\(!factType\)\{ignored\+\+;continue;\}/);
 });
 test("provider sync endpoint is cron-authenticated and requires an authorized service identity",()=>{
