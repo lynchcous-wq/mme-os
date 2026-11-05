@@ -110,7 +110,9 @@ begin
  select sum(case when p_allocation_method='extended_cost' then quantity_delta::numeric*unit_cost_cents else quantity_delta::numeric end)
  into v_total_weight from public.mme_inventory_movements
  where receipt_id=p_receipt_id and movement_type='receipt';
- if coalesce(v_total_weight,0)<=0 then raise exception 'Receipt has no allocatable inventory lines' using errcode='23514'; end if;
+ if coalesce(v_total_weight,0)<=0 then
+  raise exception 'Receipt cost basis is zero; use quantity allocation for this component' using errcode='23514';
+ end if;
  -- Do not rewrite historical COGS after a later stock movement; require cost capture before movement.
  if exists(
   select 1 from public.mme_inventory_movements r
@@ -198,7 +200,7 @@ as $$
 declare v_receipt_id uuid; v_item record; v_product record; v_balance record; v_serial_id uuid; v_sum bigint:=0;
 begin
  if p_receipt_reference is null or length(btrim(p_receipt_reference))<3 or length(p_receipt_reference)>100
-  or p_source_type is null or p_source_type not in ('auction_pallet','supplier','customer_return','other')
+  or p_source_type is null or p_source_type is null or p_source_type not in ('auction_pallet','supplier','customer_return','other')
   or p_actor_person_id is null or p_approved_by_person_id is null or p_actor_person_id=p_approved_by_person_id
   or p_items is null or jsonb_typeof(p_items)<>'array' or jsonb_array_length(p_items)<1 or jsonb_array_length(p_items)>200 then
   raise exception 'Invalid serialized receipt' using errcode='22023';
