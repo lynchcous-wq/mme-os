@@ -6,7 +6,8 @@ const migration = await readFile(new URL("../supabase/migrations/20261105000930_
 
 test("Settlement imports are provider/account scoped and idempotent", () => {
   assert.match(migration, /unique\(provider, provider_account_reference, provider_record_reference\)/);
-  assert.match(migration, /return query select v_id, true/);
+  assert.match(migration, /Provider record reference reused with different settlement data/);
+  assert.match(migration, /return query select v_existing\.id, true/);
   assert.match(migration, /p_raw_record_digest !~ '\^\[a-fA-F0-9\]\{64\}\$'/);
 });
 
@@ -26,6 +27,7 @@ test("Reconciliation compares currency, capture and refund amounts", () => {
 
 test("Duplicates and policy-sensitive settlement records are not silently matched", () => {
   assert.match(migration, /duplicate_provider_operation_record/);
+  assert.match(migration, /x\.record_type = v_record\.record_type[\\s\\S]*v_record\.provider_operation_reference is not null/);
   assert.match(migration, /record_type_requires_policy_review/);
   assert.match(migration, /manual_review/);
 });
