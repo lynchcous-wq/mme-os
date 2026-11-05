@@ -68,6 +68,8 @@ begin
     (employee_user_id, person_id, permission_key, scope, granted_by_user_id,
      granted_at, expires_at, revoked_at, revoked_by_user_id, reason)
   values
+    (v_actor_user, v_actor, 'catalog.approve', '{}'::jsonb,
+     v_ceo_user, now(), null, null, null, 'Synthetic self-approval denial fixture'),
     (v_approver_user, v_approver, 'catalog.approve', '{}'::jsonb,
      v_ceo_user, now(), null, null, null, 'Synthetic catalog approval grant');
 
