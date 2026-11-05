@@ -128,7 +128,7 @@ create or replace function public.mme_pos_register_drawer_hardware_device(
   p_location_id uuid,p_actor_person_id uuid
 ) returns uuid
 language plpgsql security definer set search_path=pg_catalog,public
-as $
+as $$
 declare v_id uuid;
 begin
   if p_register_reference is null or length(btrim(p_register_reference)) not between 1 and 80
@@ -147,7 +147,7 @@ begin
   returning id into v_id;
   return v_id;
 end;
-$;
+$$;
 
 create or replace function public.mme_pos_record_drawer_hardware_command_intent(
   p_device_id uuid,p_drawer_session_id uuid,p_actor_person_id uuid,
