@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "test:workflow-cancellation": "node --test tests/workflow-cancellation-api.contract.test.mjs"
   },
   "dependencies": {
     "next": "^15.2.4",
