@@ -1,6 +1,23 @@
 -- Build 009.37 — Native MME POS financial source adapter.
 -- Exports only finalized POS transactions with a complete trusted captured-tender ledger.
 begin;
+create extension if not exists pgcrypto;
+
+alter table public.mme_store_locations
+ add column if not exists business_timezone text not null default 'America/New_York';
+create or replace function public.mme_validate_store_business_timezone()
+returns trigger language plpgsql set search_path=pg_catalog,public
+as $
+begin
+ if not exists(select 1 from pg_timezone_names where name=new.business_timezone) then
+  raise exception 'Store business timezone must be a valid IANA timezone' using errcode='22023';
+ end if;
+ return new;
+end;
+$;
+drop trigger if exists mme_store_business_timezone_validate on public.mme_store_locations;
+create trigger mme_store_business_timezone_validate before insert or update of business_timezone
+ on public.mme_store_locations for each row execute function public.mme_validate_store_business_timezone();
 
 alter table public.mme_pos_transactions
  add column if not exists location_id uuid references public.mme_store_locations(id) on delete restrict,
@@ -243,7 +260,7 @@ revoke delete,truncate on public.mme_pos_financial_pos_exports,public.mme_pos_fi
 
 create or replace function public.mme_pos_claim_native_financial_exports(
  p_worker_person_id uuid,p_limit integer default 25,p_lease_seconds integer default 120
-) returns table(transaction_id uuid,location_id uuid,lease_token uuid)
+) returns table(transaction_id uuid,location_id uuid,business_timezone text,lease_token uuid)
 language plpgsql security definer set search_path=pg_catalog,public
 as $$
 begin
@@ -272,7 +289,8 @@ begin
   from candidates c where e.id=c.id
   returning e.*
  )
- select c.transaction_id,c.location_id,c.lease_token from claimed c;
+ select c.transaction_id,c.location_id,l.business_timezone,c.lease_token from claimed c
+ join public.mme_store_locations l on l.id=c.location_id;
 end;
 $$;
 
