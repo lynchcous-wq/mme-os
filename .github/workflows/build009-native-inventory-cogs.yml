@@ -1,0 +1,36 @@
+name: Build 009.38 native inventory COGS
+on:
+  push:
+    branches:
+      - implementation/build-009-38-native-inventory-cogs-adapter
+  pull_request:
+    branches:
+      - implementation/build-009-37-native-pos-financial-adapter
+jobs:
+  native-inventory-cogs:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - run: npm run lint
+      - run: npm run test:build009:inventory-cogs
+      - run: npm run test:build009:native-financial
+      - run: npm run test:build009:financial-provider-sync
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.120.0
+      - name: Start isolated local Supabase stack
+        run: supabase start
+      - name: Replay all migrations against a fresh database
+        run: supabase db reset --local
+      - name: Run PostgreSQL integration tests
+        run: supabase test db --local
+      - name: Lint migrated PostgreSQL schema
+        run: supabase db lint --local
+      - name: Stop isolated local Supabase stack
+        if: always()
+        run: supabase stop --no-backup
