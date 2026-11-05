@@ -1,5 +1,5 @@
 begin;
-select plan(7);
+select plan(15);
 
 select has_table(
   'public',
@@ -60,6 +60,69 @@ select ok(
       and not t.tgisinternal
   ),
   'serialized disposition history has an immutable update/delete guard'
+);
+
+
+select ok(
+  (select a.attnotnull
+   from pg_attribute a
+   join pg_class c on c.oid = a.attrelid
+   join pg_namespace n on n.oid = c.relnamespace
+   where n.nspname = 'public'
+     and c.relname = 'mme_serialized_unit_dispositions'
+     and a.attname = 'actor_identity_id'
+     and not a.attisdropped),
+  'disposition ledger requires a non-null acting identity'
+);
+select ok(
+  (select a.attnotnull
+   from pg_attribute a
+   join pg_class c on c.oid = a.attrelid
+   join pg_namespace n on n.oid = c.relnamespace
+   where n.nspname = 'public'
+     and c.relname = 'mme_serialized_unit_dispositions'
+     and a.attname = 'approved_by_identity_id'
+     and not a.attisdropped),
+  'disposition ledger requires a non-null approving identity'
+);
+select ok(
+  (select p.prosecdef
+   from pg_proc p
+   join pg_namespace n on n.oid = p.pronamespace
+   where n.nspname = 'public'
+     and p.proname = 'mme_resolve_serialized_inspection'
+     and pg_get_function_identity_arguments(p.oid) = 'p_inspection_id uuid, p_resolution text, p_condition_after text, p_reason text, p_actor_identity_id uuid, p_approved_by_identity_id uuid'),
+  'serialized inspection resolver executes as a security definer'
+);
+select ok(
+  position('p_actor_identity_id is null' in pg_get_functiondef(
+    'public.mme_resolve_serialized_inspection(uuid,text,text,text,uuid,uuid)'::regprocedure
+  )) > 0,
+  'resolver rejects a missing actor identity'
+);
+select ok(
+  position('p_approved_by_identity_id is null' in pg_get_functiondef(
+    'public.mme_resolve_serialized_inspection(uuid,text,text,text,uuid,uuid)'::regprocedure
+  )) > 0,
+  'resolver rejects a missing approver identity'
+);
+select ok(
+  position('p_actor_identity_id <> p_approved_by_identity_id' in pg_get_functiondef(
+    'public.mme_resolve_serialized_inspection(uuid,text,text,text,uuid,uuid)'::regprocedure
+  )) > 0,
+  'resolver rejects actor and approver identity mismatch'
+);
+select ok(
+  position('for update' in lower(pg_get_functiondef(
+    'public.mme_resolve_serialized_inspection(uuid,text,text,text,uuid,uuid)'::regprocedure
+  ))) > 0,
+  'resolver locks inspection and serialized unit rows before changing state'
+);
+select ok(
+  position('insert into public.mme_serialized_unit_dispositions' in lower(pg_get_functiondef(
+    'public.mme_resolve_serialized_inspection(uuid,text,text,text,uuid,uuid)'::regprocedure
+  ))) > 0,
+  'resolver writes the immutable disposition ledger within its transaction'
 );
 
 select * from finish();
