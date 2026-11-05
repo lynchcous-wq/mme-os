@@ -285,6 +285,36 @@ begin
 end;
 $$;
 
+insert into public.mme_pos_recovery_plans(plan_key,service_key,location_id,recovery_priority,target_rto_minutes,target_rpo_minutes,approved_runbook_reference,status)
+values
+ ('payment-reconciliation-core','payment_reconciliation',null,1,15,0,'runbooks/payment-reconciliation-core','draft'),
+ ('pos-transaction-service','pos_transaction_service',null,1,30,1,'runbooks/pos-transaction-service','draft'),
+ ('inventory-service','inventory_service',null,2,60,5,'runbooks/inventory-service','draft'),
+ ('identity-service','identity_service',null,1,30,1,'runbooks/identity-service','draft'),
+ ('executive-dashboard','executive_dashboard',null,4,240,15,'runbooks/executive-dashboard','draft'),
+ ('marketing-platform','marketing_platform',null,6,480,60,'runbooks/marketing-platform','draft')
+on conflict(plan_key) do nothing;
+
+create or replace function public.mme_pos_start_recovery_execution(p_execution_id uuid,p_actor_person_id uuid,p_execution_reference text)
+returns text language plpgsql security definer set search_path=pg_catalog,public
+as $
+declare v public.mme_pos_recovery_executions%rowtype;
+begin
+ select * into v from public.mme_pos_recovery_executions where id=p_execution_id for update;
+ if not found then raise exception 'Recovery execution not found' using errcode='P0002'; end if;
+ if not public.mme_pos_authorize_recovery_action(p_actor_person_id,v.location_id,'pos.network.manage') then
+  raise exception 'Recovery execution permission denied' using errcode='42501';
+ end if;
+ if v.status<>'approved' or v.approved_by_person_id is null or v.approved_by_person_id=v.requested_by_person_id then
+  raise exception 'Recovery execution lacks independent approval' using errcode='55000';
+ end if;
+ if length(btrim(coalesce(p_execution_reference,'')))<8 then raise exception 'Trusted runbook execution reference is required' using errcode='22023'; end if;
+ update public.mme_pos_recovery_executions set status='in_progress',started_at=now(),execution_reference=p_execution_reference,updated_at=now()
+  where id=p_execution_id;
+ return 'in_progress';
+end;
+$;
+
 create or replace function public.mme_pos_finalize_recovery_execution(p_execution_id uuid,p_actor_person_id uuid,p_outcome_summary text)
 returns text language plpgsql security definer set search_path=pg_catalog,public
 as $$
@@ -314,12 +344,12 @@ revoke all on function public.mme_pos_authorize_recovery_action(uuid,uuid,text) 
 revoke all on function public.mme_pos_record_transaction_journal(uuid,text,text,uuid,timestamptz,text,text,numeric,numeric,text,text,text,text,jsonb,text,text,text,text) from public,anon,authenticated;
 revoke all on function public.mme_pos_request_recovery_execution(uuid,uuid,uuid,text) from public,anon,authenticated;
 revoke all on function public.mme_pos_decide_recovery_approval(uuid,uuid,text) from public,anon,authenticated;
-revoke all on function public.mme_pos_finalize_recovery_execution(uuid,uuid,text) from public,anon,authenticated;
+revoke all on function public.mme_pos_start_recovery_execution(uuid,uuid,text) from public,anon,authenticated;\nrevoke all on function public.mme_pos_finalize_recovery_execution(uuid,uuid,text) from public,anon,authenticated;
 grant execute on function public.mme_pos_authorize_recovery_action(uuid,uuid,text) to service_role;
 grant execute on function public.mme_pos_record_transaction_journal(uuid,text,text,uuid,timestamptz,text,text,numeric,numeric,text,text,text,text,jsonb,text,text,text,text) to service_role;
 grant execute on function public.mme_pos_request_recovery_execution(uuid,uuid,uuid,text) to service_role;
 grant execute on function public.mme_pos_decide_recovery_approval(uuid,uuid,text) to service_role;
-grant execute on function public.mme_pos_finalize_recovery_execution(uuid,uuid,text) to service_role;
+grant execute on function public.mme_pos_start_recovery_execution(uuid,uuid,text) to service_role;\ngrant execute on function public.mme_pos_finalize_recovery_execution(uuid,uuid,text) to service_role;
 
 comment on table public.mme_pos_transaction_journal is 'Idempotent transaction continuity journal. Never store PAN, CVV, PIN, magnetic-stripe data or raw cardholder data.';
 comment on table public.mme_pos_backup_registry is 'Backup inventory metadata and external object/key references; backup bytes and keys remain outside this database.';
