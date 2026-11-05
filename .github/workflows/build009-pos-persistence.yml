@@ -31,6 +31,7 @@ jobs:
       - run: npm run test:build009:refunds
       - run: npm run test:build009:disputes
       - run: npm run test:build009:cash-drawer
+      - run: npm run test:build009:hardware
       - uses: supabase/setup-cli@v1
         id: supabase-cli
         with:
