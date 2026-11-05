@@ -95,7 +95,7 @@ alter table public.mme_pos_financial_reporting_facts
 alter table public.mme_pos_financial_reporting_facts
  add constraint mme_pos_financial_reporting_facts_fact_type_check
  check(fact_type in ('gross_sale','discount','refund','subscription_revenue','sales_tax',
-  'cost_of_goods_sold','processor_fee','chargeback','cash_over_short','inventory_adjustment',
+  'cost_of_goods_sold','processor_fee','chargeback','chargeback_reversal','cash_over_short','inventory_adjustment',
   'payment_capture','payment_refund'));
 alter table public.mme_pos_financial_reporting_facts
  drop constraint if exists mme_pos_financial_reporting_facts_check;
@@ -103,6 +103,7 @@ alter table public.mme_pos_financial_reporting_facts
  add constraint mme_pos_financial_reporting_facts_amount_sign_check
  check((fact_type in ('gross_sale','subscription_revenue','sales_tax','payment_capture') and amount_minor>=0)
   or (fact_type in ('discount','refund','cost_of_goods_sold','processor_fee','chargeback','payment_refund') and amount_minor<=0)
+  or (fact_type='chargeback_reversal' and amount_minor>=0)
   or fact_type in ('cash_over_short','inventory_adjustment'));
 
 -- Keep closed-period idempotency safe: an exact already-imported fact may be replayed,
@@ -203,7 +204,7 @@ begin
   v_line:=v_record->>'source_line_reference'; v_type:=v_record->>'fact_type';
   if length(btrim(coalesce(v_line,'')))<1 or v_type not in
    ('gross_sale','discount','refund','subscription_revenue','sales_tax','cost_of_goods_sold',
-    'processor_fee','chargeback','cash_over_short','inventory_adjustment','payment_capture','payment_refund') then
+    'processor_fee','chargeback','chargeback_reversal','cash_over_short','inventory_adjustment','payment_capture','payment_refund') then
    raise exception 'Import row % is missing a valid source reference or financial fact type',v_row using errcode='22023';
   end if;
   v_digest:=md5(v_record::text);
