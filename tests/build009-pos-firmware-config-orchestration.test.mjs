@@ -51,6 +51,8 @@ test("failed or uncertain deployment targets pause staged rollout", () => {
 test("recovery is separate, approved and never assumes vendor rollback support", () => {
   assert.match(sql, /vendor_support_verified must be verified/);
   assert.match(sql, /Verified previous firmware package is required/);
+  assert.match(sql, /mme_pos_decide_deployment_recovery/);
+  assert.match(sql, /Recovery must be pending and approved by a different person/);
   assert.match(sql, /Recovery requires separate approval/);
   assert.match(sql, /pending_approval/);
 });
@@ -59,7 +61,7 @@ test("new tables use RLS and all privileged functions are service-role only", ()
   for (const table of ["mme_pos_firmware_packages","mme_pos_configuration_templates","mme_pos_deployment_campaigns","mme_pos_deployment_targets","mme_pos_deployment_events","mme_pos_deployment_approvals","mme_pos_deployment_recovery"]) {
     assert.match(sql, new RegExp("alter table public\\." + table + " enable row level security"));
   }
-  for (const fn of ["mme_pos_create_deployment_campaign","mme_pos_decide_deployment_approval","mme_pos_record_deployment_preflight","mme_pos_authorize_deployment_dispatch","mme_pos_pause_deployment_on_failure","mme_pos_request_deployment_recovery"]) {
+  for (const fn of ["mme_pos_create_deployment_campaign","mme_pos_decide_deployment_approval","mme_pos_record_deployment_preflight","mme_pos_authorize_deployment_dispatch","mme_pos_pause_deployment_on_failure","mme_pos_request_deployment_recovery","mme_pos_decide_deployment_recovery"]) {
     assert.ok(sql.includes("revoke all on function public." + fn));
     assert.ok(sql.includes("grant execute on function public." + fn));
   }
