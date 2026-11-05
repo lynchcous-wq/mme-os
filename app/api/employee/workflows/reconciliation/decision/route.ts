@@ -128,7 +128,7 @@ export async function POST(request: Request) {
 
     const decisionId = await response.json() as unknown;
     const idText = typeof decisionId === "number" || typeof decisionId === "string" ? String(decisionId) : "";
-    if (!/^\d+$/.test(idText) || BigInt(idText) <= 0n) {
+    if (!/^\d+$/.test(idText) || /^0+$/.test(idText)) {
       return jsonError("The reconciliation service returned an invalid decision identifier.", 502);
     }
 
