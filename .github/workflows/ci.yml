@@ -35,6 +35,7 @@ jobs:
           npm run test:workflow-cancellation
           npm run test:workflow-reconciliation-decision
           npm run test:workflow-reconciliation-history
+          npm run test:checkout-ui
 
       - name: Type-check
         run: npm run lint
