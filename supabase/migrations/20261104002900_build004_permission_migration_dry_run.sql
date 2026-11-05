@@ -29,6 +29,12 @@ as $$
       e.id as build004_employee_relationship_id,
       g.permission_key as source_permission_key,
       g.scope as source_scope,
+      coalesce((
+        select s.ceo_user_id is not null
+           and s.employee_access_frozen is false
+        from public.employee_security_settings s
+        where s.singleton is true
+      ), false) as legacy_controls_ready,
       case
         when g.revoked_at is not null then 'revoked'
         when g.expires_at is not null and g.expires_at <= statement_timestamp() then 'expired'
@@ -111,6 +117,7 @@ as $$
       when a.person_identity_id is null then 'review_required'
       when a.build004_employee_relationship_id is null then 'review_required'
       when not a.scope_is_compatible then 'review_required'
+      when not a.legacy_controls_ready then 'review_required'
       else 'mapping_candidate'
     end,
     array_remove(array[
@@ -121,7 +128,9 @@ as $$
       case when a.person_identity_id is not null and a.build004_employee_relationship_id is null
         then 'person identity has no Build 004 employee relationship' end,
       case when a.proposed_resource_key is not null and not a.scope_is_compatible
-        then 'scope is not canonical for the proposed resource' end
+        then 'scope is not canonical for the proposed resource' end,
+      case when not a.legacy_controls_ready
+        then 'legacy CEO provisioning is missing or global employee access is frozen; parity review required' end
     ], null)::text[]
   from assessed a
   order by a.legacy_user_id, a.source_permission_key, a.source_grant_id;
