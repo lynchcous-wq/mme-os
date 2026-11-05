@@ -33,6 +33,9 @@ test("sensitive administration requires a separate non-self approval", () => {
 test("reassignment requires an approved request and checks both location scopes", () => {
   assert.match(sql, /mme_pos_assign_hardware_device/);
   assert.match(sql, /Approved reassignment request is required/);
+  assert.match(sql, /v_approval.payload/);
+  assert.match(sql, /register_reference/);
+  assert.match(sql, /v_approval.expires_at<=now\\(\\)/);
   assert.match(sql, /pos\.hardware\.assign',v_device\.location_id/);
   assert.match(sql, /pos\.hardware\.assign',p_location_id/);
 });
@@ -40,6 +43,8 @@ test("reassignment requires an approved request and checks both location scopes"
 test("lifecycle transitions are approved, reasoned and recorded", () => {
   assert.match(sql, /mme_pos_set_hardware_device_lifecycle/);
   assert.match(sql, /Approved lifecycle request is required/);
+  assert.match(sql, /p_new_status='retired' and v_approval.action_type<>'retire'/);
+  assert.match(sql, /p_new_status='maintenance' and v_approval.action_type<>'maintenance'/);
   assert.match(sql, /retired_at=case when p_new_status='retired'/);
   assert.match(sql, /insert into public\.mme_pos_device_lifecycle_events/);
 });
