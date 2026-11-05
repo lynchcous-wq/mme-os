@@ -26,13 +26,13 @@ async function syncStripe(baseUrl:string,key:string,workerId:string,connector:Co
  const now=Math.floor(Date.now()/1000),cursor=parseCursor(cursorRows[0]?.cursor_value,now);
  const runId=await rpc(baseUrl,key,"mme_pos_start_financial_sync_run",{p_connector_id:connector.id,p_worker_person_id:workerId,p_window_started_at:new Date(cursor.created_gte*1000).toISOString()});
  if(typeof runId!=="string")return {connector_id:connector.id,status:"already_running"};
- const secretName=connector.credential_reference||"STRIPE_SECRET_KEY";
- if(!/^[A-Z][A-Z0-9_]{2,80}$/.test(secretName)||!process.env[secretName])throw new Error("STRIPE_CREDENTIAL_NOT_CONFIGURED");
- if(connector.external_account_reference&&!/^acct_[A-Za-z0-9]+$/.test(connector.external_account_reference))throw new Error("STRIPE_ACCOUNT_REFERENCE_INVALID");
  let startingAfter=cursor.starting_after,highWater=cursor.high_water_created;
  let fetched=0,staged=0,ignored=0,batches=0,hasMore=false;
  const maxPages=3;
  try{
+  const secretName=connector.credential_reference||"STRIPE_SECRET_KEY";
+  if(!/^[A-Z][A-Z0-9_]{2,80}$/.test(secretName)||!process.env[secretName])throw new Error("STRIPE_CREDENTIAL_NOT_CONFIGURED");
+  if(connector.external_account_reference&&!/^acct_[A-Za-z0-9]+$/.test(connector.external_account_reference))throw new Error("STRIPE_ACCOUNT_REFERENCE_INVALID");
   for(let pageNo=0;pageNo<maxPages;pageNo++){
    const page=await fetchStripeBalanceTransactions({secretKey:process.env[secretName]!,accountId:connector.external_account_reference||undefined,createdGte:cursor.created_gte,startingAfter});
    fetched+=page.data.length;
@@ -59,7 +59,7 @@ async function syncStripe(baseUrl:string,key:string,workerId:string,connector:Co
   await rpc(baseUrl,key,"mme_pos_finish_financial_sync_run",{p_run_id:runId,p_worker_person_id:workerId,p_status:hasMore?"partial":"completed",p_cursor_value:nextValue,p_records_fetched:fetched,p_records_staged:staged,p_records_ignored:ignored,p_batches_staged:batches,p_safe_error_code:null});
   return {connector_id:connector.id,status:hasMore?"partial":"completed",records_fetched:fetched,records_staged:staged,records_ignored:ignored,batches_staged:batches};
  }catch(error){
-  await rpc(baseUrl,key,"mme_pos_finish_financial_sync_run",{p_run_id:runId,p_worker_person_id:workerId,p_status:"failed",p_cursor_value:JSON.stringify(cursor),p_records_fetched:fetched,p_records_staged:staged,p_records_ignored:ignored,p_batches_staged:batches,p_safe_error_code:error instanceof Error&&error.message==="STRIPE_CREDENTIAL_NOT_CONFIGURED"?"CREDENTIAL_NOT_CONFIGURED":"PROVIDER_SYNC_FAILED"});
+  await rpc(baseUrl,key,"mme_pos_finish_financial_sync_run",{p_run_id:runId,p_worker_person_id:workerId,p_status:"failed",p_cursor_value:JSON.stringify(cursor),p_records_fetched:fetched,p_records_staged:staged,p_records_ignored:ignored,p_batches_staged:batches,p_safe_error_code:error instanceof Error&&error.message==="STRIPE_CREDENTIAL_NOT_CONFIGURED"?"CREDENTIAL_NOT_CONFIGURED":error instanceof Error&&error.message==="STRIPE_ACCOUNT_REFERENCE_INVALID"?"ACCOUNT_REFERENCE_INVALID":"PROVIDER_SYNC_FAILED"});
   throw error;
  }
 }
