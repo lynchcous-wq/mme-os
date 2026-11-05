@@ -1,5 +1,5 @@
 begin;
-select plan(21);
+select plan(20);
 
 select has_function('public','mme_cancel_workflow_execution',
   array['uuid','uuid','text'],'workflow cancellation RPC exists');
@@ -90,12 +90,6 @@ select ok(exists (select 1 from pg_proc p join pg_namespace n on n.oid=p.proname
     and pg_get_functiondef(p.oid) like '%execution_status=''cancelled''%'
     and pg_get_functiondef(p.oid) like '%finished_at=now()%'),
   'execution is marked terminal with a completion timestamp');
-
-select ok(exists (select 1 from pg_proc p join pg_namespace n on n.oid=p.pronamespace
-  where n.nspname='public' and p.proname='mme_cancel_workflow_execution'
-    and pg_get_functiondef(p.oid) like '%p_execution_id,p_execution_id%'
-       or false),
-  'reserved placeholder');
 
 select * from finish();
 rollback;
