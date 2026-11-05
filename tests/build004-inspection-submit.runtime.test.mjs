@@ -18,7 +18,8 @@ const ENV = {
   NEXT_PUBLIC_SUPABASE_ANON_KEY: "test-anon",
   SUPABASE_SERVICE_ROLE_KEY: "test-service",
 };
-function json(body, status = 200) {
+function json(body, init = {}) {
+  const status = typeof init === "number" ? init : (init?.status ?? 200);
   return new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
 }
 function loadRoute(fetchImpl, authorizeImpl = async () => ({ ok: true, actorUserId: AUTH_ID })) {
