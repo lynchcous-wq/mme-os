@@ -40,6 +40,32 @@ test("serialized disposition ledger remains append-only and private", async () =
   assert.match(immutable, /revoke insert,update,delete,truncate/);
 });
 
+test("cross-channel claims and atomic conversion preserve a single stock reservation owner", async () => {
+  const claims = await migration("20261103005900_build001_cross_channel_inventory_claims.sql");
+  const conversion = await migration("20261103006000_build001_atomic_channel_claim_order_conversion.sql");
+  const lifecycle = await migration("20261103006100_build001_channel_claim_lifecycle_hardening.sql");
+  assert.match(claims, /create table public\\.mme_channel_stock_claims/);
+  assert.match(claims, /mme_inventory_available_to_sell_v/);
+  assert.match(conversion, /mme_convert_channel_claim_to_order/);
+  assert.match(conversion, /without incrementing reserved stock twice/);
+  assert.match(lifecycle, /is_active=false/);
+});
+
+test("inspection submission quarantines serialized units and evidence stays private", async () => {
+  const checklist = await migration("20261103007700_build001_serialized_device_test_checklist.sql");
+  const evidence = await migration("20261103007800_build001_inspection_photo_evidence.sql");
+  const permissions = await migration("20261103007900_build001_inspection_employee_permissions.sql");
+  const submission = await migration("20261103008000_build001_atomic_inspection_submission.sql");
+  const storage = await migration("20261103008100_build001_private_inspection_storage_bucket.sql");
+  assert.match(checklist, /mme_serialized_device_test_results/);
+  assert.match(evidence, /mme_inspection_photo_evidence/);
+  assert.match(evidence, /revoke all on public\\.mme_inspection_photo_evidence from public,anon,authenticated/);
+  assert.match(permissions, /mme_employee_authorize_inventory_action/);
+  assert.match(submission, /mme_submit_serialized_inspection/);
+  assert.match(submission, /unit_status='quarantine'/);
+  assert.match(storage, /'mme-inspection-evidence',[\\s\\S]*?false/);
+});
+
 test("Build 008 integration branch does not import unrelated Build 006 migration files", async () => {
   await assert.rejects(
     readFile(new URL("../supabase/migrations/20261104000100_build006_task_foundation.sql", import.meta.url), "utf8"),
