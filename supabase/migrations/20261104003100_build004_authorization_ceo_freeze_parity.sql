@@ -19,21 +19,29 @@ as $$
       then false
     when p_resource_key = 'inventory.inspection' then
       (
-        p_grant_scope = '{}'::jsonb
-        or
-        (p_grant_scope ? 'product_id'
-          and p_grant_scope - 'product_id' = '{}'::jsonb
-          and (p_grant_scope ->> 'product_id') ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
-          and (p_requested_scope ->> 'product_id') = (p_grant_scope ->> 'product_id'))
-        or
-        (p_grant_scope ? 'location_id'
-          and p_grant_scope - 'location_id' = '{}'::jsonb
-          and (p_grant_scope ->> 'location_id') ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
-          and (p_requested_scope ->> 'location_id') = (p_grant_scope ->> 'location_id'))
+        p_requested_scope - array['product_id','location_id']::text[] = '{}'::jsonb
+        and (not (p_requested_scope ? 'product_id')
+          or (p_requested_scope ->> 'product_id') ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$')
+        and (not (p_requested_scope ? 'location_id')
+          or (p_requested_scope ->> 'location_id') ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$')
+        and (
+          p_grant_scope = '{}'::jsonb
+          or
+          (p_grant_scope ? 'product_id'
+            and p_grant_scope - 'product_id' = '{}'::jsonb
+            and (p_grant_scope ->> 'product_id') ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+            and (p_requested_scope ->> 'product_id') = (p_grant_scope ->> 'product_id'))
+          or
+          (p_grant_scope ? 'location_id'
+            and p_grant_scope - 'location_id' = '{}'::jsonb
+            and (p_grant_scope ->> 'location_id') ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+            and (p_requested_scope ->> 'location_id') = (p_grant_scope ->> 'location_id'))
+        )
       )
     when p_resource_key = 'catalog' then
       (
-        (p_requested_scope ->> 'product_id') ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+        p_requested_scope - 'product_id' = '{}'::jsonb
+        and (p_requested_scope ->> 'product_id') ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
         and (
           p_grant_scope = '{}'::jsonb
           or (
@@ -46,8 +54,13 @@ as $$
       )
     when p_resource_key = 'tasks' then
       (
-        p_requested_scope ? 'department'
+        p_requested_scope - array['department','location_id']::text[] = '{}'::jsonb
+        and p_requested_scope ? 'department'
         and nullif(btrim(p_requested_scope ->> 'department'),'') is not null
+        and (
+          not (p_requested_scope ? 'location_id')
+          or (p_requested_scope ->> 'location_id') ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+        )
         and (
           p_grant_scope = '{}'::jsonb
           or (
@@ -73,7 +86,7 @@ as $$
     when p_grant_scope = '{}'::jsonb then true
     else p_grant_scope @> p_requested_scope
   end, false);
-$;
+$$;
 
 revoke all on function public.mme_employee_permission_scope_allows(text,jsonb,jsonb)
   from public, anon, authenticated;
