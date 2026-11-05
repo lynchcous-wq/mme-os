@@ -96,7 +96,7 @@ test("submit route authorizes using database-derived unit scope and sends mapped
   const result = await response.json();
   assert.equal(response.status, 200);
   assert.equal(result.status, "quarantined_pending_review");
-  assert.deepEqual(authCalls, [{
+  assert.deepEqual(JSON.parse(JSON.stringify(authCalls)), [{
     resource: "inventory.inspection", action: "submit",
     scope: { product_id: PRODUCT_ID, location_id: LOCATION_ID },
   }]);
