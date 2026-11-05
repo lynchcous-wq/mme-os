@@ -83,7 +83,7 @@ select is(
 
 select ok(
   (select review_reasons @> array[
-     'legacy CEO provisioning is missing or global employee access is frozen; parity review required'
+     'legacy CEO provisioning/linkage is incomplete, CEO is not active, or global employee access is frozen; parity review required'
    ]::text[]
    from public.mme_employee_permission_migration_dry_run()
    where source_permission_key = 'catalog.approve'
