@@ -149,3 +149,16 @@ test("submit route propagates Build 004 authorization service outage as 503", as
   const response = await handler(request());
   assert.equal(response.status, 503);
 });
+
+test("submit route reports identity service outage as 503 instead of a permission denial", async () => {
+  const fetchImpl = async (url) => {
+    const u = String(url);
+    if (u.endsWith("/auth/v1/user")) return json({ id: AUTH_ID });
+    if (u.includes("mme_serialized_units?")) return json([{ id: UNIT_ID, product_id: PRODUCT_ID, location_id: LOCATION_ID }]);
+    if (u.includes("mme_person_identities?")) return json({ message: "database unavailable" }, 503);
+    throw new Error("Must stop before authorization and write: " + u);
+  };
+  const handler = loadRoute(fetchImpl);
+  const response = await handler(request());
+  assert.equal(response.status, 503);
+});
