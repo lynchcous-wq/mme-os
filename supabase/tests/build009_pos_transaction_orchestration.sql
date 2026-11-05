@@ -1,6 +1,6 @@
 -- Build 009 schema contract checks on disposable local Supabase CI.
 begin;
-select plan(95);
+select plan(117);
 
 select has_table('public', 'mme_pos_transactions', 'POS transaction envelope exists');
 select has_table('public', 'mme_pos_transaction_events', 'POS append-only event history exists');
@@ -127,6 +127,29 @@ select ok(has_function_privilege('service_role','public.mme_pos_record_drawer_ca
 select ok(not has_function_privilege('authenticated','public.mme_pos_record_drawer_cash_sale(uuid,uuid,uuid,text)','EXECUTE'),'authenticated cannot link cash sales directly');
 select ok(has_function_privilege('service_role','public.mme_pos_record_drawer_cash_refund(uuid,uuid,uuid,text)','EXECUTE'),'service_role can link completed cash refunds');
 select ok(not has_function_privilege('authenticated','public.mme_pos_record_drawer_cash_refund(uuid,uuid,uuid,text)','EXECUTE'),'authenticated cannot link cash refunds directly');
+
+select has_table('public','mme_pos_register_devices','POS hardware registry exists');
+select has_table('public','mme_pos_drawer_hardware_events','POS hardware event ledger exists');
+select has_table('public','mme_pos_drawer_hardware_commands','POS hardware command intent history exists');
+select has_table('public','mme_pos_drawer_it_incidents','POS drawer IT incident queue exists');
+select has_function('public','mme_pos_authorize_hardware_action',array['uuid','text','uuid'],'Person-keyed hardware authorization exists');
+select has_function('public','mme_pos_register_drawer_hardware_device',array['text','text','text','text','uuid','uuid'],'POS hardware registration function exists');
+select has_function('public','mme_pos_record_drawer_hardware_command_intent',array['uuid','uuid','uuid','text','text'],'Drawer hardware command intent function exists');
+select has_function('public','mme_pos_ingest_drawer_hardware_event',array['uuid','text','text','timestamp with time zone','uuid','text'],'Hardware event ingestion function exists');
+select has_function('public','mme_pos_update_drawer_it_incident',array['uuid','uuid','text','text'],'IT incident workflow function exists');
+select ok((select c.relrowsecurity from pg_class c where c.oid='public.mme_pos_register_devices'::regclass),'POS device registry has RLS enabled');
+select ok((select c.relrowsecurity from pg_class c where c.oid='public.mme_pos_drawer_hardware_events'::regclass),'POS hardware event ledger has RLS enabled');
+select ok((select c.relrowsecurity from pg_class c where c.oid='public.mme_pos_drawer_hardware_commands'::regclass),'POS hardware command history has RLS enabled');
+select ok((select c.relrowsecurity from pg_class c where c.oid='public.mme_pos_drawer_it_incidents'::regclass),'POS IT incident queue has RLS enabled');
+select ok(to_regclass('public.mme_pos_drawer_it_incident_event_once') is not null,'Hardware event incident creation is idempotent');
+select ok(has_function_privilege('service_role','public.mme_pos_register_drawer_hardware_device(text,text,text,text,uuid,uuid)','EXECUTE'),'service_role can register POS hardware');
+select ok(not has_function_privilege('authenticated','public.mme_pos_register_drawer_hardware_device(text,text,text,text,uuid,uuid)','EXECUTE'),'authenticated cannot register POS hardware directly');
+select ok(has_function_privilege('service_role','public.mme_pos_record_drawer_hardware_command_intent(uuid,uuid,uuid,text,text)','EXECUTE'),'service_role can record drawer command intent');
+select ok(not has_function_privilege('authenticated','public.mme_pos_record_drawer_hardware_command_intent(uuid,uuid,uuid,text,text)','EXECUTE'),'authenticated cannot record hardware command intent directly');
+select ok(has_function_privilege('service_role','public.mme_pos_ingest_drawer_hardware_event(uuid,text,text,timestamp with time zone,uuid,text)','EXECUTE'),'service_role can ingest device events');
+select ok(not has_function_privilege('authenticated','public.mme_pos_ingest_drawer_hardware_event(uuid,text,text,timestamp with time zone,uuid,text)','EXECUTE'),'authenticated cannot ingest device events directly');
+select ok(has_function_privilege('service_role','public.mme_pos_update_drawer_it_incident(uuid,uuid,text,text)','EXECUTE'),'service_role can update IT incidents');
+select ok(not has_function_privilege('authenticated','public.mme_pos_update_drawer_it_incident(uuid,uuid,text,text)','EXECUTE'),'authenticated cannot update IT incidents directly');
 
 select * from finish();
 rollback;
