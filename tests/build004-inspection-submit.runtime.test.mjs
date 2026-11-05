@@ -162,3 +162,19 @@ test("submit route reports identity service outage as 503 instead of a permissio
   const response = await handler(request());
   assert.equal(response.status, 503);
 });
+
+test("submit route rejects an authorization result bound to a different Auth session", async () => {
+  let writeAttempted = false;
+  const fetchImpl = async (url) => {
+    const u = String(url);
+    if (u.endsWith("/auth/v1/user")) return json({ id: AUTH_ID });
+    if (u.includes("mme_serialized_units?")) return json([{ id: UNIT_ID, product_id: PRODUCT_ID, location_id: LOCATION_ID }]);
+    if (u.includes("mme_person_identities?")) return json([{ id: PERSON_ID }]);
+    if (u.endsWith("/rpc/mme_submit_serialized_inspection")) writeAttempted = true;
+    throw new Error("Unexpected fetch: " + u);
+  };
+  const handler = loadRoute(fetchImpl, async () => ({ ok: true, actorUserId: "99999999-9999-4999-8999-999999999999" }));
+  const response = await handler(request());
+  assert.equal(response.status, 401);
+  assert.equal(writeAttempted, false);
+});
