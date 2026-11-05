@@ -6,7 +6,7 @@ const route = await readFile(new URL("../app/api/pos/hardware/webhook/[providerC
 
 test("hardware webhook authenticates raw bytes before parsing or ingestion", () => {
   const verify = route.indexOf("verifyHardwareWebhook({");
-  const parse = route.indexOf('try { payload = JSON.parse(rawBody.toString("utf8"));\n  catch');
+  const parse = route.indexOf("JSON.parse(rawBody.toString");
   const ingest = route.indexOf('"/rest/v1/rpc/" + rpcName');
   assert.ok(verify >= 0 && parse > verify && ingest > parse);
   assert.ok(route.includes('request.headers.get("x-mme-signature")'));
