@@ -198,7 +198,8 @@ create or replace function public.mme_pos_authorize_security_action(p_actor_pers
 returns boolean language plpgsql security definer set search_path=pg_catalog,public
 as $$
 begin
- if p_permission not in ('pos.security.view','pos.security.manage','pos.security.investigate','pos.security.contain','pos.security.rules.manage') then return false; end if;
+ if p_permission not in ('pos.security.view','pos.security.manage','pos.security.investigate','pos.security.contain','pos.security.rules.manage',
+  'pos.fraud.view','pos.fraud.review','pos.fraud.rules.manage','pos.fraud.case.manage','pos.fraud.override') then return false; end if;
  return public.mme_pos_authorize_hardware_action(p_actor_person_id,p_permission,p_location_id);
 end;
 $$;
@@ -209,7 +210,7 @@ create or replace function public.mme_pos_authorize_hardware_action(
  p_actor_person_id uuid,p_permission_key text,p_location_id uuid
 ) returns boolean
 language plpgsql security definer set search_path=pg_catalog,public
-as $
+as $$
 declare v_person_status text; v_ceo_person_id uuid; v_frozen boolean; v_employment_status text;
 begin
  if p_actor_person_id is null or p_location_id is null or p_permission_key not in (
@@ -219,7 +220,8 @@ begin
   'pos.hardware.approve','pos.hardware.retire','pos.network.view',
   'pos.network.manage','pos.network.certificates','pos.network.incidents',
   'pos.security.view','pos.security.manage','pos.security.investigate',
-  'pos.security.contain','pos.security.rules.manage'
+  'pos.security.contain','pos.security.rules.manage',
+  'pos.fraud.view','pos.fraud.review','pos.fraud.rules.manage','pos.fraud.case.manage','pos.fraud.override'
  ) then return false; end if;
  select lifecycle_status into v_person_status from public.mme_person_identities where person_id=p_actor_person_id;
  if not found or v_person_status is distinct from 'active' then return false; end if;
@@ -234,7 +236,7 @@ begin
    and g.revoked_at is null and (g.expires_at is null or g.expires_at>now())
    and (g.scope='{}'::jsonb or g.scope->>'location_id'=p_location_id::text));
 end;
-$;
+$$;
 
 create or replace function public.mme_pos_ingest_security_event(
  p_event_key text,p_location_id uuid,p_device_id uuid,p_category text,p_event_type text,p_severity text,
