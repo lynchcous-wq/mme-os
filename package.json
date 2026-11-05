@@ -18,7 +18,7 @@
     "test:build009:worker": "node --test tests/build009-pos-tender-worker.contract.test.mjs",
     "test:build009:reconciliation": "node --test tests/build009-pos-reconciliation.contract.test.mjs",
     "test:build009:refunds": "node --test tests/build009-pos-refund-controls.contract.test.mjs",
-    "test:build009:disputes": "node --test tests/build009-pos-refund-dispute-reconciliation.contract.test.mjs",
+    "test:build009:disputes": "node --test tests/build009-pos-chargeback-dispute-intelligence.test.mjs",
     "test:build009:cash-drawer": "node --test tests/build009-pos-cash-drawer.contract.test.mjs",
     "test:build009:hardware": "node --test tests/build009-pos-hardware-monitoring.contract.test.mjs",
     "test:build009:hardware-supervision": "node --test tests/build009-pos-hardware-monitoring.contract.test.mjs",
