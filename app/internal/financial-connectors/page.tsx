@@ -15,18 +15,7 @@ export default function FinancialConnectorsPage(){
  const [token,setToken]=useState("");const [location,setLocation]=useState("");
  const [data,setData]=useState<Data>({connectors:[],batches:[],open_quarantine:[],jobs:[],webhook_events:[],sync_runs:[],native_exports:[],cogs_snapshots:[]});
  const [provider,setProvider]=useState("stripe");const [name,setName]=useState("Stripe payments");const [external,setExternal]=useState("");const [secretRef,setSecretRef]=useState("");
- const [connector,setConnector]=useState("");const [batchRef,setBatchRef]=useState("");const [idem,setIdem]=useState("");const [records,setRecords]=useState('[
-  {
-    "source_line_reference": "provider-row-001",
-    "fact_type": "gross_sale",
-    "business_date": "2026-11-05",
-    "occurred_at": "2026-11-05T12:00:00Z",
-    "business_timezone": "America/New_York",
-    "currency": "USD",
-    "amount_minor": 12500,
-    "source_transaction_reference": "sale-001"
-  }
-]');
+ const [connector,setConnector]=useState("");const [batchRef,setBatchRef]=useState("");const [idem,setIdem]=useState("");const [records,setRecords]=useState('[\n  {\n    "source_line_reference": "provider-row-001",\n    "fact_type": "gross_sale",\n    "business_date": "2026-11-05",\n    "occurred_at": "2026-11-05T12:00:00Z",\n    "business_timezone": "America/New_York",\n    "currency": "USD",\n    "amount_minor": 12500,\n    "source_transaction_reference": "sale-001"\n  }\n]');
  const [busy,setBusy]=useState(false);const [error,setError]=useState("");const [notice,setNotice]=useState("");
  const headers=()=>({Authorization:`Bearer ${token.trim()}`,"Content-Type":"application/json"});
  const refresh=useCallback(async()=>{if(!token.trim()||!location.trim())return;const r=await fetch(`/api/pos/financial-connectors?location_id=${encodeURIComponent(location.trim())}`,{headers:{Authorization:`Bearer ${token.trim()}`},cache:"no-store"});const d=await r.json();if(!r.ok)throw new Error(d.error||"Could not load connectors.");setData(d);},[token,location]);
