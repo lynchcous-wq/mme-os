@@ -18,6 +18,7 @@ test("Refund reconciliation rejects non-refund and non-completed evidence", () =
   assert.ok(sql.includes("v_request.status <> 'completed'"));
   assert.ok(sql.includes("no_refund_reference_match"));
   assert.ok(sql.includes("refund_amount_or_currency_mismatch"));
+  assert.ok(sql.includes("'pending','matched','mismatch','unmatched','manual_review'"));
   assert.ok(sql.includes("ambiguous_refund_reference_match"));
 });
 
