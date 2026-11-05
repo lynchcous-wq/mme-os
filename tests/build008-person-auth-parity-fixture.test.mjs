@@ -57,8 +57,8 @@ function fixture(overrides = {}) {
     productId: "product-1",
     submitterAuthId: null,
     creatorPersonId: null,
-    legacyGrants: [{ permission: "catalog.edit", scope: "global" }],
-    personGrants: [{ permission: "catalog.edit", scope: "global" }],
+    legacyGrants: [{ permission: "catalog.edit", scope: "global" }, { permission: "catalog.approve", scope: "global" }],
+    personGrants: [{ permission: "catalog.edit", scope: "global" }, { permission: "catalog.approve", scope: "global" }],
     ...overrides,
   };
 }
