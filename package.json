@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "tsc --noEmit",
     "test:workflow-cancellation": "node --test tests/workflow-cancellation-api.contract.test.mjs",
-    "test:workflow-reconciliation-decision": "node --test tests/workflow-reconciliation-decision-api.contract.test.mjs"
+    "test:workflow-reconciliation-decision": "node --test tests/workflow-reconciliation-decision-api.contract.test.mjs",
+    "test:workflow-reconciliation-history": "node --test tests/workflow-reconciliation-history-api.contract.test.mjs"
   },
   "dependencies": {
     "next": "^15.2.4",
