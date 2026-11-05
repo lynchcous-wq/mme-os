@@ -12,7 +12,7 @@ select ok(exists (
    where indexrelid='public.mme_workflow_step_runs_id_execution_uidx'::regclass
 ),'composite step identity index exists');
 
-select has_function('public','mme_guard_workflow_event_envelope',array[],
+select has_function('public','mme_guard_workflow_event_envelope',array[]::text[],
   'event envelope immutability guard exists');
 
 select ok(exists (
