@@ -24,6 +24,16 @@ async function finishCommand(baseUrl: string, serviceKey: string, command: Hardw
   });
 }
 
+async function markCommandUncertain(baseUrl: string, serviceKey: string, command: HardwareCommand, reason: string) {
+  return fetch(baseUrl + "/rest/v1/rpc/mme_pos_mark_hardware_command_uncertain", {
+    method: "POST", headers: { apikey: serviceKey, Authorization: "Bearer " + serviceKey, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      p_command_id: command.command_id, p_lease_token: command.lease_token,
+      p_reason: reason,
+    }), cache: "no-store",
+  });
+}
+
 export async function POST(request: Request) {
   if (!validWorkerToken(request.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ?? null)) {
     return NextResponse.json({ error: "Worker authentication failed." }, { status: 401 });
@@ -53,11 +63,21 @@ export async function POST(request: Request) {
       const result = await transport.dispatch(command, AbortSignal.timeout(10000));
       if (!result || typeof result.accepted !== "boolean" || (result.providerCommandId && result.providerCommandId.length > 160)) throw new Error("INVALID_PROVIDER_RESPONSE");
       const completed = await finishCommand(baseUrl, serviceKey, command, { accepted: result.accepted, providerCommandId: result.providerCommandId, failureCode: result.accepted ? undefined : "PROVIDER_REJECTED", failureDetail: result.accepted ? undefined : "Provider did not accept the command." });
-      outcomes.push({ command_id: command.command_id, state: completed.ok ? (result.accepted ? "acknowledged" : "retry_scheduled") : "completion_unconfirmed" });
+      if (!completed.ok && result.accepted && command.command_type === "open_drawer") {
+        const held = await markCommandUncertain(baseUrl, serviceKey, command, "Provider accepted the drawer command but durable completion could not be confirmed.");
+        outcomes.push({ command_id: command.command_id, state: held.ok ? "reconciliation_required" : "completion_unconfirmed" });
+      } else {
+        outcomes.push({ command_id: command.command_id, state: completed.ok ? (result.accepted ? "acknowledged" : "retry_scheduled") : "completion_unconfirmed" });
+      }
     } catch (error) {
       const code = error instanceof Error && /^[A-Z0-9_]{1,80}$/.test(error.message) ? error.message : "TRANSPORT_ERROR";
-      const completed = await finishCommand(baseUrl, serviceKey, command, { accepted: false, failureCode: code, failureDetail: "Provider transport failed or timed out." });
-      outcomes.push({ command_id: command.command_id, state: completed.ok ? "retry_scheduled" : "completion_unconfirmed" });
+      if (command.command_type === "open_drawer") {
+        const held = await markCommandUncertain(baseUrl, serviceKey, command, "Drawer command delivery outcome is unknown after transport failure: " + code);
+        outcomes.push({ command_id: command.command_id, state: held.ok ? "reconciliation_required" : "completion_unconfirmed" });
+      } else {
+        const completed = await finishCommand(baseUrl, serviceKey, command, { accepted: false, failureCode: code, failureDetail: "Provider transport failed or timed out." });
+        outcomes.push({ command_id: command.command_id, state: completed.ok ? "retry_scheduled" : "completion_unconfirmed" });
+      }
     }
   }
   return NextResponse.json({ processed: outcomes.length, outcomes }, { status: 200, headers: { "Cache-Control": "no-store" } });
