@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 const sql = await readFile(new URL("../supabase/migrations/20261105001100_build009_pos_chargeback_dispute_intelligence.sql", import.meta.url), "utf8");
-const securitySql = await readFile(new URL("../supabase/migrations/20261105001080_build009_pos_security_intelligence.sql", import.meta.url), "utf8");
+
 
 test("dispute schema includes lifecycle, webhook inbox, evidence, packets, actions and audit", () => {
  for (const table of ["mme_pos_payment_disputes","mme_pos_dispute_events","mme_pos_dispute_evidence","mme_pos_dispute_packets","mme_pos_dispute_actions","mme_pos_dispute_audit_events"]) {
