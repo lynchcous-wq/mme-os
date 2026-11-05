@@ -1,6 +1,6 @@
 begin;
 
-select plan(20);
+select plan(22);
 
 select has_function(
   'public',
@@ -54,6 +54,13 @@ select ok(
     '{"product_id":"33333333-3333-4333-8333-333333333333","location_id":"22222222-2222-4222-8222-222222222222"}'::jsonb
   ),
   'inventory product mismatch is denied'
+);
+select ok(
+  not public.mme_employee_permission_scope_allows(
+    'inventory.inspection', '{}'::jsonb,
+    '{"product_id":"not-a-uuid","unexpected":"scope"}'::jsonb
+  ),
+  'inventory requested scope rejects malformed UUID and unknown keys'
 );
 select ok(
   not public.mme_employee_permission_scope_allows(
@@ -130,6 +137,13 @@ select ok(
     '{"department":"sales","location_id":"22222222-2222-4222-8222-222222222222"}'::jsonb
   ),
   'unknown task scope keys are denied'
+);
+select ok(
+  not public.mme_employee_permission_scope_allows(
+    'tasks', '{}'::jsonb,
+    '{"department":"sales","unexpected":"scope"}'::jsonb
+  ),
+  'task requested scope rejects unknown keys'
 );
 select ok(
   public.mme_employee_permission_scope_allows(
