@@ -84,7 +84,10 @@ test("Heartbeat supervision detects stale paired devices and opens an IT inciden
 test("Heartbeat ingestion records an event and refreshes device health", () => {
   assert.ok(supervisionSql.includes("mme_pos_record_hardware_heartbeat"));
   assert.ok(supervisionSql.includes("mme_pos_ingest_drawer_hardware_event"));
-  assert.ok(supervisionSql.includes("last_heartbeat_at=p_occurred_at"));
+  assert.ok(supervisionSql.includes("last_heartbeat_at=greatest(coalesce(last_heartbeat_at,p_occurred_at),p_occurred_at)"));
+  assert.ok(supervisionSql.includes("p_occurred_at<now()-interval '5 minutes'"));
+  assert.ok(supervisionSql.includes("p_occurred_at>now()+interval '60 seconds'"));
+  assert.ok(supervisionSql.includes("if v_event_id is not null then return v_event_id; end if;"));
 });
 
 test("New pairing and supervision functions are service-role only", () => {
