@@ -1,5 +1,5 @@
 begin;
-select plan(15);
+select plan(18);
 
 select has_table(
   'public',
@@ -123,6 +123,39 @@ select ok(
     'public.mme_resolve_serialized_inspection(uuid,text,text,text,uuid,uuid)'::regprocedure
   ))) > 0,
   'resolver writes the immutable disposition ledger within its transaction'
+);
+
+
+select throws_ok(
+  $select public.mme_resolve_serialized_inspection(
+    '99999999-9999-4999-8999-999999999999',
+    'write_off', null, 'test reason',
+    null, '22222222-2222-4222-8222-222222222222'
+  )$,
+  '22023',
+  'Invalid serialized inspection resolution',
+  'resolver rejects a null acting identity at execution time'
+);
+select throws_ok(
+  $select public.mme_resolve_serialized_inspection(
+    '99999999-9999-4999-8999-999999999999',
+    'write_off', null, 'test reason',
+    '11111111-1111-4111-8111-111111111111', null
+  )$,
+  '22023',
+  'Invalid serialized inspection resolution',
+  'resolver rejects a null approving identity at execution time'
+);
+select throws_ok(
+  $select public.mme_resolve_serialized_inspection(
+    '99999999-9999-4999-8999-999999999999',
+    'write_off', null, 'test reason',
+    '11111111-1111-4111-8111-111111111111',
+    '22222222-2222-4222-8222-222222222222'
+  )$,
+  '22023',
+  'Invalid serialized inspection resolution',
+  'resolver rejects different actor and approver identities at execution time'
 );
 
 select * from finish();
