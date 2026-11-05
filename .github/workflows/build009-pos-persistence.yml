@@ -34,6 +34,7 @@ jobs:
       - run: npm run test:build009:hardware
       - run: npm run test:build009:hardware-supervision
       - run: npm run test:build009:hardware-provider
+      - run: npm run test:build009:hardware-webhook
       - uses: supabase/setup-cli@v1
         id: supabase-cli
         with:
