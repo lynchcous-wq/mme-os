@@ -78,6 +78,12 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+      - name: Set up Node.js for live authorization integration test
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Install project dependencies
+        run: npm install
       - name: Set up Supabase CLI
         uses: supabase/setup-cli@v1
         with:
