@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
 const sql = await readFile(new URL("../supabase/migrations/20261105001090_build009_pos_fraud_anomaly_intelligence.sql", import.meta.url), "utf8");
+const securitySql = await readFile(new URL("../supabase/migrations/20261105001080_build009_pos_security_intelligence.sql", import.meta.url), "utf8");
 
 test("fraud schema covers rules, events, assessments, cases, evidence, reviews and outcomes", () => {
   for (const table of ["mme_pos_fraud_rules","mme_pos_fraud_events","mme_pos_fraud_assessments","mme_pos_fraud_cases","mme_pos_fraud_case_events","mme_pos_fraud_evidence","mme_pos_fraud_reviews","mme_pos_fraud_outcomes","mme_pos_fraud_audit_events"]) {
@@ -50,4 +51,12 @@ test("direct client access is revoked and fraud RPCs are service-role only", () 
   assert.match(sql, /to service_role/);
   assert.match(sql, /revoke all on function public\.mme_pos_ingest_fraud_event/);
   assert.match(sql, /grant execute on function public\.mme_pos_finalize_fraud_outcome/);
+});
+
+test("fraud permissions extend the shared identity, employment, CEO-freeze and location authorization gate", () => {
+  for (const permission of ["pos.fraud.view","pos.fraud.review","pos.fraud.rules.manage","pos.fraud.case.manage","pos.fraud.override"]) assert.ok(securitySql.includes("'" + permission + "'"));
+  assert.match(securitySql, /employee_access_frozen/);
+  assert.match(securitySql, /employment_status/);
+  assert.match(securitySql, /expires_at is null or g\.expires_at>now\(\)/);
+  assert.match(securitySql, /scope->>'location_id'/);
 });
