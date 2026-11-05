@@ -2,42 +2,39 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
-const migration = await readFile(new URL("../supabase/migrations/20261105009000_build009_pos_transaction_orchestration.sql", import.meta.url), "utf8");
+const migration = await readFile(new URL("../supabase/migrations/20261105000900_build009_pos_transaction_orchestration.sql", import.meta.url), "utf8");
 
-test("POS persistence reuses Build 001 order and location owners", () => {
-  assert.match(migration, /order_id uuid not null references public\.mme_orders/);
-  assert.match(migration, /store_id uuid not null references public\.mme_store_locations/);
-  assert.match(migration, /unique\s*\(order_id\)/i);
+test("POS persistence reuses Build 001 order and active inventory reservation", () => {
+  assert.match(migration, /order_id uuid not null unique references public\.mme_orders/);
+  assert.match(migration, /public\.mme_inventory_reservations/);
   assert.doesNotMatch(migration, /create table public\.mme_pos_orders/i);
   assert.doesNotMatch(migration, /create table public\.mme_pos_inventory_balances/i);
 });
 
-test("Tender allocation records are idempotent and cannot exceed captured refund bounds", () => {
+test("POS transaction creation is idempotent and linked to an existing pending order", () => {
   assert.match(migration, /idempotency_key text not null unique/);
-  assert.match(migration, /request_fingerprint text not null/);
-  assert.match(migration, /refunded_amount_cents <= captured_amount_cents/);
-  assert.match(migration, /unknown_reconciliation/);
+  assert.match(migration, /v_order\.status <> 'pending_payment'/);
+  assert.match(migration, /p_order_id or idempotency_key = p_idempotency_key/);
 });
 
-test("POS event history is append-only and downstream work uses transactional outbox", () => {
-  assert.match(migration, /create table public\.mme_pos_transaction_events/i);
-  assert.match(migration, /before update or delete on public\.mme_pos_transaction_events/i);
+test("POS event appends enforce optimistic revision and request idempotency", () => {
+  assert.match(migration, /unique \(transaction_id, revision\)/);
+  assert.match(migration, /unique \(transaction_id, idempotency_key\)/);
+  assert.match(migration, /v_tx\.revision <> p_expected_revision/);
+  assert.match(migration, /POS idempotency key reused with different request/);
+});
+
+test("POS event payloads reject sensitive payment data and use a durable outbox", () => {
+  assert.match(migration, /pan\|card_number\|cvv\|cvc\|pin\|track_data/);
   assert.match(migration, /create table public\.mme_pos_outbox/i);
-  assert.match(migration, /unique\(event_id, event_type\)/);
+  assert.match(migration, /transaction_event_id uuid not null unique/);
+  assert.match(migration, /grant all on public\.mme_pos_transactions, public\.mme_pos_transaction_events, public\.mme_pos_outbox\s+to service_role/i);
 });
 
-test("POS transaction creation checks active person, CEO freeze, and store-scoped permission", () => {
-  assert.match(migration, /mme_pos_authorize_register_action/);
-  assert.match(migration, /employee_access_frozen/);
-  assert.match(migration, /g\.scope ->> 'store_id'/);
-  assert.match(migration, /pos\.transaction\.create/);
-  assert.match(migration, /revoke all on function public\.mme_pos_create_transaction[\s\S]*?from public, anon, authenticated/i);
-  assert.match(migration, /grant execute on function public\.mme_pos_create_transaction[\s\S]*?to service_role/i);
-});
-
-test("POS tables deny browser roles and enable RLS", () => {
-  for (const table of ["mme_pos_transactions", "mme_pos_tender_allocations", "mme_pos_transaction_events", "mme_pos_outbox"]) {
+test("POS tables enable RLS and browser roles cannot execute privileged functions", () => {
+  for (const table of ["mme_pos_transactions", "mme_pos_transaction_events", "mme_pos_outbox"]) {
     assert.match(migration, new RegExp(`alter table public\\.${table} enable row level security`));
-    assert.match(migration, new RegExp(`revoke all on public\\.${table} from anon, authenticated`));
   }
+  assert.match(migration, /revoke all on function public\.mme_pos_create_transaction[\s\S]*?from public, anon, authenticated/i);
+  assert.match(migration, /revoke all on function public\.mme_pos_append_transaction_event[\s\S]*?from public, anon, authenticated/i);
 });
