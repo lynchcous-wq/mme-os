@@ -66,3 +66,13 @@ test("inspection resolution does not itself issue an unverified refund",()=>{
  assert.match(migration,/Refunds remain pending until a separately verified provider refund outcome is recorded/);
  assert.doesNotMatch(migration,/stripe\.refunds\.create|payment_intent\.cancel/);
 });
+
+test("return and warranty idempotency replays are checked before time-sensitive eligibility",()=>{
+ const returns=migration.slice(migration.indexOf("create or replace function public.mme_pos_request_serialized_return"),migration.indexOf("create or replace function public.mme_pos_receive_serialized_return"));
+ const claims=migration.slice(migration.indexOf("create or replace function public.mme_pos_submit_serialized_warranty_claim"),migration.indexOf("create or replace function public.mme_pos_receive_serialized_warranty_claim"));
+ assert.ok(returns.indexOf("select * into v_existing")<returns.indexOf("Serialized return window has expired"));
+ assert.ok(claims.indexOf("select * into v_existing")<claims.indexOf("Warranty is not active for a new claim"));
+});
+test("warranty registration requires the serialized unit to be sold",()=>{
+ assert.match(migration,/v_unit\.unit_status<>'sold'/);
+});
