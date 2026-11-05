@@ -1,6 +1,6 @@
 begin;
 
-select plan(18);
+select plan(20);
 
 select has_function(
   'public',
@@ -73,11 +73,23 @@ select ok(
 );
 select ok(
   not public.mme_employee_permission_scope_allows(
+    'catalog', '{}'::jsonb, '{}'::jsonb
+  ),
+  'global catalog grant still requires a valid requested product ID'
+);
+select ok(
+  not public.mme_employee_permission_scope_allows(
     'catalog',
     '{"location_id":"22222222-2222-4222-8222-222222222222"}'::jsonb,
     '{"product_id":"11111111-1111-4111-8111-111111111111","location_id":"22222222-2222-4222-8222-222222222222"}'::jsonb
   ),
   'catalog does not accept location-only scope'
+);
+select ok(
+  not public.mme_employee_permission_scope_allows(
+    'tasks', '{}'::jsonb, '{"location_id":"22222222-2222-4222-8222-222222222222"}'::jsonb
+  ),
+  'global task grant still requires a department context'
 );
 select ok(
   public.mme_employee_permission_scope_allows(
