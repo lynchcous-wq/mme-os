@@ -77,18 +77,21 @@ function fixture({ identityRows = [{ id: PERSON_ID }], rpcStatus = 200 } = {}) {
 
 test("submit route authorizes using database-derived unit scope and sends mapped person identity to atomic RPC", async () => {
   const authCalls = [];
-  const { handler, calls } = fixture();
-  const handlerWithAuth = loadRoute(async (url, init) => {
-    if (String(url).includes("/auth/v1/user")) return json({ id: AUTH_ID });
-    if (String(url).includes("mme_serialized_units?")) return json([{ id: UNIT_ID, product_id: PRODUCT_ID, location_id: LOCATION_ID }]);
-    if (String(url).includes("mme_person_identities?")) return json([{ id: PERSON_ID }]);
-    if (String(url).endsWith("/rpc/mme_submit_serialized_inspection")) return json("77777777-7777-4777-8777-777777777777");
-    throw new Error("Unexpected fetch: " + String(url));
-  }, async (_token, resource, action, scope) => {
+  const fetchCalls = [];
+  const fetchImpl = async (url, init = {}) => {
+    fetchCalls.push({ url: String(url), init });
+    const u = String(url);
+    if (u.endsWith("/auth/v1/user")) return json({ id: AUTH_ID });
+    if (u.includes("mme_serialized_units?")) return json([{ id: UNIT_ID, product_id: PRODUCT_ID, location_id: LOCATION_ID }]);
+    if (u.includes("mme_person_identities?")) return json([{ id: PERSON_ID }]);
+    if (u.endsWith("/rpc/mme_submit_serialized_inspection")) return json("77777777-7777-4777-8777-777777777777");
+    throw new Error("Unexpected fetch: " + u);
+  };
+  const handler = loadRoute(fetchImpl, async (_token, resource, action, scope) => {
     authCalls.push({ resource, action, scope });
     return { ok: true, actorUserId: AUTH_ID };
   });
-  const response = await handlerWithAuth(request());
+  const response = await handler(request());
   const result = await response.json();
   assert.equal(response.status, 200);
   assert.equal(result.status, "quarantined_pending_review");
@@ -96,10 +99,12 @@ test("submit route authorizes using database-derived unit scope and sends mapped
     resource: "inventory.inspection", action: "submit",
     scope: { product_id: PRODUCT_ID, location_id: LOCATION_ID },
   }]);
-  const rpc = calls.find(x => x.url.endsWith("/rpc/mme_submit_serialized_inspection"));
-  // The separate fixture instance above is not used for this request; assert the route's RPC contract from captured request below.
-  assert.equal(rpc, undefined);
-  void handler;
+  const rpc = fetchCalls.find(x => x.url.endsWith("/rpc/mme_submit_serialized_inspection"));
+  assert.ok(rpc);
+  const payload = JSON.parse(rpc.init.body);
+  assert.equal(payload.p_actor_user_id, AUTH_ID);
+  assert.equal(payload.p_actor_identity_id, PERSON_ID);
+  assert.notEqual(payload.p_actor_identity_id, AUTH_ID);
 });
 
 test("submit route stops before atomic RPC when Build 004 denies access", async () => {
