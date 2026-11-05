@@ -19,7 +19,7 @@ create table public.mme_pos_financial_sync_runs (
 create index mme_pos_financial_sync_runs_location_idx on public.mme_pos_financial_sync_runs(location_id,started_at desc);
 create unique index mme_pos_financial_sync_one_active_connector_idx on public.mme_pos_financial_sync_runs(connector_id) where status='processing';
 alter table public.mme_pos_financial_sync_runs enable row level security;
-revoke all on public.mme_pos_financial_sync_runs from public,anon,authenticated;
+revoke all on public.mme_pos_financial_sync_runs from public,anon,authenticated;\ngrant select,insert,update on public.mme_pos_financial_sync_runs to service_role;\nrevoke delete,truncate on public.mme_pos_financial_sync_runs from service_role;
 commit;
 create or replace function public.mme_pos_start_financial_sync_run(
  p_connector_id uuid,p_worker_person_id uuid,p_window_started_at timestamptz
