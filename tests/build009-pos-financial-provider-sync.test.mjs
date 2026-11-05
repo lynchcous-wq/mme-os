@@ -72,7 +72,7 @@ test("Stripe normalization preserves signed minor-unit amounts and emits fee fac
  ]});
  assert.equal(result.records.length,4);
  assert.equal(result.ignored,1);
- assert.deepEqual(result.records.map(x=>x.fact_type),["gross_sale","processor_fee","refund","chargeback"]);
+ assert.deepEqual(result.records.map(x=>x.fact_type),["payment_capture","processor_fee","payment_refund","chargeback"]);
  assert.equal(result.records[0].amount_minor,1200);
  assert.equal(result.records[1].amount_minor,-65);
  assert.equal(result.records[2].amount_minor,-400);
