@@ -110,7 +110,7 @@ begin
      (p_payment_method_reference is null or length(btrim(p_payment_method_reference)) = 0) then
     raise exception 'A provider token reference is required for card tenders' using errcode = '22023';
   end if;
-  if p_method in ('cash','gift_card','financing','store_credit') and
+  if p_method in ('cash','gift_card','financing','store_credit','other_approved') and
      (p_policy_reference is null or length(btrim(p_policy_reference)) = 0) then
     raise exception 'An approved policy reference is required for this tender method' using errcode = '22023';
   end if;
