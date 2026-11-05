@@ -22,7 +22,7 @@ test("actor identity comes only from the verified Supabase user", () => {
 
 test("request content type, size, object shape, and supported keys are constrained", () => {
   assert.match(route, /application\/json/);
-  assert.match(route, /byteLength\(raw\)\s*>\s*12000/);
+  assert.match(route, /TextEncoder\(\)\.encode\(raw\)\.byteLength\s*>\s*12000/);
   assert.match(route, /JSON\.parse\(raw\)/);
   assert.match(route, /unsupported fields/);
 });
