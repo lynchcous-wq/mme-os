@@ -64,7 +64,7 @@ on conflict (role_key) do update set active = true;
 
 insert into public.mme_role_assignments
   (employee_relationship_id, role_id, scope, status, effective_from)
-select e.id, r.id, '{"store_id":"mableton"}'::jsonb, 'active', now() - interval '1 hour'
+select e.id, r.id, '{"product_id":"11111111-1111-4111-8111-111111111111"}'::jsonb, 'active', now() - interval '1 hour'
 from public.mme_employee_relationships e
 join public.mme_person_identities p on p.id = e.person_identity_id
 cross join public.mme_roles r
@@ -75,7 +75,7 @@ on conflict do nothing;
 insert into public.mme_permission_grants
   (role_assignment_id, resource_key, action_key, scope, status)
 select ra.id, 'inventory.inspection', 'submit',
-       '{"store_id":"mableton"}'::jsonb, 'active'
+       '{"product_id":"11111111-1111-4111-8111-111111111111"}'::jsonb, 'active'
 from public.mme_role_assignments ra
 join public.mme_employee_relationships e on e.id = ra.employee_relationship_id
 join public.mme_person_identities p on p.id = e.person_identity_id
@@ -109,7 +109,7 @@ where p.auth_user_id = 'b0040000-0000-4000-8000-000000000002'
 select ok(
   public.mme_authorize_employee_action(
     'b0040000-0000-4000-8000-000000000002',
-    'inventory.inspection', 'view', '{"store_id":"another-store"}'::jsonb
+    'inventory.inspection', 'view', '{"product_id":"11111111-1111-4111-8111-111111111111","location_id":"22222222-2222-4222-8222-222222222222"}'::jsonb
   ),
   'global role assignment and grant authorize across requested scopes'
 );
@@ -117,7 +117,7 @@ select ok(
 select ok(
   public.mme_authorize_employee_action(
     'b0040000-0000-4000-8000-000000000002',
-    'inventory.inspection', 'submit', '{"store_id":"mableton"}'::jsonb
+    'inventory.inspection', 'submit', '{"product_id":"11111111-1111-4111-8111-111111111111"}'::jsonb
   ),
   'active employee with active role and matching grant is authorized'
 );
@@ -125,7 +125,7 @@ select ok(
 select ok(
   not public.mme_authorize_employee_action(
     'b0040000-0000-4000-8000-000000000002',
-    'inventory.inspection', 'delete', '{"store_id":"mableton"}'::jsonb
+    'inventory.inspection', 'delete', '{"product_id":"11111111-1111-4111-8111-111111111111"}'::jsonb
   ),
   'missing permission grant is denied'
 );
@@ -133,7 +133,7 @@ select ok(
 select ok(
   not public.mme_authorize_employee_action(
     'b0040000-0000-4000-8000-000000000002',
-    'inventory.inspection', 'submit', '{"store_id":"other"}'::jsonb
+    'inventory.inspection', 'submit', '{"product_id":"33333333-3333-4333-8333-333333333333"}'::jsonb
   ),
   'out-of-scope request is denied'
 );
@@ -147,7 +147,7 @@ where auth_user_id = 'b0040000-0000-4000-8000-000000000002';
 select ok(
   not public.mme_authorize_employee_action(
     'b0040000-0000-4000-8000-000000000002',
-    'inventory.inspection', 'submit', '{"store_id":"mableton"}'::jsonb
+    'inventory.inspection', 'submit', '{"product_id":"11111111-1111-4111-8111-111111111111"}'::jsonb
   ),
   'whole-login security lock denies access'
 );
@@ -166,7 +166,7 @@ where employee_number = 'B004-AUTHZ-TEST';
 select ok(
   not public.mme_authorize_employee_action(
     'b0040000-0000-4000-8000-000000000002',
-    'inventory.inspection', 'submit', '{"store_id":"mableton"}'::jsonb
+    'inventory.inspection', 'submit', '{"product_id":"11111111-1111-4111-8111-111111111111"}'::jsonb
   ),
   'terminated employee is denied'
 );
@@ -182,7 +182,7 @@ where role_key = 'build004_authz_test';
 select ok(
   not public.mme_authorize_employee_action(
     'b0040000-0000-4000-8000-000000000002',
-    'inventory.inspection', 'submit', '{"store_id":"mableton"}'::jsonb
+    'inventory.inspection', 'submit', '{"product_id":"11111111-1111-4111-8111-111111111111"}'::jsonb
   ),
   'inactive role is denied'
 );
@@ -201,13 +201,13 @@ where id = (
   join public.mme_roles r on r.id = ra.role_id
   where p.auth_user_id = 'b0040000-0000-4000-8000-000000000002'
     and r.role_key = 'build004_authz_test'
-    and ra.scope = '{"store_id":"mableton"}'::jsonb
+    and ra.scope = '{"product_id":"11111111-1111-4111-8111-111111111111"}'::jsonb
 );
 
 select ok(
   not public.mme_authorize_employee_action(
     'b0040000-0000-4000-8000-000000000002',
-    'inventory.inspection', 'submit', '{"store_id":"mableton"}'::jsonb
+    'inventory.inspection', 'submit', '{"product_id":"11111111-1111-4111-8111-111111111111"}'::jsonb
   ),
   'expired role assignment is denied'
 );
@@ -235,7 +235,7 @@ where singleton = true;
 select ok(
   not public.mme_authorize_employee_action(
     'b0040000-0000-4000-8000-000000000002',
-    'inventory.inspection', 'submit', '{"store_id":"mableton"}'::jsonb
+    'inventory.inspection', 'submit', '{"product_id":"11111111-1111-4111-8111-111111111111"}'::jsonb
   ),
   'legacy global employee freeze denies non-CEO authorization'
 );
