@@ -3,6 +3,8 @@
 -- All fixture writes are rolled back; no production identities are touched.
 begin;
 
+select plan(1);
+
 do $$
 declare
   v_verified_auth uuid := 'f1000000-0000-4000-8000-000000000001';
@@ -51,5 +53,8 @@ begin
   end if;
 end;
 $$;
+
+select pass('Build 004 SQL assertions completed without exception');
+select * from finish();
 
 rollback;
