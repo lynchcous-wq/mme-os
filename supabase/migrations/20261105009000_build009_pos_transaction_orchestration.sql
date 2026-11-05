@@ -121,6 +121,78 @@ create trigger mme_pos_events_immutable
 before update or delete on public.mme_pos_transaction_events
 for each row execute function public.mme_pos_reject_event_mutation();
 
+-- POS-specific person-keyed permission gate. Permission grants are scoped
+-- to the target store via scope.store_id, or global scope {}. CEO identity is
+-- read from the existing security settings; frozen access always denies.
+create or replace function public.mme_pos_authorize_register_action(
+  p_actor_person_id uuid,
+  p_permission_key text,
+  p_store_id uuid
+)
+returns boolean
+language plpgsql
+security definer
+set search_path = ''
+as $
+declare
+  v_ceo_person_id uuid;
+  v_frozen boolean;
+  v_employment_status text;
+  v_lifecycle_status text;
+begin
+  if p_actor_person_id is null or p_store_id is null
+     or p_permission_key not in (
+       'pos.transaction.create','pos.tender.create','pos.tender.capture',
+       'pos.tender.void','pos.refund.create','pos.register.open',
+       'pos.register.close','pos.discount.override','pos.drawer.open'
+     ) then
+    return false;
+  end if;
+
+  select ceo_person_id, employee_access_frozen
+    into v_ceo_person_id, v_frozen
+  from public.employee_security_settings
+  where singleton = true;
+
+  if not found or v_frozen is distinct from false or v_ceo_person_id is null then
+    return false;
+  end if;
+
+  select er.employment_status, pi.lifecycle_status
+    into v_employment_status, v_lifecycle_status
+  from public.employee_relationships er
+  join public.mme_person_identities pi on pi.person_id = er.person_id
+  where er.person_id = p_actor_person_id;
+
+  if v_employment_status is distinct from 'active'
+     or v_lifecycle_status is distinct from 'active' then
+    return false;
+  end if;
+
+  if p_actor_person_id = v_ceo_person_id then
+    return true;
+  end if;
+
+  return exists (
+    select 1
+    from public.employee_permission_grants g
+    where g.person_id = p_actor_person_id
+      and g.permission_key = p_permission_key
+      and g.revoked_at is null
+      and (g.expires_at is null or g.expires_at > now())
+      and (
+        g.scope = '{}'::jsonb
+        or g.scope ->> 'store_id' = p_store_id::text
+      )
+  );
+end;
+$;
+
+revoke all on function public.mme_pos_authorize_register_action(uuid,text,uuid)
+  from public, anon, authenticated;
+grant execute on function public.mme_pos_authorize_register_action(uuid,text,uuid)
+  to service_role;
+
 -- Register-session ownership remains a separate future contract. This function
 -- creates only an orchestration envelope bound to an already-created Build 001 order.
 create or replace function public.mme_pos_create_transaction(
@@ -150,17 +222,10 @@ begin
     raise exception 'Invalid POS transaction request' using errcode = '22023';
   end if;
 
-  -- This is an additional guard, not a substitute for route-level permission checks.
-  if not exists (
-    select 1 from public.employee_relationships er
-    where er.person_id = p_actor_person_id
-      and er.employment_status = 'active'
-  ) or not exists (
-    select 1 from public.mme_person_identities pi
-    where pi.person_id = p_actor_person_id
-      and pi.lifecycle_status = 'active'
+  if not public.mme_pos_authorize_register_action(
+    p_actor_person_id, 'pos.transaction.create', p_store_id
   ) then
-    raise exception 'Active employee identity required' using errcode = '42501';
+    raise exception 'POS transaction permission denied' using errcode = '42501';
   end if;
 
   select o.status, o.currency, o.total_cents
