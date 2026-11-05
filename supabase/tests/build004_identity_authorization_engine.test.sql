@@ -1,6 +1,6 @@
 begin;
 
-select plan(26);
+select plan(30);
 
 select has_function(
   'public',
@@ -113,6 +113,25 @@ join public.mme_employee_relationships e on e.id = ra.employee_relationship_id
 join public.mme_person_identities p on p.id = e.person_identity_id
 where p.auth_user_id = 'b0040000-0000-4000-8000-000000000002'
   and ra.scope = '{}'::jsonb;
+
+insert into public.products
+  (id, category_id, sku, slug, name, created_by, catalog_status)
+select
+  '44444444-4444-4444-8444-444444444444',
+  id,
+  'B004-PARITY-CEO',
+  'b004-parity-ceo',
+  'Build 004 Catalog Parity Test',
+  'b0040000-0000-4000-8000-000000000002',
+  'pending_approval'
+from public.product_categories
+where slug = 'televisions'
+on conflict (id) do update
+set created_by = excluded.created_by,
+    catalog_status = excluded.catalog_status,
+    approved_by = null,
+    approved_at = null,
+    published_at = null;
 
 insert into public.employee_permission_grants
   (employee_user_id, permission_key, scope, granted_by_user_id, reason)
@@ -438,6 +457,59 @@ update public.employee_security_settings
 set employee_access_frozen = false,
     freeze_reason = null
 where singleton = true;
+
+select is(
+  public.mme_employee_authorize_catalog_action(
+    'b0040000-0000-4000-8000-000000000003',
+    'catalog.approve',
+    '44444444-4444-4444-8444-444444444444',
+    null
+  ),
+  public.mme_authorize_employee_action(
+    'b0040000-0000-4000-8000-000000000003',
+    'catalog', 'approve',
+    '{"product_id":"44444444-4444-4444-8444-444444444444"}'::jsonb
+  ),
+  'legacy and Build 004 CEO catalog approval decisions agree for valid pending product'
+);
+
+update public.products
+set approved_by = 'b0040000-0000-4000-8000-000000000003',
+    approved_at = now()
+where id = '44444444-4444-4444-8444-444444444444';
+
+select is(
+  public.mme_employee_authorize_catalog_action(
+    'b0040000-0000-4000-8000-000000000003',
+    'catalog.publish',
+    '44444444-4444-4444-8444-444444444444',
+    null
+  ),
+  public.mme_authorize_employee_action(
+    'b0040000-0000-4000-8000-000000000003',
+    'catalog', 'publish',
+    '{"product_id":"44444444-4444-4444-8444-444444444444"}'::jsonb
+  ),
+  'legacy and Build 004 CEO publication decisions agree for approved pending product'
+);
+
+select ok(
+  not public.mme_employee_authorize_catalog_action(
+    'b0040000-0000-4000-8000-000000000002',
+    'catalog.approve',
+    '44444444-4444-4444-8444-444444444444',
+    'b0040000-0000-4000-8000-000000000003'
+  ),
+  'legacy catalog engine rejects creator self-approval based on protected product row'
+);
+select ok(
+  not public.mme_authorize_employee_action(
+    'b0040000-0000-4000-8000-000000000002',
+    'catalog', 'approve',
+    '{"product_id":"44444444-4444-4444-8444-444444444444"}'::jsonb
+  ),
+  'Build 004 catalog engine rejects creator self-approval based on protected product row'
+);
 
 select * from finish();
 rollback;
