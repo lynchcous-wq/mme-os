@@ -96,15 +96,7 @@ test("live Supabase Auth identity mapping and Build 004 deny decision", async (t
     assert.equal(invalid.ok, false);
     assert.equal(invalid.status, 401, "invalid bearer token is rejected by Supabase Auth");
   } finally {
-    if (userId) {
-      const removed = await fetch(`${base}/auth/v1/admin/users/${userId}`, {
-        method: "DELETE",
-        headers: adminHeaders,
-      });
-      if (!removed.ok) {
-        const detail = await removed.text();
-        throw new Error(`integration fixture cleanup failed (${removed.status}): ${detail}`);
-      }
-    }
-  }
-});
+    // The identity foundation intentionally retains person identities and
+    // audit references. This test runs only against an ephemeral local
+    // Supabase database that is discarded with the CI job.
+  }});
