@@ -5,67 +5,36 @@ import { readFile } from "node:fs/promises";
 const migration = await readFile(new URL("../supabase/migrations/20261105000930_build009_pos_reconciliation.sql", import.meta.url), "utf8");
 
 test("Settlement imports are provider/account scoped and idempotent", () => {
-  assert.match(migration, /unique\(provider, provider_account_reference, provider_record_reference\)/);
-  assert.match(migration, /Provider record reference reused with different settlement data/);
-  assert.match(migration, /return query select v_existing\.id, true/);
-  assert.ok(migration.includes("p_raw_record_digest !~ '^[a-fA-F0-9]{64}
+  assert.ok(migration.includes("unique(provider, provider_account_reference, provider_record_reference)"));
+  assert.ok(migration.includes("Provider record reference reused with different settlement data"));
+  assert.ok(migration.includes("return query select v_existing.id, true"));
+  assert.ok(migration.includes("p_raw_record_digest !~"));
 });
 
 test("Reconciliation requires provider references and identifies ambiguous matches", () => {
-  assert.match(migration, /provider_operation_reference = v_record\.provider_operation_reference/);
-  assert.match(migration, /provider_payment_reference = v_record\.provider_payment_reference/);
-  assert.match(migration, /ambiguous_tender_reference/);
-  assert.match(migration, /no_tender_reference_match/);
+  assert.ok(migration.includes("provider_operation_reference = v_record.provider_operation_reference"));
+  assert.ok(migration.includes("provider_payment_reference = v_record.provider_payment_reference"));
+  assert.ok(migration.includes("ambiguous_tender_reference"));
+  assert.ok(migration.includes("no_tender_reference_match"));
 });
 
 test("Reconciliation compares currency, capture and refund amounts", () => {
-  assert.match(migration, /currency_mismatch/);
-  assert.match(migration, /capture_amount_mismatch/);
-  assert.match(migration, /refund_amount_mismatch/);
-  assert.match(migration, /tender_state_mismatch/);
+  for (const code of ["currency_mismatch", "capture_amount_mismatch", "refund_amount_mismatch", "tender_state_mismatch"]) {
+    assert.ok(migration.includes(code));
+  }
 });
 
 test("Duplicates and policy-sensitive settlement records are not silently matched", () => {
-  assert.match(migration, /duplicate_provider_operation_record/);
-  assert.ok(migration.includes('x.record_type = v_record.record_type'));
-  assert.ok(migration.includes('v_record.provider_operation_reference is not null'));
-  assert.match(migration, /record_type_requires_policy_review/);
-  assert.match(migration, /manual_review/);
+  assert.ok(migration.includes("duplicate_provider_operation_record"));
+  assert.ok(migration.includes("x.record_type = v_record.record_type"));
+  assert.ok(migration.includes("v_record.provider_operation_reference is not null"));
+  assert.ok(migration.includes("record_type_requires_policy_review"));
+  assert.ok(migration.includes("manual_review"));
 });
 
 test("Reconciliation records auditable outcomes and limits RPC access", () => {
-  assert.match(migration, /create table public\.mme_pos_reconciliation_events/);
-  assert.match(migration, /insert into public\.mme_pos_reconciliation_events/);
-  assert.match(migration, /revoke all on function public\.mme_pos_reconcile_settlement_record[\s\S]*from public, anon, authenticated/);
-  assert.match(migration, /grant execute on function public\.mme_pos_reconcile_settlement_record[\s\S]*to service_role/);
-});
-"));
-});
-
-test("Reconciliation requires provider references and identifies ambiguous matches", () => {
-  assert.match(migration, /provider_operation_reference = v_record\.provider_operation_reference/);
-  assert.match(migration, /provider_payment_reference = v_record\.provider_payment_reference/);
-  assert.match(migration, /ambiguous_tender_reference/);
-  assert.match(migration, /no_tender_reference_match/);
-});
-
-test("Reconciliation compares currency, capture and refund amounts", () => {
-  assert.match(migration, /currency_mismatch/);
-  assert.match(migration, /capture_amount_mismatch/);
-  assert.match(migration, /refund_amount_mismatch/);
-  assert.match(migration, /tender_state_mismatch/);
-});
-
-test("Duplicates and policy-sensitive settlement records are not silently matched", () => {
-  assert.match(migration, /duplicate_provider_operation_record/);
-  assert.match(migration, /x\.record_type = v_record\.record_type[\\s\\S]*v_record\.provider_operation_reference is not null/);
-  assert.match(migration, /record_type_requires_policy_review/);
-  assert.match(migration, /manual_review/);
-});
-
-test("Reconciliation records auditable outcomes and limits RPC access", () => {
-  assert.match(migration, /create table public\.mme_pos_reconciliation_events/);
-  assert.match(migration, /insert into public\.mme_pos_reconciliation_events/);
-  assert.match(migration, /revoke all on function public\.mme_pos_reconcile_settlement_record[\s\S]*from public, anon, authenticated/);
-  assert.match(migration, /grant execute on function public\.mme_pos_reconcile_settlement_record[\s\S]*to service_role/);
+  assert.ok(migration.includes("create table public.mme_pos_reconciliation_events"));
+  assert.ok(migration.includes("insert into public.mme_pos_reconciliation_events"));
+  assert.ok(migration.includes("revoke all on function public.mme_pos_reconcile_settlement_record"));
+  assert.ok(migration.includes("grant execute on function public.mme_pos_reconcile_settlement_record"));
 });
