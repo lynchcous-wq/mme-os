@@ -134,7 +134,7 @@ create or replace function public.mme_pos_import_financial_fact(
  p_employee_person_id uuid default null,p_source_transaction_reference text default null,p_source_digest_sha256 text default null
 ) returns uuid language plpgsql security definer set search_path=pg_catalog,public
 as $$
-declare v_id uuid; v_existing uuid;
+declare v_id uuid; v_existing uuid; v_existing_fact public.mme_pos_financial_reporting_facts%rowtype;
 begin
  if not public.mme_pos_authorize_hardware_action(p_actor_person_id,'pos.finance.report.import',p_location_id) then
   raise exception 'Financial fact import permission denied' using errcode='42501';
@@ -150,10 +150,17 @@ begin
   and c.status='closed') then
   raise exception 'Financial facts cannot be added to a closed period; use the authorized reopen and adjustment workflow' using errcode='55000';
  end if;
- select id into v_existing from public.mme_pos_financial_reporting_facts
+ select * into v_existing_fact from public.mme_pos_financial_reporting_facts
  where location_id=p_location_id and source_system=p_source_system
   and source_line_reference=p_source_line_reference and fact_type=p_fact_type;
- if found then return v_existing; end if;
+ if found then
+  if v_existing_fact.business_date<>p_business_date or v_existing_fact.currency<>p_currency
+   or v_existing_fact.amount_minor<>p_amount_minor or v_existing_fact.occurred_at<>p_occurred_at
+   or v_existing_fact.source_digest_sha256 is distinct from p_source_digest_sha256 then
+   raise exception 'Source reference already exists with conflicting financial content; quarantine for review' using errcode='23505';
+  end if;
+  return v_existing_fact.id;
+ end if;
  insert into public.mme_pos_financial_reporting_facts(location_id,source_system,source_line_reference,fact_type,
   business_date,occurred_at,business_timezone,currency,amount_minor,quantity_milli,product_category,sku_reference,
   register_reference,employee_person_id,source_transaction_reference,source_digest_sha256,imported_by_person_id)
