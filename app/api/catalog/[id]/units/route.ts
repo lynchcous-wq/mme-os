@@ -19,7 +19,7 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
       fetch(`${base}/rest/v1/mme_products?select=id,serialized,active&id=eq.${id}&limit=1`, {
         headers: { apikey: service, Authorization: `Bearer ${service}` }, cache: "no-store",
       }),
-      fetch(`${base}/rest/v1/mme_serialized_units?select=product_id,location_id,unit_status&product_id=eq.${id}&unit_status=eq.in_stock`, {
+      fetch(`${base}/rest/v1/mme_serialized_units?select=id,product_id,location_id,condition_grade,unit_status&product_id=eq.${id}&unit_status=eq.in_stock`, {
         headers: { apikey: service, Authorization: `Bearer ${service}` }, cache: "no-store",
       }),
       fetch(`${base}/rest/v1/mme_store_locations?select=id,display_name&active=eq.true`, {
@@ -36,17 +36,16 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
       return NextResponse.json({ error: "Serialized product not found." }, { status: 404 });
     }
     const locationById = new Map(locations.map((item) => [String(item.id), String(item.display_name)]));
-    const availabilityByLocation = new Map<string, number>();
-    for (const unit of units) {
+    const availableUnits = units.flatMap((unit) => {
       const locationId = String(unit.location_id);
-      if (!locationById.has(locationId)) continue;
-      availabilityByLocation.set(locationId, (availabilityByLocation.get(locationId) ?? 0) + 1);
-    }
-    const availableUnits = [...availabilityByLocation.entries()].map(([locationId, available_quantity]) => ({
-      location_id: locationId,
-      location_name: locationById.get(locationId),
-      available_quantity,
-    }));
+      if (!locationById.has(locationId)) return [];
+      return [{
+        unit_id: String(unit.id),
+        location_id: locationId,
+        location_name: locationById.get(locationId),
+        condition_grade: String(unit.condition_grade ?? "unknown"),
+      }];
+    });
     return NextResponse.json({ units: availableUnits }, { headers: { "Cache-Control": "no-store" } });
   } catch {
     return NextResponse.json({ error: "Device availability is temporarily unavailable." }, { status: 502 });
