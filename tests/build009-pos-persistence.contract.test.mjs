@@ -17,6 +17,8 @@ test("POS transaction creation is idempotent, linked to a pending order, and per
   assert.match(migration, /v_person_status is distinct from 'active'/);
   assert.match(migration, /employment_status is distinct from 'active'/);
   assert.match(migration, /pos\.transaction\.create/);
+  assert.match(migration, /g\.scope ->> 'location_id'/);
+  assert.match(migration, /v_tx\.order_id/);
   assert.match(migration, /POS transaction event permission denied/);
   assert.match(migration, /idempotency_key text not null unique/);
   assert.match(migration, /v_order\.status <> 'pending_payment'/);
