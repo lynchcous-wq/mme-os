@@ -38,3 +38,5 @@ export async function POST(request:Request){
   return NextResponse.json({ok:true,enqueued,processed,retried,dead_lettered:deadLettered,expired},{headers});
  }catch{return NextResponse.json({error:"Financial import worker failed; no success is being reported."},{status:503,headers});}
 }
+
+export async function GET(request:Request){return POST(request);}
