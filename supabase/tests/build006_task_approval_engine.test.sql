@@ -1,5 +1,5 @@
 begin;
-select plan(16);
+select plan(17);
 
 select has_table('public','mme_task_approval_requests','approval request table exists');
 select has_table('public','mme_task_approval_events','approval event history exists');
