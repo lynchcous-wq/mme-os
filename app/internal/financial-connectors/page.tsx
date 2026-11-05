@@ -4,11 +4,13 @@ import {FormEvent,useCallback,useEffect,useState} from "react";
 type Connector={id:string;provider_key:string;display_name:string;status:string;external_account_reference:string|null;adapter_version:string;last_success_at:string|null;last_attempt_at:string|null;last_error_code:string|null};
 type Batch={id:string;connector_id:string;source_batch_reference:string;status:string;record_count:number;imported_count:number;duplicate_count:number;quarantined_count:number;staged_at:string};
 type Quarantine={id:string;batch_id:string;error_code:string;safe_message:string;created_at:string};
-type Data={connectors:Connector[];batches:Batch[];open_quarantine:Quarantine[]};
+type Job={id:string;batch_id:string;status:string;attempts:number;max_attempts:number;available_at:string;lease_expires_at:string|null;last_error_code:string|null};
+type WebhookEvent={id:string;provider_event_id:string;provider_event_type:string;status:string;received_at:string;processed_at:string|null;safe_error_code:string|null};
+type Data={connectors:Connector[];batches:Batch[];open_quarantine:Quarantine[];jobs:Job[];webhook_events:WebhookEvent[]};
 const providers=["pos","stripe","inventory","subscriptions","bank_feed","manual_import"];
 export default function FinancialConnectorsPage(){
  const [token,setToken]=useState("");const [location,setLocation]=useState("");
- const [data,setData]=useState<Data>({connectors:[],batches:[],open_quarantine:[]});
+ const [data,setData]=useState<Data>({connectors:[],batches:[],open_quarantine:[],jobs:[],webhook_events:[]});
  const [provider,setProvider]=useState("stripe");const [name,setName]=useState("Stripe payments");const [external,setExternal]=useState("");const [secretRef,setSecretRef]=useState("");
  const [connector,setConnector]=useState("");const [batchRef,setBatchRef]=useState("");const [idem,setIdem]=useState("");const [records,setRecords]=useState('[\n  {\n    "source_line_reference": "provider-row-001",\n    "fact_type": "gross_sale",\n    "business_date": "2026-11-05",\n    "occurred_at": "2026-11-05T12:00:00Z",\n    "business_timezone": "America/New_York",\n    "currency": "USD",\n    "amount_minor": 12500,\n    "source_transaction_reference": "sale-001"\n  }\n]');
  const [busy,setBusy]=useState(false);const [error,setError]=useState("");const [notice,setNotice]=useState("");
