@@ -15,7 +15,6 @@ create table public.mme_pos_hardware_acknowledgments (
   reconciled_at timestamptz,
   safe_detail text check(safe_detail is null or length(safe_detail)<=300),
   unique(device_id,provider_event_id),
-  check(command_id is null or reconciliation_state in ('matched_confirmed','matched_failed','conflict'))
 );
 create index mme_pos_hw_ack_unmatched_idx
   on public.mme_pos_hardware_acknowledgments(device_id,received_at)
@@ -36,6 +35,7 @@ declare
   v_ack public.mme_pos_hardware_acknowledgments%rowtype;
   v_command public.mme_pos_drawer_hardware_commands%rowtype;
   v_found boolean := false;
+  v_candidates integer := 0;
   v_state text;
 begin
   select * into v_ack from public.mme_pos_hardware_acknowledgments
@@ -48,10 +48,18 @@ begin
       where id=v_ack.command_id and device_id=v_ack.device_id for update;
     v_found:=found;
   elsif v_ack.provider_command_id is not null then
-    select * into v_command from public.mme_pos_drawer_hardware_commands
-      where device_id=v_ack.device_id and provider_command_id=v_ack.provider_command_id
-      order by requested_at desc limit 1 for update;
-    v_found:=found;
+    select count(*) into v_candidates from public.mme_pos_drawer_hardware_commands
+      where device_id=v_ack.device_id and provider_command_id=v_ack.provider_command_id;
+    if v_candidates>1 then
+      update public.mme_pos_hardware_acknowledgments set reconciliation_state='conflict',
+        reconciliation_detail='Provider command identifier matched multiple commands for this device.',
+        reconciled_at=now() where id=v_ack.id;
+      return 'conflict';
+    elsif v_candidates=1 then
+      select * into v_command from public.mme_pos_drawer_hardware_commands
+        where device_id=v_ack.device_id and provider_command_id=v_ack.provider_command_id for update;
+      v_found:=found;
+    end if;
   end if;
 
   if not v_found then return 'unmatched'; end if;
@@ -117,7 +125,7 @@ begin
     or p_event_type not in ('drawer_open_confirmed','drawer_open_failed')
     or p_occurred_at is null
     or (p_provider_command_id is not null and length(p_provider_command_id)>160)
-    or (p_command_id is null and p_provider_command_id is null) then
+    then
     raise exception 'Invalid hardware acknowledgment' using errcode='22023';
   end if;
   if not exists(select 1 from public.mme_pos_register_devices d
