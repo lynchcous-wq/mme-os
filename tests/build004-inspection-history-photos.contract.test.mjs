@@ -41,3 +41,9 @@ test("private evidence safeguards remain present", () => {
   assert.ok(photos.includes("mme_register_inspection_photo_evidence"));
   assert.ok(photos.includes("Cache-Control"));
 });
+
+test("history distinguishes authorization denial from authorization service failure", () => {
+  assert.ok(history.includes("if (!permission.ok)"));
+  assert.ok(history.includes('status: 503'));
+  assert.ok(history.includes("if (await permission.json() === true) authorized.push(item)"));
+});
