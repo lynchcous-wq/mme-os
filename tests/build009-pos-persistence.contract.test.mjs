@@ -14,7 +14,7 @@ test("POS persistence reuses Build 001 order and active inventory reservation", 
 test("POS transaction creation is idempotent, linked to a pending order, and person-authorized", () => {
   assert.match(migration, /mme_person_authorize_pos_action/);
   assert.match(migration, /employee_access_frozen/);
-  assert.match(migration, /lifecycle_status is distinct from 'active'/);
+  assert.match(migration, /v_person_status is distinct from 'active'/);
   assert.match(migration, /employment_status is distinct from 'active'/);
   assert.match(migration, /pos\.transaction\.create/);
   assert.match(migration, /POS transaction event permission denied/);
