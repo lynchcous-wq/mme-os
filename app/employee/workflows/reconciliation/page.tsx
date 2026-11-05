@@ -11,6 +11,7 @@ type AuditEvent = {
   created_at: string;
 };
 
+type DecisionDraft = { outcome: string; reason: string; evidenceJson: string };
 type ReconciliationItem = {
   step_run_id: number;
   execution_id: string;
@@ -40,6 +41,9 @@ export default function WorkflowReconciliationPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [authMessage, setAuthMessage] = useState("");
+  const [drafts, setDrafts] = useState<Record<number, DecisionDraft>>({});
+  const [submittingStep, setSubmittingStep] = useState<number | null>(null);
+  const [decisionMessage, setDecisionMessage] = useState<Record<number, string>>({});
 
   useEffect(() => {
     const supabase = getSupabaseBrowserClient();
@@ -78,6 +82,84 @@ export default function WorkflowReconciliationPage() {
   useEffect(() => {
     if (email) void refresh();
   }, [email, refresh]);
+
+  function updateDraft(stepRunId: number, patch: Partial<DecisionDraft>) {
+    setDrafts(current => ({
+      ...current,
+      [stepRunId]: {
+        outcome: current[stepRunId]?.outcome ?? "confirmed_completed",
+        reason: current[stepRunId]?.reason ?? "",
+        evidenceJson: current[stepRunId]?.evidenceJson ?? '[{"kind":"system_log","reference":""}]',
+        ...patch,
+      },
+    }));
+  }
+
+  async function submitDecision(item: ReconciliationItem) {
+    const draft = drafts[item.step_run_id];
+    if (!draft) {
+      setError("Complete the decision details before submitting.");
+      return;
+    }
+    setError("");
+    setDecisionMessage(current => ({ ...current, [item.step_run_id]: "" }));
+    let evidence: unknown;
+    try {
+      evidence = JSON.parse(draft.evidenceJson);
+    } catch {
+      setDecisionMessage(current => ({ ...current, [item.step_run_id]: "Evidence must be valid JSON: an array of { kind, reference, optional sha256 } objects." }));
+      return;
+    }
+    if (!Array.isArray(evidence) || evidence.length < 1 || evidence.length > 20) {
+      setDecisionMessage(current => ({ ...current, [item.step_run_id]: "Provide between 1 and 20 evidence references." }));
+      return;
+    }
+    if (draft.reason.trim().length < 3 || draft.reason.trim().length > 1000) {
+      setDecisionMessage(current => ({ ...current, [item.step_run_id]: "Enter a reason between 3 and 1000 characters." }));
+      return;
+    }
+    const confirmed = window.confirm(
+      "Record this supervisor reconciliation decision permanently? The workflow will remain cancelled and this action cannot be edited or deleted."
+    );
+    if (!confirmed) return;
+
+    setSubmittingStep(item.step_run_id);
+    try {
+      const { data, error: sessionError } = await getSupabaseBrowserClient().auth.getSession();
+      const token = data.session?.access_token;
+      if (sessionError || !token) throw new Error("Your employee session has expired. Sign in again.");
+      const response = await fetch("/api/employee/workflows/reconciliation/decision", {
+        method: "POST",
+        headers: { Authorization: "Bearer " + token, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          step_run_id: item.step_run_id,
+          outcome: draft.outcome,
+          reason: draft.reason.trim(),
+          evidence_references: evidence,
+        }),
+        cache: "no-store",
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.error ?? "Decision could not be recorded.");
+      setDecisionMessage(current => ({
+        ...current,
+        [item.step_run_id]: "Decision " + result.decision_id + " recorded. The workflow remains cancelled; no retry or resume was authorized.",
+      }));
+      setDrafts(current => {
+        const next = { ...current };
+        delete next[item.step_run_id];
+        return next;
+      });
+      await refresh();
+    } catch (cause) {
+      setDecisionMessage(current => ({
+        ...current,
+        [item.step_run_id]: cause instanceof Error ? cause.message : "Decision submission failed.",
+      }));
+    } finally {
+      setSubmittingStep(null);
+    }
+  }
 
   async function signOut() {
     const { error: signOutError } = await getSupabaseBrowserClient().auth.signOut();
@@ -165,9 +247,45 @@ export default function WorkflowReconciliationPage() {
                 </div>
               ))}
             </details>
-            <p style={{ color: "#8a4b10", background: "#fff7e8", padding: 12, borderRadius: 8, marginBottom: 0 }}>
-              Investigation only. This screen cannot resume, retry, or mark the cancelled workflow successful.
-            </p>
+            <section style={{ borderTop: "1px solid #e1e7ef", marginTop: 18, paddingTop: 16 }}>
+              <h3 style={{ margin: "0 0 8px" }}>Supervisor reconciliation decision</h3>
+              <p style={{ color: "#8a4b10", background: "#fff7e8", padding: 12, borderRadius: 8 }}>
+                Submitting records an immutable finding. It does not resume the workflow, retry the step, or perform compensation.
+              </p>
+              <label style={{ display: "block", fontWeight: 700, marginTop: 12 }} htmlFor={"outcome-" + item.step_run_id}>Outcome</label>
+              <select id={"outcome-" + item.step_run_id}
+                value={drafts[item.step_run_id]?.outcome ?? "confirmed_completed"}
+                onChange={event => updateDraft(item.step_run_id, { outcome: event.target.value })}
+                style={{ width: "100%", padding: 10, border: "1px solid #cbd5e1", borderRadius: 8, marginTop: 6 }}>
+                <option value="confirmed_completed">External action confirmed completed</option>
+                <option value="confirmed_not_completed">External action confirmed not completed</option>
+                <option value="compensation_verified">Compensation independently verified</option>
+                <option value="unresolved_escalated">Unresolved — escalate</option>
+              </select>
+              <label style={{ display: "block", fontWeight: 700, marginTop: 12 }} htmlFor={"reason-" + item.step_run_id}>Decision reason</label>
+              <textarea id={"reason-" + item.step_run_id}
+                value={drafts[item.step_run_id]?.reason ?? ""}
+                onChange={event => updateDraft(item.step_run_id, { reason: event.target.value })}
+                minLength={3} maxLength={1000} required rows={3}
+                placeholder="Explain what was verified and the basis for this decision."
+                style={{ width: "100%", boxSizing: "border-box", padding: 10, border: "1px solid #cbd5e1", borderRadius: 8, marginTop: 6 }} />
+              <label style={{ display: "block", fontWeight: 700, marginTop: 12 }} htmlFor={"evidence-" + item.step_run_id}>Evidence references (JSON)</label>
+              <textarea id={"evidence-" + item.step_run_id}
+                value={drafts[item.step_run_id]?.evidenceJson ?? '[{"kind":"system_log","reference":""}]'}
+                onChange={event => updateDraft(item.step_run_id, { evidenceJson: event.target.value })}
+                rows={4} spellCheck={false}
+                placeholder={'[{"kind":"system_log","reference":"opaque-record-id","sha256":"optional 64-character digest"}]'}
+                style={{ width: "100%", boxSizing: "border-box", padding: 10, border: "1px solid #cbd5e1", borderRadius: 8, marginTop: 6, fontFamily: "monospace", fontSize: 12 }} />
+              <small style={{ color: "#667085" }}>Use existing evidence identifiers. This field stores references only; it does not upload files or independently validate external records.</small>
+              <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 12 }}>
+                <button type="button" disabled={submittingStep === item.step_run_id}
+                  onClick={() => void submitDecision(item)}
+                  style={{ border: 0, borderRadius: 8, padding: "11px 16px", background: "#173b70", color: "white", fontWeight: 700, opacity: submittingStep === item.step_run_id ? 0.6 : 1 }}>
+                  {submittingStep === item.step_run_id ? "Recording…" : "Record permanent decision"}
+                </button>
+              </div>
+              {decisionMessage[item.step_run_id] && <p role="status" style={{ background: "#f7f8fa", borderRadius: 8, padding: 12, overflowWrap: "anywhere" }}>{decisionMessage[item.step_run_id]}</p>}
+            </section>
           </article>
         ))}
       </section>
