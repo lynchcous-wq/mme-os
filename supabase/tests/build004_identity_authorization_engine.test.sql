@@ -261,5 +261,13 @@ select ok(
   'CEO bypass does not extend to new resource families without an explicit grant'
 );
 
+select ok(
+  not public.mme_authorize_employee_action(
+    'b0040000-0000-4000-8000-000000000003',
+    'catalog', 'approve', '{}'::jsonb
+  ),
+  'CEO catalog approval is denied without a valid product target'
+);
+
 select * from finish();
 rollback;
