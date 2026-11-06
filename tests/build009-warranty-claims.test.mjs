@@ -1,0 +1,10 @@
+import test from 'node:test'; import assert from 'node:assert/strict'; import {readFile} from 'node:fs/promises';
+const sql=await readFile(new URL('../supabase/migrations/20261105001550_build009_warranty_claims_resolution.sql',import.meta.url),'utf8');
+test('claims bind to warranty lifecycle and customer identity',()=>{assert.match(sql,/lifecycle_id uuid not null references public\.mme_warranty_lifecycle_records/);assert.match(sql,/customer_identity_id uuid not null/);});
+test('evidence records content integrity and quarantine status',()=>{assert.match(sql,/content_sha256 text not null/);assert.match(sql,/quarantined/);assert.match(sql,/storage_object_reference text not null/);});
+test('purchase serial IMEI and coverage verification are distinct',()=>{for(const v of ['purchase','serial','imei','coverage','fraud_review'])assert.ok(sql.includes("'"+v+"'"));});
+test('provider submissions preserve request and response digests',()=>{assert.match(sql,/request_digest text not null/);assert.match(sql,/response_digest text/);});
+test('resolution approvals separate recommendation and approvers',()=>{assert.match(sql,/recommended_by uuid not null/);assert.match(sql,/approved_by is null or approved_by<>recommended_by/);assert.match(sql,/second_approver/);});
+test('repair events preserve lifecycle milestones and idempotency',()=>{assert.match(sql,/repair_started/);assert.match(sql,/quality_checked/);assert.match(sql,/idempotency_key text not null unique/);});
+test('claim audit and verification evidence are append only',()=>{assert.match(sql,/revoke update,delete,truncate on public\.mme_warranty_claim_audit_events/);assert.match(sql,/revoke update,delete,truncate on public\.mme_warranty_claim_verifications/);});
+test('all claim tables have RLS and browser access revoked',()=>{assert.equal((sql.match(/enable row level security/g)||[]).length,7);assert.match(sql,/revoke all on public.%I from public,anon,authenticated/);});
