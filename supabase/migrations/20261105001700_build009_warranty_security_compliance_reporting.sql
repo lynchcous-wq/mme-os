@@ -40,4 +40,19 @@ from public.mme_warranty_api_security_evidence_custody c;
 
 revoke all on public.mme_warranty_security_compliance_kpis,public.mme_warranty_security_compliance_evidence,public.mme_warranty_security_compliance_access,public.mme_warranty_security_compliance_holds,public.mme_warranty_security_compliance_retention,public.mme_warranty_security_compliance_custody from public,anon,authenticated;
 grant select on public.mme_warranty_security_compliance_kpis,public.mme_warranty_security_compliance_evidence,public.mme_warranty_security_compliance_access,public.mme_warranty_security_compliance_holds,public.mme_warranty_security_compliance_retention,public.mme_warranty_security_compliance_custody to service_role;
+
+create table public.mme_warranty_security_compliance_report_events (
+ report_event_id bigint generated always as identity primary key,
+ actor_id uuid not null,
+ actor_role text not null check(actor_role in ('ceo','privacy_officer','manager','warranty_specialist')),
+ report_resource text not null check(report_resource in ('summary','evidence','access','holds','retention','custody')),
+ outcome text not null check(outcome in ('granted','denied','failed')),
+ request_id uuid not null,
+ occurred_at timestamptz not null default now()
+);
+alter table public.mme_warranty_security_compliance_report_events enable row level security;
+revoke all on public.mme_warranty_security_compliance_report_events from public,anon,authenticated;
+grant select,insert on public.mme_warranty_security_compliance_report_events to service_role;
+create index mme_warranty_security_compliance_report_events_time_idx on public.mme_warranty_security_compliance_report_events(occurred_at desc);
+
 commit;
