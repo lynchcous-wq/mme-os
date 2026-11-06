@@ -1,0 +1,17 @@
+name: Build 009.92 warranty security evidence access retention
+on:
+  push:
+    branches: [implementation/build-009-92-warranty-security-evidence-access-retention]
+  pull_request:
+    branches: [implementation/build-009-91-warranty-security-evidence-ingestion-integrity]
+jobs:
+  warranty-security-evidence-access-retention:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - run: npm run lint
+      - run: npm run test:build009:warranty-security-evidence-access-retention
