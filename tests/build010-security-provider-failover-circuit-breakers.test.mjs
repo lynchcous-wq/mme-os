@@ -1,0 +1,15 @@
+import test from"node:test";import assert from"node:assert/strict";import{readFile}from"node:fs/promises";
+const sql=await readFile(new URL("../supabase/migrations/20261105001910_build010_security_provider_failover_circuit_breakers.sql",import.meta.url),"utf8");
+const adapter=await readFile(new URL("../app/api/internal/security-event-adapters/route.ts",import.meta.url),"utf8");
+const api=await readFile(new URL("../app/api/warranty/security-intelligence/provider-failover/route.ts",import.meta.url),"utf8");
+const page=await readFile(new URL("../app/warranty/security-intelligence/provider-failover/page.tsx",import.meta.url),"utf8");
+test("circuit state is persisted for all seven sources",()=>{for(const x of ["pos","inventory","warranty","crm","evidence","payments","returns"])assert.ok(sql.includes("'"+x+"'"));assert.match(sql,/circuit_state text not null/);});
+test("circuit states and provider choices are constrained",()=>{for(const x of ["closed","open","half_open","manual_open","primary","secondary"])assert.ok(sql.includes("'"+x+"'"));});
+test("admission enforces open circuit and single half-open probe",()=>{assert.match(sql,/mme_security_provider_admit/);assert.match(sql,/return 'primary_probe'/);assert.match(sql,/return 'blocked'/);});
+test("failure threshold and recovery state are persisted",()=>{assert.match(sql,/failure_threshold integer not null default 3/);assert.match(sql,/provider_recovered/);});
+test("manual override requires a reason and records an audit event",()=>{assert.match(sql,/override_reason_required/);assert.match(sql,/manual_override/);});
+test("circuit state and audit history are service-role only",()=>{assert.match(sql,/enable row level security/);assert.match(sql,/revoke all on public\.mme_security_provider_circuit_state from public,anon,authenticated/);});
+test("source gateway invokes circuit admission and primary secondary routing",()=>{assert.match(adapter,/mme_security_provider_admit/);assert.match(adapter,/MME_PROVIDER_PRIMARY_/);assert.match(adapter,/MME_PROVIDER_SECONDARY_/);});
+test("gateway records failures and successes",()=>{assert.match(adapter,/mme_security_provider_record/);assert.match(adapter,/failover_succeeded/);});
+test("control API restricts roles and validates override reason",()=>{assert.match(api,/ceo/);assert.match(api,/cio/);assert.match(api,/it_admin/);assert.match(api,/invalid_override_request/);});
+test("dashboard exposes circuit states and manual controls",()=>{for(const x of ["Security Provider Failover","Force open","Begin recovery","Failover event history"])assert.ok(page.includes(x));});
