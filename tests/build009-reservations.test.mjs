@@ -1,0 +1,11 @@
+import test from "node:test"; import assert from "node:assert/strict"; import {readFile} from "node:fs/promises";
+const sql=await readFile(new URL("../supabase/migrations/20261105001410_build009_inventory_reservations.sql",import.meta.url),"utf8");
+test("reservation and append-only event tables exist with RLS",()=>{assert.match(sql,/create table public\.mme_inventory_reservations/);assert.match(sql,/create table public\.mme_inventory_reservation_events/);assert.equal((sql.match(/enable row level security/g)||[]).length,2);});
+test("reservation checks availability under advisory and row locks",()=>{assert.match(sql,/pg_advisory_xact_lock/);assert.match(sql,/for update/);assert.match(sql,/on_hand_quantity-b\.reserved_quantity<p_quantity/);});
+test("idempotency payload mismatch is rejected",()=>{assert.match(sql,/idempotency_key text not null unique/);assert.match(sql,/Idempotency key reused with different reservation payload/);});
+test("expiry worker uses bounded batch and skip locked",()=>{assert.match(sql,/for update skip locked limit p_limit/);assert.match(sql,/p_limit>1000/);});
+test("release reduces reserved only and does not post physical ledger movement",()=>{assert.match(sql,/reserved_quantity=reserved_quantity-r\.quantity/);assert.doesNotMatch(sql.slice(sql.indexOf("function public.mme_inventory_release_reservation"),sql.indexOf("function public.mme_inventory_expire_reservations")),/insert into public\.mme_inventory_ledger/);});
+test("consumption posts sale and reduces both on-hand and reserved",()=>{assert.match(sql,/'sale',-r\.quantity/);assert.match(sql,/on_hand_quantity=on_hand_quantity-r\.quantity,reserved_quantity=reserved_quantity-r\.quantity/);});
+test("expired reservations cannot be consumed",()=>{assert.match(sql,/r\.expires_at<=now\(\)/);});
+test("channel availability exposes only unreserved stock",()=>assert.match(sql,/on_hand_quantity-reserved_quantity as available_quantity/));
+test("all reservation RPCs are service role only",()=>{assert.equal((sql.match(/grant execute on function public\.mme_inventory_/g)||[]).length,4);assert.match(sql,/revoke update,delete,truncate on public\.mme_inventory_reservation_events/);});
