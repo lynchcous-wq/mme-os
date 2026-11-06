@@ -1,0 +1,10 @@
+import test from "node:test"; import assert from "node:assert/strict"; import {readFile} from "node:fs/promises";
+const sql=await readFile(new URL("../supabase/migrations/20261105001460_build009_warranty_financial_intelligence.sql",import.meta.url),"utf8");
+test("financial facts and reserve assumptions/snapshots/events are present",()=>{for(const n of ["mme_warranty_financial_entries","mme_warranty_reserve_assumptions","mme_warranty_reserve_snapshots","mme_warranty_financial_events","mme_warranty_financial_summary"])assert.ok(sql.includes(n));});
+test("all financial tables enable RLS and events are append only",()=>{assert.equal((sql.match(/enable row level security/g)||[]).length,4);assert.match(sql,/revoke update,delete,truncate on public\.mme_warranty_financial_events/);});
+test("actuals and projections are classified separately",()=>{assert.match(sql,/realization text not null check\(realization in \('actual','projection'\)\)/);assert.match(sql,/approved_actual_amount/);assert.match(sql,/projected_amount/);});
+test("actual entries require approval and independent finance approver",()=>{assert.match(sql,/realization<>'actual' or \(approved_by is not null and approved_at is not null\)/);assert.match(sql,/p_actor=e\.recorded_by/);});
+test("reserve formula uses claim frequency, severity and admin cost",()=>{assert.match(sql,/n:=round\(p_active\*a\.expected_claim_frequency,4\)/);assert.match(sql,/claim_cost:=round\(n\*a\.expected_severity,2\)/);assert.match(sql,/admin_cost:=round\(n\*a\.expected_admin_cost,2\)/);});
+test("provider recovery references a matching claim",()=>{assert.match(sql,/cl\.repair_case_id<>p_case/);assert.match(sql,/p_type='provider_recovery' and p_claim is null/);});
+test("idempotency and audit trail are included",()=>{assert.match(sql,/idempotency_key text not null unique/);assert.match(sql,/financial_entry_recorded/);});
+test("RPCs are service-role only",()=>{assert.equal((sql.match(/grant execute on function public\.mme_warranty_/g)||[]).length,4);});
