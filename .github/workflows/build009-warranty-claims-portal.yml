@@ -1,0 +1,17 @@
+name: Build 009.77 customer warranty portal contracts
+on:
+  push:
+    branches: [implementation/build-009-77-warranty-claims-portal]
+  pull_request:
+    branches: [implementation/build-009-76-warranty-claims-workflow]
+jobs:
+  customer-warranty-portal:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - run: npm run lint
+      - run: npm run test:build009:warranty-claims-portal
