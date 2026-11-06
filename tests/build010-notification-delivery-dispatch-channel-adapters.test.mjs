@@ -18,3 +18,5 @@ test("dashboard displays queue states and provider attempt history",()=>{for(con
 
 test("provider requests have bounded network timeouts",()=>{assert.ok((adapter.match(/AbortSignal\.timeout\(10000\)/g)||[]).length>=5);});
 test("email and SMS fail over when the preferred provider is not configured",()=>{assert.match(adapter,/first\.outcome==="skipped"&&first\.error==="provider_not_configured"/g);});
+
+test("pager and push webhooks reject non-HTTPS or credential-bearing destinations",()=>{assert.match(adapter,/destination\.protocol!=="https:"/);assert.match(adapter,/destination\.username\|\|destination\.password/);});
