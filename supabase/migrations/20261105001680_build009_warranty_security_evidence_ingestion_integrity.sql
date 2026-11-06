@@ -55,7 +55,7 @@ returns void language plpgsql security definer set search_path=public,pg_temp as
 declare v record; v_status text;
 begin
  if p_outcome not in ('clean','quarantined','rejected','failed') then raise exception 'invalid_scan_outcome'; end if;
- select j.*,e.evidence_id into v from public.mme_warranty_api_security_evidence_scan_jobs j join public.mme_warranty_api_security_case_evidence e on e.evidence_id=j.evidence_id where j.job_id=p_job_id for update of j;
+ select j.job_id,j.status,j.attempt_count,j.evidence_id into v from public.mme_warranty_api_security_evidence_scan_jobs j where j.job_id=p_job_id for update;
  if not found or v.status<>'processing' then raise exception 'scan_job_not_processing'; end if;
  v_status:=case when p_outcome='failed' and v.attempt_count<5 then 'failed' else p_outcome end;
  update public.mme_warranty_api_security_evidence_scan_jobs set status=v_status,scanner_name=left(p_scanner_name,100),result_code=left(p_result_code,100),last_error_code=left(p_error_code,100),next_attempt_at=case when v_status='failed' then now()+make_interval(mins=>least(360,5*(2^least(v.attempt_count,6))::integer)) else next_attempt_at end,updated_at=now() where job_id=p_job_id;
