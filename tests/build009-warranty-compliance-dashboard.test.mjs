@@ -1,0 +1,11 @@
+import test from 'node:test'; import assert from 'node:assert/strict'; import {readFile} from 'node:fs/promises';
+const sql=await readFile(new URL('../supabase/migrations/20261105001610_build009_warranty_compliance_dashboard.sql',import.meta.url),'utf8');
+const views=['mme_warranty_compliance_dashboard_kpis','mme_warranty_compliance_retention_calendar','mme_warranty_compliance_approval_queue','mme_warranty_compliance_alert_feed','mme_warranty_compliance_department_summary'];
+test('dashboard exposes five dedicated read models',()=>{for(const v of views)assert.ok(sql.includes('view public.'+v));});
+test('KPI projection counts overdue, approvals, failures, holds and high-risk alerts',()=>{for(const token of ['overdue_evidence_count','deletion_approval_backlog','failed_deletion_count','active_legal_hold_count','high_risk_alert_count','notification_backlog'])assert.ok(sql.includes(token));});
+test('retention calendar labels due windows and exposes legal blockers',()=>{for(const token of ['within_7_days','within_30_days','has_active_legal_hold','has_active_exception'])assert.ok(sql.includes(token));});
+test('approval queue surfaces blocked and failed states',()=>{assert.match(sql,/j\.status in \('queued','blocked','approved','failed'\)/);});
+test('alert feed excludes resolved and suppressed alerts',()=>{assert.match(sql,/a\.status in \('open','acknowledged'\)/);});
+test('department summary groups assignment and severity',()=>{assert.match(sql,/group by a\.assigned_to,a\.severity,a\.status/);});
+test('dashboard views use invoker security and are service-role only',()=>{assert.equal((sql.match(/security_invoker=true/g)||[]).length,5);assert.match(sql,/from public,anon,authenticated/);assert.match(sql,/to service_role/);});
+test('dashboard migration is read-only and does not mutate evidence',()=>{assert.doesNotMatch(sql,/\binsert into\b|\bupdate public\.|\bdelete from\b/i);});
