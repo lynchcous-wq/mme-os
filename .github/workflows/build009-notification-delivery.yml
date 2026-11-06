@@ -1,0 +1,23 @@
+name: Build 009.49 notification delivery contracts
+on:
+  push:
+    branches:
+      - implementation/build-009-49-notification-delivery-infrastructure
+  pull_request:
+    branches:
+      - implementation/build-009-48-financial-alert-notifications
+jobs:
+  notification-delivery:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - run: npm run lint
+      - run: npm run test:build009:notification-delivery
+      - run: npm run test:build009:financial-alert-notifications
+      - run: npm run test:build009:financial-command-center
+      - run: npm run test:build009:stripe-financial-intelligence
