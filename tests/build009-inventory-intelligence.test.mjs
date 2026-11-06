@@ -1,0 +1,13 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+const sql=await readFile(new URL("../supabase/migrations/20261105001360_build009_inventory_intelligence.sql",import.meta.url),"utf8");
+test("intelligence schema includes product fingerprints, observations, demand, forecasts, procurement and alerts",()=>{for(const n of ["mme_inventory_product_fingerprints","mme_inventory_market_observations","mme_inventory_demand_snapshots","mme_inventory_demand_forecasts","mme_inventory_procurement_recommendations","mme_inventory_intelligence_alerts","mme_inventory_intelligence_audit"])assert.ok(sql.includes(n));});
+test("all seven tables enable RLS",()=>assert.equal((sql.match(/enable row level security/g)||[]).length,7));
+test("market research requires verified high-confidence identity",()=>assert.match(sql,/identity_confidence>=90 and verified_at is not null/));
+test("observations validate currency, timestamps, shipping and confidence",()=>{assert.match(sql,/p_currency !~ '\^\[A-Z\]\{3\}\$'/);assert.match(sql,/p_observed_at>now\(\)/);assert.match(sql,/p_confidence not between 0 and 100/);});
+test("demand forecast nets returns and subtracts available and inbound stock",()=>{assert.match(sql,/s\.units_sold-s\.units_returned/);assert.match(sql,/s\.units_on_hand-s\.units_reserved/);assert.match(sql,/s\.units_inbound/);});
+test("procurement remains recommendation-only and requires independent approval",()=>{assert.match(sql,/approval_status text not null default 'pending'/);assert.match(sql,/p_approver=r\.requested_by/);assert.doesNotMatch(sql,/insert into public\.purchase_orders/i);});
+test("alerts are deduplicated",()=>assert.match(sql,/deduplication_key text not null unique/));
+test("no broad service role grant is introduced",()=>assert.doesNotMatch(sql,/grant execute on all functions in schema/i));
+test("browser roles denied direct table access",()=>assert.match(sql,/from public,anon,authenticated/));
