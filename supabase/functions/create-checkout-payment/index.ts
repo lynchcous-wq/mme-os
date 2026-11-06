@@ -34,7 +34,12 @@ Deno.serve(async (req) => {
   const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
-  const pricingUrl = Deno.env.get("MME_CHECKOUT_PRICING_URL");
+  const pricingUrlValue = Deno.env.get("MME_CHECKOUT_PRICING_URL");
+  let pricingUrl: string | null = null;
+  try {
+    const parsedPricingUrl = new URL(pricingUrlValue ?? "");
+    if (parsedPricingUrl.protocol === "https:" && !parsedPricingUrl.username && !parsedPricingUrl.password) pricingUrl = parsedPricingUrl.toString();
+  } catch { /* Missing or malformed URL fails closed below. */ }
   const pricingSecret = Deno.env.get("MME_CHECKOUT_PRICING_SECRET");
   const expectedLiveMode = Deno.env.get("STRIPE_LIVEMODE");
   if (!supabaseUrl || !anonKey || !serviceRoleKey || !stripeKey || !pricingUrl || !pricingSecret ||
