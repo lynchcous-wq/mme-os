@@ -1,0 +1,11 @@
+import test from "node:test";import assert from "node:assert/strict";import{readFile}from"node:fs/promises";
+const sql=await readFile(new URL("../supabase/migrations/20261105001660_build009_warranty_security_executive_cockpit.sql",import.meta.url),"utf8");
+const route=await readFile(new URL("../app/api/warranty/security-cockpit/route.ts",import.meta.url),"utf8");
+test("executive read models expose KPI, incident, activity and event feeds",()=>{for(const x of ["security_executive_kpis","security_executive_incidents","security_executive_activity","security_executive_event_feed"])assert.ok(sql.includes(x));});
+test("KPI model covers critical, high, open, recent and resolved incident counts",()=>{for(const x of ["critical_incidents","high_incidents","open_incidents","incidents_last_24h","incidents_last_7d","resolved_last_7d"])assert.ok(sql.includes(x));});
+test("executive models use invoker security and service role only",()=>{assert.equal((sql.match(/security_invoker=true/g)||[]).length,4);assert.match(sql,/revoke all on public\.mme_warranty_api_security_executive_kpis[\s\S]*from public,anon,authenticated/);assert.match(sql,/to service_role/);});
+test("API requires valid Supabase bearer session",()=>{assert.match(route,/Authorization/);assert.match(route,/auth\/v1\/user/);assert.match(route,/invalid_session/);});
+test("API limits access to CEO, privacy officer and manager roles",()=>{for(const r of ["ceo","privacy_officer","manager"])assert.ok(route.includes('"'+r+'"'));assert.match(route,/security_cockpit_access_denied/);});
+test("API allows only fixed read-model names and bounded page size",()=>{assert.match(route,/const VIEWS=/);assert.match(route,/Math\.min\(500/);assert.doesNotMatch(route,/searchParams\.get\(["']table/);});
+test("API supports incident acknowledgement through authenticated actor identity",()=>{assert.match(route,/mme_warranty_api_acknowledge_security_incident/);assert.match(route,/p_actor_id:user\.id/);});
+test("responses are non-cacheable and request-correlated",()=>{assert.match(route,/Cache-Control/);assert.match(route,/X-Request-ID/);});
