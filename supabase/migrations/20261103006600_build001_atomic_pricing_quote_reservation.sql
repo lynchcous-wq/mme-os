@@ -133,8 +133,9 @@ begin
  return v_order_id;
 end; $$;
 
+-- Disable the legacy overload so service-role callers cannot bypass quote validation.
 revoke all on function public.mme_create_mixed_order_and_reserve(text,uuid,text,jsonb,bigint,bigint,bigint,jsonb,timestamptz) from public,anon,authenticated,service_role;
 revoke all on function public.mme_create_mixed_order_and_reserve(text,uuid,text,jsonb,bigint,bigint,bigint,jsonb,bigint,timestamptz) from public,anon,authenticated;
-grant execute on function public.mme_create_mixed_order_and_reserve(text,uuid,text,jsonb,bigint,bigint,bigint,jsonb,timestamptz) to service_role;
-comment on function public.mme_create_mixed_order_and_reserve(text,uuid,text,jsonb,bigint,bigint,bigint,jsonb,timestamptz) is
- 'Atomic mixed cart order creation. Validates the externally quoted subtotal under the same product and inventory locks used to create the order and reserve stock. Stale quotes roll back before any reservation commits.';
+grant execute on function public.mme_create_mixed_order_and_reserve(text,uuid,text,jsonb,bigint,bigint,bigint,jsonb,bigint,timestamptz) to service_role;
+comment on function public.mme_create_mixed_order_and_reserve(text,uuid,text,jsonb,bigint,bigint,bigint,jsonb,bigint,timestamptz) is
+ 'Atomic mixed cart order creation. Validates the externally quoted subtotal under the same product locks used to create the order and reserve stock. Stale quotes roll back before any reservation commits.';
