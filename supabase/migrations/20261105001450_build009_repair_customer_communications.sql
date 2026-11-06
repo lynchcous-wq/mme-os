@@ -74,16 +74,17 @@ revoke update,delete,truncate on public.mme_repair_customer_timeline from public
 
 create or replace function public.mme_repair_enqueue_customer_update(p_case uuid,p_event_code text,p_message text,p_actor uuid,p_idempotency_key text)
 returns bigint language plpgsql security definer set search_path=pg_catalog,public as $$
-declare r public.mme_warranty_repair_cases%rowtype; pref public.mme_repair_customer_preferences%rowtype; v bigint; ch text;
+declare r public.mme_warranty_repair_cases%rowtype; pref public.mme_repair_customer_preferences%rowtype; v bigint; ch text; pref_found boolean:=false;
 begin
  if p_actor is null or length(trim(coalesce(p_idempotency_key,'')))<12 then raise exception 'Actor and idempotency key required' using errcode='22023'; end if;
  select * into r from public.mme_warranty_repair_cases where repair_case_id=p_case for update;
  if not found then raise exception 'Repair case not found' using errcode='P0002'; end if;
  select * into pref from public.mme_repair_customer_preferences where customer_identity_id=r.customer_identity_id;
+ pref_found:=found;
  insert into public.mme_repair_customer_timeline(repair_case_id,customer_identity_id,event_code,customer_message)
  values(p_case,r.customer_identity_id,p_event_code,left(p_message,500)) returning timeline_event_id into v;
- ch:=case when found and pref.preferred_channel='sms' and pref.sms_enabled then 'sms'
-          when found and pref.preferred_channel='email' and pref.email_enabled then 'email' else null end;
+ ch:=case when pref_found and pref.preferred_channel='sms' and pref.sms_enabled then 'sms'
+          when pref_found and pref.preferred_channel='email' and pref.email_enabled then 'email' else null end;
  if ch is not null then
   insert into public.mme_repair_notification_outbox(repair_case_id,customer_identity_id,timeline_event_id,channel,template_code,payload,idempotency_key)
   values(p_case,r.customer_identity_id,v,ch,'repair_status_update',jsonb_build_object('event_code',p_event_code,'timeline_event_id',v),p_idempotency_key)
@@ -101,6 +102,7 @@ begin
  select * into r from public.mme_warranty_repair_cases where repair_case_id=p_case for update;
  if not found or r.customer_identity_id<>p_customer then raise exception 'Repair case/customer mismatch' using errcode='42501'; end if;
  if r.status in ('completed','denied','cancelled') then raise exception 'Closed repair case cannot be scheduled' using errcode='55000'; end if;
+ perform pg_advisory_xact_lock(hashtextextended(coalesce(p_location::text,'unassigned'),0));
  if exists(select 1 from public.mme_repair_appointments a where a.location_id is not distinct from p_location and a.status in ('requested','confirmed','rescheduled') and tstzrange(a.starts_at,a.ends_at,'[)') && tstzrange(p_start,p_end,'[)')) then
   raise exception 'Appointment window conflicts with an existing booking' using errcode='23P01';
  end if;
