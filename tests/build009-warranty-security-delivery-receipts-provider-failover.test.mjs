@@ -1,0 +1,14 @@
+import test from"node:test";import assert from"node:assert/strict";import{readFile}from"node:fs/promises";
+const sql=await readFile(new URL("../supabase/migrations/20261105001750_build009_warranty_security_delivery_receipts_provider_failover.sql",import.meta.url),"utf8");
+const hook=await readFile(new URL("../app/api/webhooks/warranty-security-delivery/route.ts",import.meta.url),"utf8");
+const adapter=await readFile(new URL("../lib/warranty-security-notifications.ts",import.meta.url),"utf8");
+test("provider receipt ledger deduplicates webhook events",()=>{assert.match(sql,/unique\(provider,provider_event_id\)/);assert.match(sql,/on conflict\(provider,provider_event_id\) do nothing/);assert.match(sql,/return 'duplicate'/);});
+test("receipt RPC stores payload digest and is service-role only",()=>{assert.match(sql,/payload_digest/);assert.match(sql,/revoke all on function public\.mme_warranty_api_security_apply_provider_receipt[\s\S]*to service_role/);});
+test("receipt updates correlate provider references to delivery records",()=>{assert.match(sql,/provider_reference=p_provider_reference/);assert.match(sql,/delivery_status=v_status/);});
+test("Resend callback verifies Svix signature and timestamp",()=>{assert.match(hook,/svix-signature/);assert.match(hook,/svix-timestamp/);assert.match(hook,/timingSafeEqual/);});
+test("Twilio callback verifies signature before processing",()=>{assert.match(hook,/x-twilio-signature/);assert.match(hook,/verifyTwilio/);});
+test("webhook hashes raw payload and calls privileged receipt RPC",()=>{assert.match(hook,/createHash\("sha256"\)/);assert.match(hook,/mme_warranty_api_security_apply_provider_receipt/);});
+test("email supports primary and secondary provider failover",()=>{assert.match(adapter,/sendEmail\(d,preferred/);assert.match(adapter,/preferred==="resend"\?"sendgrid":"resend"/);assert.match(adapter,/SENDGRID_API_KEY/);});
+test("SMS supports primary and secondary provider failover",()=>{assert.match(adapter,/sendSms\(d,preferred/);assert.match(adapter,/preferred==="twilio"\?"telnyx":"twilio"/);assert.match(adapter,/TELNYX_API_KEY/);});
+test("provider acceptance is not mislabeled as delivery confirmation",()=>{assert.match(adapter,/outcome:"accepted"/);assert.match(sql,/email\.delivered/);assert.match(sql,/message\.delivered/);});
+test("missing credentials are reported as skipped",()=>{assert.match(adapter,/outcome:"skipped"/);assert.match(adapter,/not_configured/);});
