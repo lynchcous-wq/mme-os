@@ -88,7 +88,8 @@
     "test:build009:warranty-compliance-dashboard": "node --test tests/build009-warranty-compliance-dashboard.test.mjs",
     "test:build009:warranty-compliance-api": "node --test tests/build009-warranty-compliance-api.test.mjs",
     "test:build009:warranty-api-audit-rate-limit": "node --test tests/build009-warranty-api-audit-rate-limit.test.mjs",
-    "test:build009:warranty-audit-security-monitoring": "node --test tests/build009-warranty-audit-security-monitoring.test.mjs"
+    "test:build009:warranty-audit-security-monitoring": "node --test tests/build009-warranty-audit-security-monitoring.test.mjs",
+    "test:build009:warranty-security-detection-worker": "node --test tests/build009-warranty-security-detection-worker.test.mjs"
   },
   "dependencies": {
     "next": "^15.2.4",
