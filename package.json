@@ -147,7 +147,8 @@
     "test:build010:ar": "node --test tests/build010-ar.test.mjs",
     "test:build010:financial-integration": "node --test tests/build010-financial-integration.test.mjs",
     "test:build010:treasury": "node --test tests/build010-treasury.test.mjs",
-    "test:build010:cashflow": "node --test tests/build010-cashflow.test.mjs"
+    "test:build010:cashflow": "node --test tests/build010-cashflow.test.mjs",
+    "test:build010:budgeting": "node --test tests/build010-budgeting.test.mjs"
   },
   "dependencies": {
     "next": "^15.2.4",
