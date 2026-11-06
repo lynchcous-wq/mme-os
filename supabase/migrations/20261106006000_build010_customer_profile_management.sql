@@ -25,7 +25,6 @@ revoke all on public.mme_customer_profiles,public.mme_customer_profile_audit fro
 grant select on public.mme_customer_profiles to authenticated;
 create policy mme_customer_profile_self_read on public.mme_customer_profiles
  for select to authenticated using(auth_user_id=auth.uid());
-revoke all on function public.mme_customer_profile_update(uuid,text,boolean,boolean) from public,anon,authenticated;
 create or replace function public.mme_customer_profile_update(
  p_auth_user_id uuid,p_preferred_name text,p_email_notifications_enabled boolean,p_sms_notifications_enabled boolean
 ) returns jsonb language plpgsql security definer set search_path=pg_catalog,public,auth
@@ -72,6 +71,7 @@ begin
  return v_after;
 end;
 $$;
+revoke all on function public.mme_customer_profile_update(uuid,text,boolean,boolean) from public,anon;
 grant execute on function public.mme_customer_profile_update(uuid,text,boolean,boolean) to authenticated;
 comment on table public.mme_customer_profiles is 'Customer-editable display name and notification preferences only; verified identity and contact channels remain in their source systems.';
 comment on table public.mme_customer_profile_audit is 'Append-only customer profile change history; inaccessible to browser roles.';
