@@ -51,7 +51,7 @@ test("tax, shipping and discounts fail closed through a bounded HTTPS quote adap
 });
 
 test("checkout verifies quote subtotal still matches the atomic database order snapshot", () => {
-  assert.match(payment, /expected_subtotal_cents/);
+  assert.match(payment, /parsedPricingUrl\\.protocol === "https:"/);\n  assert.match(payment, /expected_subtotal_cents/);
   assert.match(payment, /order\.subtotal_cents !== priced\.expected_subtotal_cents/);
   assert.match(payment, /AbortSignal\.timeout\(10_000\)/);
 });
