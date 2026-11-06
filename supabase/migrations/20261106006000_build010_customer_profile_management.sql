@@ -45,6 +45,11 @@ begin
  if not found or v_email_confirmed is null then
   raise exception 'Verified customer account required' using errcode='42501';
  end if;
+ if not exists(select 1 from public.mme_customer_account_links l
+   join public.mme_person_identities i on i.person_id=l.person_id
+   where l.auth_user_id=p_auth_user_id and l.link_status='active' and i.lifecycle_status='active') then
+  raise exception 'Active MME customer identity required' using errcode='42501';
+ end if;
  select jsonb_build_object('preferred_name',preferred_name,
   'email_notifications_enabled',email_notifications_enabled,
   'sms_notifications_enabled',sms_notifications_enabled)
