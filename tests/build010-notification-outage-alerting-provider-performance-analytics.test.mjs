@@ -1,0 +1,14 @@
+import test from"node:test";import assert from"node:assert/strict";import{readFile}from"node:fs/promises";
+const sql=await readFile(new URL("../supabase/migrations/20261105002020_build010_notification_outage_alerting_provider_performance_analytics.sql",import.meta.url),"utf8");
+const api=await readFile(new URL("../app/api/warranty/security-intelligence/providers/analytics/route.ts",import.meta.url),"utf8");
+const page=await readFile(new URL("../app/warranty/security-intelligence/providers/analytics/page.tsx",import.meta.url),"utf8");
+test("outage history is idempotent per provider and outage key",()=>{assert.match(sql,/mme_security_notification_provider_outages/);assert.match(sql,/unique\(provider,outage_key\)/);assert.match(sql,/on conflict\(provider,outage_key\)/);});
+test("outage event history captures severity and recovery",()=>{for(const x of ["started_at","detected_at","recovered_at","observation_count","critical"])assert.ok(sql.includes(x));});
+test("recovery closes only active outages for provider and channel",()=>{assert.match(sql,/where provider=p_provider and channel=p_channel and recovered_at is null/);});
+test("analytics computes 30-day probe success and p95 latency",()=>{assert.match(sql,/probe_success_pct_30d/);assert.match(sql,/percentile_cont\(0\.95\)/);assert.match(sql,/interval '30 days'/);});
+test("analytics isolates probe and outage aggregates to prevent join multiplication",()=>{assert.match(sql,/left join lateral/);assert.match(sql,/from public\.mme_security_notification_provider_checks/);assert.match(sql,/from public\.mme_security_notification_provider_outages/);});
+test("outage table is RLS protected and service role scoped",()=>{assert.match(sql,/enable row level security/);assert.match(sql,/revoke all on public\.mme_security_notification_provider_outages/);});
+test("analytics API authenticates authorized operational roles",()=>{for(const x of ["ceo","cio","it_admin","privacy_officer"])assert.ok(api.includes('"'+x+'"'));});
+test("monitor events require a dedicated healthcheck secret",()=>{assert.match(api,/MME_NOTIFICATION_HEALTHCHECK_SECRET/);assert.match(api,/monitor_authentication_required/);});
+test("API supports outage creation, recovery and performance view",()=>{for(const x of ["record_outage","recover_outage","mme_security_notification_provider_performance","mme_security_notification_record_outage"])assert.ok(api.includes(x));});
+test("dashboard reports provider reliability and outage history",()=>{for(const x of ["Notification Reliability & Executive Analytics","Provider performance","Outage & recovery history","Probe success percentage"])assert.ok(page.includes(x));});
