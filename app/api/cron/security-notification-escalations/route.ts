@@ -11,13 +11,10 @@ if(!channels.length)return NextResponse.json({error:"escalation_channels_not_con
 try{
 const overdue=await rpc(base,key,"mme_security_notification_claim_acknowledgement_sla",{p_worker:worker,p_limit:50});
 const materialized=await rpc(base,key,"mme_security_notification_materialize_escalation_dispatch",{});
-const claimed=await rpc(base,key,"mme_security_notification_claim_escalation_dispatch",{p_worker:worker,p_limit:20}) as {dispatch_id:string;alert_id:string;target_role:string;title:string;summary:string;severity:string;escalation_level:number}[];
-let dispatched=0,failed=0,skipped=0;
-for(const item of claimed??[]){let accepted=0,attemptErrors:string[]=[];
-for(const channel of channels){const job:Job={delivery_id:item.dispatch_id+":"+channel,alert_id:item.alert_id,channel,recipient_role:item.target_role,attempt_count:0,max_attempts:5,title:"Escalation L"+item.escalation_level+": "+item.title,message:item.summary,severity:item.severity};const result=await dispatch(job);if(result.outcome==="accepted"||result.outcome==="delivered")accepted++;else if(result.outcome==="skipped")skipped++;else attemptErrors.push(result.error??"provider_failed");}
-const ok=accepted>0;await rpc(base,key,"mme_security_notification_finish_escalation_dispatch",{p_dispatch:item.dispatch_id,p_worker:worker,p_success:ok,p_error:ok?null:attemptErrors.join(",")||"No configured channel accepted the escalation"});
-if(ok)dispatched++;else failed++;
-}
-return NextResponse.json({ok:true,requestId:id,overdue_alerts:Array.isArray(overdue)?overdue.length:0,dispatch_jobs_materialized:Number(materialized)||0,claimed:claimed?.length??0,dispatched,failed,channel_skips:skipped},{headers});
+const channelJobs=await rpc(base,key,"mme_security_notification_materialize_escalation_channels",{p_channels:channels});
+const claimed=await rpc(base,key,"mme_security_notification_claim_escalation_channels",{p_worker:worker,p_limit:40}) as {channel_delivery_id:string;dispatch_id:string;alert_id:string;target_role:string;channel:Channel;attempt_count:number;title:string;summary:string;severity:string;escalation_level:number}[];
+let accepted=0,failed=0,skipped=0;
+for(const item of claimed??[]){const job:Job={delivery_id:item.channel_delivery_id,alert_id:item.alert_id,channel:item.channel,recipient_role:item.target_role,attempt_count:item.attempt_count,max_attempts:5,title:"Escalation L"+item.escalation_level+": "+item.title,message:item.summary,severity:item.severity};const result=await dispatch(job);await rpc(base,key,"mme_security_notification_finish_escalation_channel",{p_channel_delivery:item.channel_delivery_id,p_worker:worker,p_provider:result.provider,p_outcome:result.outcome,p_reference:result.reference??null,p_error:result.error??null,p_request:id});if(result.outcome==="accepted"||result.outcome==="delivered")accepted++;else if(result.outcome==="skipped")skipped++;else failed++;}
+return NextResponse.json({ok:true,requestId:id,overdue_alerts:Array.isArray(overdue)?overdue.length:0,dispatch_jobs_materialized:Number(materialized)||0,channel_jobs_materialized:Number(channelJobs)||0,channel_jobs_claimed:claimed?.length??0,channels_accepted:accepted,channels_failed:failed,channels_skipped:skipped},{headers});
 }catch{return NextResponse.json({error:"escalation_worker_failed",requestId:id},{status:503,headers});}}
 export async function GET(request:Request){return POST(request);}
