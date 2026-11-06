@@ -26,7 +26,12 @@ export async function POST(req:NextRequest) {
  if(!claimed.ok) return NextResponse.json({error:"claim_failed",requestId},{status:502});
  const rows=await claimed.json(),results=[];
  for(const n of rows) {
-  if(n.channel==="in_app") { results.push({id:n.notification_id,status:"in_app_requires_existing_feed"}); continue; }
+  if(n.channel==="in_app") {
+   const saved=await db(url,key,"mme_security_notification_delivery_attempts","POST",{notification_id:n.notification_id,attempt_number:n.delivery_attempts,channel:"in_app",provider:"mme-in-app",status:"delivered"});
+   if(!saved.ok){results.push({id:n.notification_id,status:"receipt_write_failed"});continue;}
+   const updated=await db(url,key,"mme_security_incident_notifications?notification_id=eq."+encodeURIComponent(n.notification_id),"PATCH",{status:"sent",delivered_at:new Date().toISOString(),delivery_claimed_at:null,delivery_lease_expires_at:null,last_error:null,last_delivery_status:"delivered",next_attempt_at:null});
+   results.push({id:n.notification_id,status:updated.ok?"delivered_in_app":"state_update_failed"});continue;
+  }
   try {
    const response=await fetch(target.toString(),{method:"POST",headers:{"Content-Type":"application/json","X-Provider-Key":secret,"Idempotency-Key":n.idempotency_key??n.notification_id},body:JSON.stringify({notificationId:n.notification_id,incidentId:n.incident_id,recipientRole:n.recipient_role,recipientUserId:n.recipient_user_id,type:n.notification_type,channel:n.channel,payload:n.payload,attempt:n.delivery_attempts}),signal:AbortSignal.timeout(12000),cache:"no-store"});
    const result=await response.json().catch(()=>({}));
