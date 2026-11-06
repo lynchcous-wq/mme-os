@@ -151,7 +151,8 @@
     "test:build010:budgeting": "node --test tests/build010-budgeting.test.mjs",
     "test:build010:ap-vendor": "node --test tests/build010-ap-vendor-management.test.mjs",
     "test:build010:ar-collections": "node --test tests/build010-ar-collections.test.mjs",
-    "test:build010:treasury-cash": "node --test tests/build010-treasury-cash.test.mjs"
+    "test:build010:treasury-cash": "node --test tests/build010-treasury-cash.test.mjs",
+    "test:build010:financial-reporting": "node --test tests/build010-financial-reporting.test.mjs"
   },
   "dependencies": {
     "next": "^15.2.4",
