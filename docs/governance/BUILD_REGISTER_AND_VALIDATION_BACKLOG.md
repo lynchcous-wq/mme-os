@@ -380,3 +380,36 @@ The required trusted service contract is now explicit:
 3. Reconcile PR #11 atomic order/reservation migration with PR #13 catalog/inventory migrations and PR #14 identity dependencies.
 4. Re-run complete CI on the final combined integration head, then perform Stripe test-mode end-to-end tests.
 5. Keep all PRs in draft and do not merge or deploy until required checks, business policy and owner approvals are complete.
+
+
+## Checkout pricing implementation checkpoint — 2026-11-06
+
+Implemented on `implementation/build001-authenticated-checkout-ui`:
+
+- Added `supabase/functions/checkout-pricing/index.ts`, an internal server-to-server pricing orchestrator protected by a dedicated 32+ character shared secret with constant-time comparison.
+- Added strict request size, UUID, quantity, duplicate-line, contact and fulfillment validation.
+- Requires an active MME person identity, unlocked whole-login security state, and active customer relationship.
+- Requires active commerce products with explicit catalog links to published catalog products.
+- Reads authoritative USD prices from `mme_products`; validates active store locations, aggregate available stock, and exact serialized unit/product/location/status association.
+- Pickup requires an active selected store and all cart lines to be reserved from that selected store. Shipping requires a complete address.
+- Requires a separately configured HTTPS tax/shipping/discount quote adapter; quote calls have an eight-second timeout. The function fails closed if the quote service or secret is absent, invalid, or returns malformed/negative amounts. Discounts require a quote reference.
+- Returns canonical product/location/quantity/serialized-unit IDs, expected subtotal, tax, fulfillment, discount and a fulfillment snapshot; does not trust browser prices.
+- Configured `[functions.checkout-pricing]` with `verify_jwt = false` because this internal function uses its dedicated shared-secret authentication.
+- Updated `create-checkout-payment` to require an HTTPS pricing URL, bound the pricing request to a ten-second timeout, require `expected_subtotal_cents`, and compare the order's database-snapshotted subtotal before creating a Stripe PaymentIntent.
+- Added `test:checkout-pricing` and `tests/build001-checkout-pricing.contract.test.mjs` covering the security/validation contracts.
+
+Latest relevant commits:
+- Pricing function: `ec106fe4bf3bf277f617c7166849b46c0ee6826c`
+- Function config: `83c2c939d2c843d797297be83bc518cc167750b6`
+- Checkout timeout/subtotal consistency: `a6ee14bb3dacaf3daa56748907e6891c1e7b4b6e`
+- Contract tests: `2c59389fad395ecb8e2c790e39da09504c5a0be5`
+- Test script: `10d579ced7077be0bf9728e156eb89dd268be43f`
+- HTTPS pricing URL enforcement: `392afaaeaa61a4f12955daf4c03eafc7980fa5c6`
+- HTTPS regression assertion: `9680e0e4ab9047943cb8810b349d8124ef4bf938`
+
+**Not complete / cannot be marked live-ready:**
+- The tax/shipping/discount quote adapter is an explicit external dependency. No provider, tax policy, shipping-rate source, or approved discount/rewards rules were supplied or verified. The pricing function intentionally returns 503 until this is configured.
+- Need a checkout database RPC improvement to pass/verify the expected subtotal inside the same transaction as stock reservation, or a safe immediate release/cancel path if the post-creation subtotal comparison detects a concurrent price change. Current code prevents Stripe payment creation on mismatch, but the pending order/reservation remains until its 15-minute expiration worker releases stock.
+- Need test-mode integration tests for identity/customer states, product/catalog publication, active locations, aggregate/serialized inventory, quote timeout/malformed results, pickup/shipping, and concurrent price/stock changes.
+- Need verify Supabase local Deno check and deployment configuration, set secrets in a staging project, apply the consolidated migrations, and complete Stripe test-mode transactions/refunds/webhooks.
+- The latest commits have not yet produced a new observed CI run; do not claim these tests pass.
