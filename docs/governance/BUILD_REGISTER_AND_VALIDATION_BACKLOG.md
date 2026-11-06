@@ -270,3 +270,60 @@ The previously approved architecture map assigned 009 to Product Catalog and 010
 4. Complete staging acceptance, then production readiness and cutover.
 
 **No production deployment, Supabase migration application, live Stripe transaction, or live notification provider delivery is certified by this audit.**
+
+
+## Foundation integration deep dive — 2026-11-06
+
+### Pull-request and dependency facts verified
+
+The following open draft PRs were inspected directly; none is merged:
+
+| PR | Scope | Base → head | State |
+|---|---|---|---|
+| [#8](https://github.com/lynchcous-wq/mme-os/pull/8) | Build 001 storefront catalog/demo bag + dependency lock/security | `foundation/repository-safeguards-ci` → `security/build-001-dependency-lockfile` | Open draft; CI status not present on inspected head |
+| [#11](https://github.com/lynchcous-wq/mme-os/pull/11) | Build 001 atomic order creation/inventory reservations | `main` → `feature/build-001-inventory-order-schema-v2` | Open draft; Vercel checks succeeded on inspected head; not equivalent to full app/DB CI |
+| [#12](https://github.com/lynchcous-wq/mme-os/pull/12) | Product catalog database + employee catalog workspace | `main` → `feature/product-catalog-foundation` | Open draft; earlier CI passed on inspected head |
+| [#13](https://github.com/lynchcous-wq/mme-os/pull/13) | Build 001 catalog/inventory integration | `main` → `integration/build001-catalog-inventory` | Open draft; inspected Vercel checks failed due build-rate-limit/upgrade response; no Actions run surfaced for inspected head |
+| [#14](https://github.com/lynchcous-wq/mme-os/pull/14) | Build 004 identity integration validation on PR #13 | `integration/build001-catalog-inventory` → `integration/build004-identity-validation` | Open draft; GitHub Actions passed on head `704205744b0f997df7adf7c8440a16fd0e4b45c0` |
+| [#15](https://github.com/lynchcous-wq/mme-os/pull/15) | Authenticated checkout UI + Stripe Elements | `integration/build001-catalog-inventory` → `implementation/build001-authenticated-checkout-ui` | Open draft; Actions failed only at a stale webhook contract assertion; TypeScript/build steps were skipped |
+
+PR #14's successful Actions run is specifically documented as:
+- Fresh local Supabase startup and complete migration replay on an empty local DB.
+- Full pgTAP suite: 93 files / 921 tests.
+- Live local Supabase Auth + Build 004 authorization integration.
+- TypeScript and Next.js production build.
+- Supabase Edge Function type-check.
+
+The successful run was on the earlier reported tested commit `e06c944c1f275f801cd8e82c670386ae144232d8`; PR #14's current head is `704205744b0f997df7adf7c8440a16fd0e4b45c0`, whose Actions run also completed successfully. It remains a draft and has not been deployed to the user's Supabase project.
+
+### Build 001 checkout test correction committed
+
+PR #15 CI log showed five of six checkout contract tests passing. The remaining test asserted that the webhook called the obsolete RPC name `mme_process_verified_payment_event`, while the inspected webhook actually verifies the Stripe signature and calls `mme_process_unified_order_payment_event`. This was a stale test expectation, not a reason to change the secure webhook implementation.
+
+Updated `tests/build001-checkout-ui.contract.test.mjs` on branch `implementation/build001-authenticated-checkout-ui`:
+- Assert the current unified payment-event RPC.
+- Retain the refund-event assertion.
+- Explicitly assert Stripe signature verification occurs before payment ledger processing.
+
+Commit: `8928281c83805b84e49a0809ea466abab9ecaf6f`.
+
+**Validation pending:** a new GitHub Actions run for this commit had not yet appeared at the time of this update. Do not mark PR #15 green until it runs and all jobs pass.
+
+### Additional blockers surfaced
+
+- The catalog/employee workspace PR #12 has substantial application, API, migration and test scope, but must be reconciled with the Build 004 identity model before its employee access routes are accepted.
+- PR #13 is the intended Build 001 catalog/inventory integration checkpoint, but it is draft and its inspected Vercel checks were blocked by the account's Vercel build-rate-limit/upgrade response. That is a deployment-provider limitation, not proof that the application code failed.
+- PR #14 depends on PR #13 and introduces identity/authorization compatibility reports and tests. It should not be merged independently of its base integration.
+- PR #15 depends on PR #13. Its checkout UI uses Supabase Auth, Stripe Elements, the Edge Function `create-checkout-payment`, and signed webhook processing. Actual Stripe test-mode transactions and provider-side reconciliation remain unverified.
+- Branch names alone are insufficient to map Builds 002, 003, 006. Repository PR searches did not identify authoritative standalone PRs for each. Resolve the architecture crosswalk rather than inventing missing implementation.
+
+### Safe next integration order
+
+1. Re-run and complete PR #15 CI after the stale test correction.
+2. Resolve the Vercel build-rate-limit issue or use a verified alternative preview/build path; do not bypass failed required checks.
+3. Reconcile PR #8, #12, #13 and #11 for duplicate migrations, schema ownership, package manifests, shared components, and migration timestamp ordering.
+4. Keep PR #14 dependent on the integrated foundation; require identity authorization and customer/employee lifecycle tests.
+5. Integrate PR #15 only after catalog/inventory/order contracts and identity/session contracts are stable.
+6. Only then connect Builds 007–010.17 to the accepted identity, catalog, order and permission interfaces.
+
+No PR was merged and no production migration or live payment was activated during this pass.
