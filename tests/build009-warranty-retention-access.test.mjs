@@ -1,0 +1,11 @@
+import test from 'node:test'; import assert from 'node:assert/strict'; import {readFile} from 'node:fs/promises';
+const sql=await readFile(new URL('../supabase/migrations/20261105001580_build009_warranty_retention_access.sql',import.meta.url),'utf8');
+test('retention policies are versioned, effective-dated and bounded',()=>{assert.match(sql,/policy_version text not null/);assert.match(sql,/retention_days integer not null check\(retention_days between 1 and 36500\)/);assert.match(sql,/effective_until is null or effective_until>effective_from/);});
+test('retention records preserve evidence and policy lineage',()=>{assert.match(sql,/evidence_id uuid not null unique references public\.mme_warranty_claim_evidence/);assert.match(sql,/policy_id uuid not null references public\.mme_warranty_evidence_retention_policies/);});
+test('legal holds are separately recorded and release is attributable',()=>{assert.match(sql,/hold_status text not null default 'active'/);assert.match(sql,/released_by uuid/);assert.match(sql,/release_reason_code text/);});
+test('access grants are scoped, expiring and revocable',()=>{assert.match(sql,/principal_id uuid not null/);assert.match(sql,/expires_at timestamptz not null/);assert.match(sql,/revoked_by uuid/);});
+test('access history is append only',()=>{assert.match(sql,/revoke update,delete,truncate on public\.mme_warranty_evidence_access_events/);});
+test('deletion is queued and requires separate approval',()=>{assert.match(sql,/approved_by is null or approved_by<>requested_by/);assert.match(sql,/status text not null default 'queued'/);assert.match(sql,/status<>'deleted' or verified_deleted_at is not null/);});
+test('legal holds and retention exceptions are represented as deletion blockers',()=>{assert.match(sql,/mme_warranty_evidence_legal_holds/);assert.match(sql,/mme_warranty_evidence_retention_exceptions/);});
+test('all governance tables enable RLS and revoke browser access',()=>{assert.equal((sql.match(/alter table public\.%I enable row level security/g)||[]).length,1);assert.match(sql,/revoke all on public\.%I from public,anon,authenticated/);});
+test('no storage deletion or public file policy is implemented in the schema migration',()=>{assert.doesNotMatch(sql,/storage\.objects/i);assert.doesNotMatch(sql,/create policy/i);});
