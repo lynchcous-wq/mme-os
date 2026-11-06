@@ -123,7 +123,8 @@
     "test:build010:notification-escalation-dispatch-ownership-routing": "node --test tests/build010-notification-escalation-dispatch-ownership-routing.test.mjs",
     "test:build010:notification-escalation-scheduler-live-worker": "node --test tests/build010-notification-escalation-scheduler-live-worker.test.mjs",
     "test:build010:notification-escalation-per-channel-reconciliation": "node --test tests/build010-notification-escalation-per-channel-reconciliation.test.mjs",
-    "test:build010:notification-provider-receipt-webhooks-reconciliation": "node --test tests/build010-notification-provider-receipt-webhooks-reconciliation.test.mjs"
+    "test:build010:notification-provider-receipt-webhooks-reconciliation": "node --test tests/build010-notification-provider-receipt-webhooks-reconciliation.test.mjs",
+    "test:build010:webhook-replay": "node --test tests/build010-notification-webhook-signature-hardening-replay-protection.test.mjs"
   },
   "dependencies": {
     "next": "^15.2.4",
