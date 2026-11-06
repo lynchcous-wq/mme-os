@@ -23,6 +23,8 @@ test("campaign dispatch requires approval and dispatch permission",()=>{
 });
 test("delivery is connected to Build 009.49 outbox with stable campaign idempotency",()=>{
  assert.match(migration,/mme_notification_enqueue_delivery/);
+ assert.match(migration,/mme_pos_financial_notifications/);
+ assert.doesNotMatch(migration,/mme_pos_financial_alert_notifications/);
  assert.match(migration,/campaign:'\|\|p_campaign_id::text/);
  assert.match(delivery,/idempotency_key text not null unique/);
 });
