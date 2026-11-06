@@ -1,0 +1,14 @@
+import test from"node:test";import assert from"node:assert/strict";import{readFile}from"node:fs/promises";
+const sql=await readFile(new URL("../supabase/migrations/20261105002100_build010_notification_escalation_per_channel_reconciliation.sql",import.meta.url),"utf8");
+const route=await readFile(new URL("../app/api/cron/security-notification-escalations/route.ts",import.meta.url),"utf8");
+const adapter=await readFile(new URL("../lib/security-notification-channel-adapters.ts",import.meta.url),"utf8");
+test("channel delivery and immutable attempt history are separate ledgers",()=>{assert.match(sql,/mme_security_notification_escalation_channel_deliveries/);assert.match(sql,/mme_security_notification_escalation_channel_attempts/);assert.match(sql,/unique\(dispatch_id,channel\)/);});
+test("channel ledgers are protected by RLS and service-role grants",()=>{assert.match(sql,/enable row level security/g);assert.match(sql,/revoke all/);assert.match(sql,/to service_role/);});
+test("channel materialization is idempotent and validates supported channels",()=>{assert.match(sql,/on conflict\(dispatch_id,channel\) do nothing/);assert.match(sql,/invalid_channels/);});
+test("worker claims channel jobs independently with SKIP LOCKED leases",()=>{assert.match(sql,/for update of c skip locked/);assert.match(sql,/locked_by=p_worker/);});
+test("channel completion verifies lease and records every attempt",()=>{assert.match(sql,/channel_delivery_lease_invalid/);assert.match(sql,/mme_security_notification_escalation_channel_attempts/);});
+test("worker runs SLA, dispatch and per-channel materialization",()=>{for(const x of ["mme_security_notification_claim_acknowledgement_sla","mme_security_notification_materialize_escalation_dispatch","mme_security_notification_materialize_escalation_channels","mme_security_notification_claim_escalation_channels","mme_security_notification_finish_escalation_channel"])assert.ok(route.includes(x));});
+test("worker sends one channel per job with stable delivery idempotency key",()=>{assert.match(route,/delivery_id:item\.channel_delivery_id/);assert.match(adapter,/Idempotency-Key/);});
+test("worker returns per-channel success, failure and skip counts",()=>{assert.match(route,/channels_accepted/);assert.match(route,/channels_failed/);assert.match(route,/channels_skipped/);});
+test("channel adapters retain email, SMS, pager and push",()=>{for(const x of ["email","sms","pager","push"])assert.ok(adapter.includes(x));});
+test("dispatch queue no longer marked complete merely after first channel acceptance",()=>{assert.doesNotMatch(route,/mme_security_notification_finish_escalation_dispatch/);});
