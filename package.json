@@ -136,7 +136,8 @@
     "test:build010:security-governance": "node --test tests/build010-security-governance.test.mjs",
     "test:build010:identity-governance": "node --test tests/build010-identity-governance.test.mjs",
     "test:build010:workforce-lifecycle": "node --test tests/build010-workforce-lifecycle.test.mjs",
-    "test:build010:hr-payroll": "node --test tests/build010-hr-payroll.test.mjs"
+    "test:build010:hr-payroll": "node --test tests/build010-hr-payroll.test.mjs",
+    "test:build010:finance": "node --test tests/build010-finance.test.mjs"
   },
   "dependencies": {
     "next": "^15.2.4",
