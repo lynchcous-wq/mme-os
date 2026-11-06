@@ -1,0 +1,10 @@
+import test from "node:test";import assert from "node:assert/strict";import{readFile}from"node:fs/promises";
+const root=new URL("../",import.meta.url),read=p=>readFile(new URL(p,root),"utf8");
+const sql=await read("supabase/migrations/20261106002220_build010_security_governance_compliance.sql");
+const api=await read("app/api/warranty/security-intelligence/governance/route.ts");
+const page=await read("app/warranty/security-intelligence/governance/page.tsx");
+test("governance migration creates control, policy, acknowledgement, evidence, exception, access review and audit ledgers",()=>{for(const n of ["mme_security_compliance_controls","mme_security_policies","mme_security_policy_acknowledgements","mme_security_compliance_evidence","mme_security_compliance_exceptions","mme_security_access_reviews","mme_security_governance_audit"])assert.match(sql,new RegExp("create table if not exists public\\."+n));});
+test("control catalogue seeds reference mappings idempotently",()=>{assert.match(sql,/NIST-AC-2/);assert.match(sql,/SOC2-CC6.1/);assert.match(sql,/on conflict\(control_key\) do nothing/);});
+test("all governance ledgers enable RLS and deny direct public client access",()=>{assert.equal((sql.match(/enable row level security/g)||[]).length,7);assert.match(sql,/revoke all on public\.%I from public,anon,authenticated/);assert.match(sql,/grant all on public\.%I to service_role/);});
+test("governance API validates session and enforces admin actions",()=>{assert.match(api,/auth\/v1\/user/);assert.match(api,/governance_admin_required/);assert.match(api,/acknowledge_policy/);assert.match(api,/review_access/);assert.match(api,/record_exception/);assert.match(api,/mme_security_governance_audit/);});
+test("dashboard exposes controls, policies, evidence, exceptions, access reviews and acknowledgement status",()=>{for(const s of ["Control catalogue","Policy management","Evidence collection","Compliance exceptions","Access reviews","Policy acknowledgements"])assert.ok(page.includes(s));assert.match(page,/does not certify regulatory compliance/);});
