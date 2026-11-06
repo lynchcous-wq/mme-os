@@ -119,9 +119,9 @@ Deno.serve(async (request) => {
 
     let intent: Stripe.PaymentIntent;
     try {
-      intent = await stripe.paymentIntents.retrieve(binding.provider_object_id);
+      intent = await stripe.paymentIntents.retrieve(resolvedBinding.provider_object_id);
     } catch (e) {
-      await recordCase("payment_intent_status_unresolved", binding.provider_object_id, null, {
+      await recordCase("payment_intent_status_unresolved", resolvedBinding.provider_object_id, null, {
         error: e instanceof Error ? e.message : "Provider lookup failed",
       });
       result.quarantined++;
