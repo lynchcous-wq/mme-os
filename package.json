@@ -157,7 +157,8 @@
     "test:build010:expense-procurement": "node --test tests/build010-expense-procurement.test.mjs",
     "test:build010:accounts-payable": "node --test tests/build010-accounts-payable.test.mjs",
     "test:build010:treasury-cash-operations": "node --test tests/build010-treasury-cash-operations.test.mjs",
-    "test:build010:financial-controls-audit": "node --test tests/build010-financial-controls-audit.test.mjs"
+    "test:build010:financial-controls-audit": "node --test tests/build010-financial-controls-audit.test.mjs",
+    "test:build010:enterprise-risk-continuity": "node --test tests/build010-enterprise-risk-continuity.test.mjs"
   },
   "dependencies": {
     "next": "^15.2.4",
