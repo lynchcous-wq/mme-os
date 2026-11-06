@@ -1,0 +1,3 @@
+# Default ownership for all repository files.
+# Review enforcement takes effect only when branch protection/rulesets require CODEOWNERS review.
+* @lynchcous-wq
