@@ -15,3 +15,6 @@ test("pager and push adapters use signed idempotent webhooks",()=>{assert.match(
 test("worker requires dedicated secret and reports per-channel outcomes",()=>{assert.match(worker,/MME_NOTIFICATION_DISPATCH_SECRET/);assert.match(worker,/mme_security_notification_claim_delivery_jobs/);assert.match(worker,/mme_security_notification_finish_delivery/);});
 test("operator delivery API requires privileged roles",()=>{for(const x of ["ceo","cio","it_admin","privacy_officer","delivery_admin_access_denied"])assert.ok(api.includes(x));});
 test("dashboard displays queue states and provider attempt history",()=>{for(const x of ["Notification Delivery Operations","dead_letter","Provider attempt history","BUILD 010.17"])assert.ok(page.includes(x));});
+
+test("provider requests have bounded network timeouts",()=>{assert.ok((adapter.match(/AbortSignal\.timeout\(10000\)/g)||[]).length>=5);});
+test("email and SMS fail over when the preferred provider is not configured",()=>{assert.match(adapter,/first\.outcome==="skipped"&&first\.error==="provider_not_configured"/g);});
