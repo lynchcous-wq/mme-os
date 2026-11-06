@@ -42,3 +42,7 @@ verify_jwt = false
 [functions.customer-notification-worker]
 # Internal worker performs its own dedicated constant-time bearer authentication.
 verify_jwt = false
+
+[functions.customer-notification-worker]
+# Internal worker performs its own dedicated constant-time bearer authentication.
+verify_jwt = false
