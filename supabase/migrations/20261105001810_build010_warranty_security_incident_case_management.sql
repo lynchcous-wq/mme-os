@@ -68,4 +68,41 @@ begin
 end $$;
 revoke all on function public.mme_warranty_security_case_create_from_alert(uuid,uuid,uuid) from public,anon,authenticated;
 grant execute on function public.mme_warranty_security_case_create_from_alert(uuid,uuid,uuid) to service_role;
+
+create or replace function public.mme_warranty_security_case_audit_trigger()
+returns trigger language plpgsql security definer set search_path=public,pg_temp as $
+begin
+ if tg_op='INSERT' then
+  insert into public.mme_warranty_security_case_events(case_id,event_type,actor_id,details)
+  values(new.case_id,'case_created',new.created_by,jsonb_build_object('caseNumber',new.case_number,'severity',new.severity));
+  return new;
+ end if;
+ if row(new.status,new.assigned_to,new.assigned_role,new.resolution,new.resolution_code)
+    is distinct from row(old.status,old.assigned_to,old.assigned_role,old.resolution,old.resolution_code) then
+  insert into public.mme_warranty_security_case_events(case_id,event_type,details)
+  values(new.case_id,'case_updated',jsonb_build_object('oldStatus',old.status,'newStatus',new.status,'assignedTo',new.assigned_to,'assignedRole',new.assigned_role,'resolutionCode',new.resolution_code));
+ end if;
+ return new;
+end $;
+create trigger mme_warranty_security_case_audit
+after insert or update on public.mme_warranty_security_cases
+for each row execute function public.mme_warranty_security_case_audit_trigger();
+create or replace function public.mme_warranty_security_case_auto_create_from_alert()
+returns trigger language plpgsql security definer set search_path=public,pg_temp as $
+declare v_actor uuid:= '00000000-0000-0000-0000-000000000000'; v_case uuid;
+begin
+ insert into public.mme_warranty_security_cases(source_alert_id,title,summary,severity,priority,created_by)
+ values(new.alert_id,new.title,new.message,new.severity,case new.severity when 'critical' then 1 when 'high' then 2 when 'medium' then 3 else 4 end,v_actor)
+ on conflict(source_alert_id) do nothing returning case_id into v_case;
+ if v_case is not null then
+  insert into public.mme_warranty_security_case_events(case_id,event_type,details)
+  values(v_case,'case_auto_created_from_alert',jsonb_build_object('alertId',new.alert_id,'systemGenerated',true));
+ end if;
+ return new;
+end $;
+create trigger mme_warranty_security_alert_auto_case
+after insert on public.mme_warranty_api_security_alerts
+for each row execute function public.mme_warranty_security_case_auto_create_from_alert();
+revoke all on function public.mme_warranty_security_case_audit_trigger() from public,anon,authenticated;
+revoke all on function public.mme_warranty_security_case_auto_create_from_alert() from public,anon,authenticated;
 commit;
