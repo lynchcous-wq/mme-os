@@ -53,7 +53,8 @@
     "test:build009:stripe-financial-intelligence": "node --test tests/build009-stripe-financial-intelligence.test.mjs",
     "test:build009:financial-command-center": "node --test tests/build009-financial-command-center.test.mjs",
     "test:build009:financial-alert-notifications": "node --test tests/build009-financial-alert-notifications.test.mjs",
-    "test:build009:notification-delivery": "node --test tests/build009-notification-delivery.test.mjs"
+    "test:build009:notification-delivery": "node --test tests/build009-notification-delivery.test.mjs",
+    "test:build009:communications-hub": "node --test tests/build009-communications-hub.test.mjs"
   },
   "dependencies": {
     "next": "^15.2.4",
