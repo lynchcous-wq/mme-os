@@ -8,6 +8,7 @@ export default function AccountPage() {
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
+  const [signedIn, setSignedIn] = useState(false);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -27,6 +28,7 @@ export default function AccountPage() {
       if (!access.ok) {
         setMessage(accessResult.error || "Your login is valid, but a customer account link has not been provisioned yet. Contact MME support.");
       } else {
+        setSignedIn(true);
         setMessage("You're signed in. Your customer account access is active.");
       }
     } catch (error) {
@@ -53,6 +55,7 @@ export default function AccountPage() {
           <button disabled={busy} type="submit" style={{ padding: 14, background: "#173f58", color: "#fff", border: 0, borderRadius: 8, fontWeight: 700, cursor: busy ? "wait" : "pointer" }}>{busy ? "Signing in…" : "Sign in"}</button>
         </form>
         {message && <p role="status" aria-live="polite" style={{ marginTop: 18, padding: 12, background: "#f3f6f8", borderRadius: 8, lineHeight: 1.5 }}>{message}</p>}
+        {signedIn && <button type="button" onClick={async () => { const response = await fetch("/api/auth/sign-out", { method: "POST", credentials: "same-origin" }); if (response.ok) { setSignedIn(false); setMessage("You have been signed out."); } }} style={{ marginTop: 14, padding: 10, border: "1px solid #cbd4dc", borderRadius: 8, background: "#fff", color: "#173f58" }}>Sign out</button>}
         <p style={{ marginTop: 24, color: "#607180", fontSize: 13 }}>Need help? Contact MME support. Registration and password recovery are not enabled in this release.</p>
         <p style={{ marginTop: 20, fontSize: 13 }}><Link href="/employee/sign-in" style={{ color: "#1b7181" }}>Employee sign-in</Link> · <Link href="/products" style={{ color: "#1b7181" }}>Continue shopping</Link></p>
       </section>
