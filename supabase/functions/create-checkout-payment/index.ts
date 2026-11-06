@@ -34,7 +34,12 @@ Deno.serve(async (req) => {
   const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
-  const pricingUrl = Deno.env.get("MME_CHECKOUT_PRICING_URL");
+  const pricingUrlValue = Deno.env.get("MME_CHECKOUT_PRICING_URL");
+  let pricingUrl: string | null = null;
+  try {
+    const parsedPricingUrl = new URL(pricingUrlValue ?? "");
+    if (parsedPricingUrl.protocol === "https:" && !parsedPricingUrl.username && !parsedPricingUrl.password) pricingUrl = parsedPricingUrl.toString();
+  } catch { /* Missing or malformed URL fails closed below. */ }
   const pricingSecret = Deno.env.get("MME_CHECKOUT_PRICING_SECRET");
   const expectedLiveMode = Deno.env.get("STRIPE_LIVEMODE");
   if (!supabaseUrl || !anonKey || !serviceRoleKey || !stripeKey || !pricingUrl || !pricingSecret ||
@@ -90,6 +95,7 @@ Deno.serve(async (req) => {
         fulfillment_method: (body as any).fulfillment_method,
         fulfillment_details: (body as any).fulfillment_details,
       }),
+      signal: AbortSignal.timeout(10_000),
     });
     if (!response.ok) return reply({ error: "trusted_pricing_unavailable" }, 503, origin);
     priced = await response.json();
@@ -99,6 +105,7 @@ Deno.serve(async (req) => {
 
   if (!priced || typeof priced.customer_identity_id !== "string" ||
       !Array.isArray(priced.items) || priced.items.length < 1 || priced.items.length > 50 ||
+      !Number.isSafeInteger(priced.expected_subtotal_cents) || priced.expected_subtotal_cents < 0 ||
       !Number.isSafeInteger(priced.tax_cents) || priced.tax_cents < 0 ||
       !Number.isSafeInteger(priced.fulfillment_cents) || priced.fulfillment_cents < 0 ||
       !Number.isSafeInteger(priced.discount_cents) || priced.discount_cents < 0 ||
@@ -133,6 +140,7 @@ Deno.serve(async (req) => {
       p_fulfillment_cents: priced.fulfillment_cents,
       p_discount_cents: priced.discount_cents,
       p_items: priced.items,
+      p_expected_subtotal_cents: priced.expected_subtotal_cents,
       p_expires_at: reservationExpiresAt,
     },
   );
@@ -140,11 +148,12 @@ Deno.serve(async (req) => {
 
   const { data: order, error: readError } = await admin
     .from("mme_orders")
-    .select("id,total_cents,currency,status,customer_identity_id")
+    .select("id,subtotal_cents,total_cents,currency,status,customer_identity_id")
     .eq("id", orderId)
     .single();
   if (readError || !order || order.status !== "pending_payment" ||
-      order.customer_identity_id !== priced.customer_identity_id) {
+      order.customer_identity_id !== priced.customer_identity_id ||
+      order.subtotal_cents !== priced.expected_subtotal_cents) {
     return reply({ error: "order_not_payable" }, 409, origin);
   }
 

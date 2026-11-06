@@ -214,5 +214,26 @@ Deno.serve(async (request) => {
   if (refundReview) {
     return json({ received: true, outcome, requires_review: true });
   }
+
+  // Finalize fulfillment after the signed Stripe event has committed the paid
+  // order state. This runs for duplicate webhook deliveries too, so a transient
+  // finalization failure is safely retried without consuming stock twice.
+  if (event.type === "payment_intent.succeeded") {
+    const systemActorId = Deno.env.get("MME_STRIPE_SYSTEM_ACTOR_ID");
+    if (!systemActorId) return json({ error: "order_confirmation_actor_not_configured" }, 503);
+    const { data: currentOrder, error: orderReadError } = await supabase
+      .from("mme_orders").select("status").eq("id", binding.order_id).maybeSingle();
+    if (orderReadError) return json({ error: "order_confirmation_status_lookup_failed" }, 500);
+    if (currentOrder?.status === "paid" || currentOrder?.status === "partially_refunded") {
+      const { data: fulfillmentId, error: finalizeError } = await supabase.rpc(
+        "mme_finalize_paid_order_fulfillment",
+        { p_order_id: binding.order_id, p_system_actor_identity_id: systemActorId },
+      );
+      if (finalizeError || !fulfillmentId) {
+        return json({ error: "paid_order_fulfillment_finalization_failed" }, 500);
+      }
+      return json({ received: true, outcome, fulfillment_id: fulfillmentId });
+    }
+  }
   return json({ received: true, outcome });
 });

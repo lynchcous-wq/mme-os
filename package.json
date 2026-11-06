@@ -9,13 +9,20 @@
     "lint": "tsc --noEmit",
     "test:workflow-cancellation": "node --test tests/workflow-cancellation-api.contract.test.mjs",
     "test:workflow-reconciliation-decision": "node --test tests/workflow-reconciliation-decision-api.contract.test.mjs",
-    "test:workflow-reconciliation-history": "node --test tests/workflow-reconciliation-history-api.contract.test.mjs"
+    "test:workflow-reconciliation-history": "node --test tests/workflow-reconciliation-history-api.contract.test.mjs",
+    "test:checkout-ui": "node --test tests/build001-checkout-ui.contract.test.mjs",
+    "test:checkout-pricing": "node --test tests/build001-checkout-pricing.contract.test.mjs",
+    "test:checkout-atomic-pricing": "node --test tests/build001-atomic-pricing-reservation.contract.test.mjs",
+    "test:checkout-recovery": "node --test tests/build001-checkout-recovery.contract.test.mjs",
+    "test:order-confirmation-notifications": "node --test tests/build001-order-confirmation-notifications.contract.test.mjs"
   },
   "dependencies": {
+    "@stripe/react-stripe-js": "^3.9.0",
+    "@stripe/stripe-js": "^7.9.0",
+    "@supabase/supabase-js": "^2.49.1",
     "next": "^15.2.4",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0",
-    "@supabase/supabase-js": "^2.49.1"
+    "react-dom": "^19.0.0"
   },
   "devDependencies": {
     "@types/node": "^22.13.10",
