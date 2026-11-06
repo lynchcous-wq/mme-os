@@ -1,0 +1,16 @@
+name: Build 009.69 warranty lifecycle contracts
+on:
+  push:
+    branches: [implementation/build-009-69-warranty-lifecycle-automation]
+  pull_request:
+    branches: [implementation/build-009-68-warranty-provider-integration-hub]
+jobs:
+  lifecycle:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: 22}
+      - run: npm install
+      - run: npm run lint
+      - run: npm run test:build009:warranty-lifecycle
