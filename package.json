@@ -154,7 +154,8 @@
     "test:build010:treasury-cash": "node --test tests/build010-treasury-cash.test.mjs",
     "test:build010:financial-reporting": "node --test tests/build010-financial-reporting.test.mjs",
     "test:build010:financial-planning": "node --test tests/build010-financial-planning.test.mjs",
-    "test:build010:expense-procurement": "node --test tests/build010-expense-procurement.test.mjs"
+    "test:build010:expense-procurement": "node --test tests/build010-expense-procurement.test.mjs",
+    "test:build010:accounts-payable": "node --test tests/build010-accounts-payable.test.mjs"
   },
   "dependencies": {
     "next": "^15.2.4",
