@@ -1,0 +1,22 @@
+name: Build 009.67 warranty risk contracts
+on:
+  push:
+    branches:
+      - implementation/build-009-67-warranty-fraud-risk-intelligence
+  pull_request:
+    branches:
+      - implementation/build-009-66-warranty-financial-intelligence
+jobs:
+  warranty-risk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - run: npm run lint
+      - run: npm run test:build009:warranty-risk
+      - run: npm run test:build009:warranty-financial
+      - run: npm run test:build009:warranty-repair
