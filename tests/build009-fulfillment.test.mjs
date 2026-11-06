@@ -1,0 +1,11 @@
+import test from "node:test"; import assert from "node:assert/strict"; import {readFile} from "node:fs/promises";
+const sql=await readFile(new URL("../supabase/migrations/20261105001420_build009_fulfillment_orchestration.sql",import.meta.url),"utf8");
+test("fulfillment order, lines, packages, events and exceptions exist",()=>{for(const t of ["mme_fulfillment_orders","mme_fulfillment_order_lines","mme_fulfillment_packages","mme_fulfillment_events","mme_fulfillment_exceptions"])assert.ok(sql.includes("create table public."+t));});
+test("all fulfillment tables have RLS and browser access revoked",()=>{assert.equal((sql.match(/enable row level security/g)||[]).length,5);assert.match(sql,/revoke all on public\.mme_fulfillment_orders/);});
+test("order lines must attach matching active reservations",()=>{assert.match(sql,/r\.status<>'active'/);assert.match(sql,/r\.order_reference<>o\.external_order_reference/);});
+test("paid confirmation consumes reservations before fulfilment",()=>{assert.match(sql,/mme_inventory_consume_reservation/);assert.match(sql,/payment_confirmed_and_stock_committed/);});
+test("pick and pack quantities cannot exceed prior stage",()=>{assert.match(sql,/picked_quantity\+p_quantity>l\.quantity/);assert.match(sql,/packed_quantity\+p_quantity>l\.picked_quantity/);});
+test("shipping labels require packed order and tracking",()=>{assert.match(sql,/o\.status<>'packed'/);assert.match(sql,/shipping_label_recorded/);});
+test("carrier events require exact tracking reference",()=>{assert.match(sql,/o\.tracking_number is distinct from p_tracking/);assert.match(sql,/delivery_failed/);});
+test("pickup uses hashed one-time code and expiry",()=>{assert.match(sql,/pickup_code_hash is distinct from p_code_hash/);assert.match(sql,/pickup_code_hash=null/);});
+test("event history is append-only and RPCs service-role granted",()=>{assert.match(sql,/revoke update,delete,truncate on public\.mme_fulfillment_events/);assert.match(sql,/grant execute on function public\.%s to service_role/);});
