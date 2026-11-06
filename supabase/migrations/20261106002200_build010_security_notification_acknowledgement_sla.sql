@@ -28,7 +28,7 @@ alter table public.mme_security_incident_response_events
  drop constraint if exists mme_security_incident_response_events_event_type_check;
 alter table public.mme_security_incident_response_events
  add constraint mme_security_incident_response_events_event_type_check
- check(event_type in ('case_opened','owner_assigned','escalated','recovery_verified','closure_requested','closure_approved'));
+ check(event_type in ('case_opened','owner_assigned','escalated','recovery_verified','closure_requested','closure_approved','notification_ack_overdue'));
 
 create or replace function public.mme_security_incident_queue_notifications()
 returns trigger language plpgsql security definer set search_path=pg_catalog,public
@@ -55,7 +55,7 @@ begin
    when 'warning' then s.audience_role in ('cio','it_admin','manager')
    else s.audience_role in ('it_admin','manager')
   end
-  and new.event_type in ('case_opened','escalated','recovery_verified','closure_requested','closure_approved','notification_ack_overdue')
+  and new.event_type in ('case_opened','escalated','recovery_verified','closure_requested','closure_approved')
  on conflict(event_id,recipient_person_id,channel) do nothing;
  return new;
 end;
