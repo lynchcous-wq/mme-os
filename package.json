@@ -183,7 +183,8 @@
     "test:build010:customer-registration": "node --test tests/build010-customer-registration.contract.test.mjs",
     "test:build010:email-verification": "node --test tests/build010-email-verification.contract.test.mjs",
     "test:build010:customer-identity-linking": "node --test tests/build010-customer-identity-linking.contract.test.mjs",
-    "test:build010:customer-identity-review": "node --test tests/build010-customer-identity-review-dashboard.contract.test.mjs"
+    "test:build010:customer-identity-review": "node --test tests/build010-customer-identity-review-dashboard.contract.test.mjs",
+    "test:build010:customer-account-dashboard": "node --test tests/build010-customer-account-dashboard.contract.test.mjs"
   },
   "dependencies": {
     "next": "^15.2.4",
