@@ -26,8 +26,7 @@ create table if not exists public.mme_inventory_device_assets(
 create unique index if not exists mme_device_assets_serial_unique on public.mme_inventory_device_assets(upper(serial_number)) where serial_number is not null;
 create unique index if not exists mme_device_assets_imei1_unique on public.mme_inventory_device_assets(imei_1) where imei_1 is not null;
 create unique index if not exists mme_device_assets_imei2_unique on public.mme_inventory_device_assets(imei_2) where imei_2 is not null;
-create unique index if not exists mme_device_assets_imei1_unique on public.mme_inventory_device_assets(imei_1) where imei_1 is not null;
-create unique index if not exists mme_device_assets_imei2_unique on public.mme_inventory_device_assets(imei_2) where imei_2 is not null;
+create unique index if not exists mme_device_assets_imei_cross_1_unique on public.mme_inventory_device_assets(imei_1) where imei_1 is not null;
 create or replace function public.mme_inventory_validate_device_identifiers()
 returns trigger language plpgsql set search_path=public as $
 begin
