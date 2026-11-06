@@ -1,0 +1,15 @@
+import test from"node:test";import assert from"node:assert/strict";import{readFile}from"node:fs/promises";
+const sql=await readFile(new URL("../supabase/migrations/20261105001800_build010_warranty_security_operations_dashboard.sql",import.meta.url),"utf8");
+const api=await readFile(new URL("../app/api/warranty/security-dashboard/route.ts",import.meta.url),"utf8");
+const action=await readFile(new URL("../app/api/warranty/security-dashboard/escalate/route.ts",import.meta.url),"utf8");
+const page=await readFile(new URL("../app/warranty/security-dashboard/page.tsx",import.meta.url),"utf8");
+test("dashboard snapshot table stores alert and delivery metrics",()=>{for(const x of ["total_alerts","open_alerts","critical_open","queued_deliveries","delivered_count","failed_deliveries","unmatched_receipts"])assert.ok(sql.includes(x));});
+test("dashboard RPC reports alert status, severity and overdue counts",()=>{for(const x of ["criticalOpen","highOpen","overdueOpen","acknowledged","resolved","dismissed","bySeverity"])assert.ok(sql.includes(x));});
+test("dashboard RPC separates queued, provider accepted, delivered and failed states",()=>{for(const x of ["queued","sent","delivered","failed","skipped","byChannel"])assert.ok(sql.includes(x));});
+test("dashboard snapshot access and RPC execution are service-role restricted",()=>{assert.match(sql,/enable row level security/);assert.match(sql,/revoke all on function public\.mme_warranty_api_security_dashboard_summary[\s\S]*to service_role/);});
+test("dashboard API validates Supabase session and executive roles",()=>{assert.match(api,/auth\/v1\/user/);assert.match(api,/dashboard_access_denied/);assert.match(api,/ceo.*privacy_officer.*manager/);assert.match(api,/Cache-Control/);});
+test("dashboard API invokes metrics RPC without exposing service credentials",()=>{assert.match(api,/SUPABASE_SERVICE_ROLE_KEY/);assert.match(api,/mme_warranty_api_security_dashboard_summary/);assert.doesNotMatch(api,/NEXT_PUBLIC_SUPABASE_SERVICE/);});
+test("manual escalation endpoint is CEO-only",()=>{assert.match(action,/ceo_control_required/);assert.match(action,/mme_warranty_api_security_escalate_alerts/);});
+test("dashboard UI presents alert and delivery KPIs",()=>{for(const x of ["Open alerts","Critical open","Overdue open","Provider accepted","Confirmed delivered","Failed deliveries","Alert severity distribution"])assert.ok(page.includes(x));});
+test("dashboard UI supports refresh and CEO escalation check",()=>{assert.match(page,/Refresh dashboard/);assert.match(page,/Check overdue alerts/);assert.match(page,/sessionStorage/);});
+test("dashboard explicitly distinguishes provider acceptance from delivery",()=>{assert.match(page,/Provider accepted and recipient-confirmed delivery are shown separately/);});
