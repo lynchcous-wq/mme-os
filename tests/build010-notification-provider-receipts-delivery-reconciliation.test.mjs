@@ -1,0 +1,15 @@
+import test from"node:test";import assert from"node:assert/strict";import{readFile}from"node:fs/promises";
+const sql=await readFile(new URL("../supabase/migrations/20261105002060_build010_notification_provider_receipts_reconciliation.sql",import.meta.url),"utf8");
+const hook=await readFile(new URL("../app/api/webhooks/security-notification-receipts/route.ts",import.meta.url),"utf8");
+const api=await readFile(new URL("../app/api/warranty/security-intelligence/delivery-dispatch/route.ts",import.meta.url),"utf8");
+const page=await readFile(new URL("../app/warranty/security-intelligence/delivery-dispatch/page.tsx",import.meta.url),"utf8");
+test("provider receipt ledger deduplicates provider event identifiers",()=>{assert.match(sql,/unique\(provider,provider_event_id\)/);assert.match(sql,/on conflict\(provider,provider_event_id\) do nothing/);assert.match(sql,/result','duplicate/);});
+test("receipt persistence stores payload digest and service-role-only RPC",()=>{assert.match(sql,/payload_digest text not null/);assert.match(sql,/revoke all on function public\.mme_security_notification_apply_provider_receipt/);assert.match(sql,/grant execute on function public\.mme_security_notification_apply_provider_receipt[\s\S]*to service_role/);});
+test("receipt correlation updates delivery by provider and reference",()=>{assert.match(sql,/provider_reference=p_provider_reference/);assert.match(sql,/provider_status_at=now\(\)/);});
+test("delivered receipt cannot be downgraded by later failure callback",()=>{assert.match(sql,/when delivery_status='delivered' then 'delivered'/);assert.match(sql,/current_status not in \('delivered','bounced','undelivered','failed','complained'\)/);});
+test("Resend callbacks verify Svix timestamp and HMAC signature",()=>{assert.match(hook,/svix-signature/);assert.match(hook,/svix-timestamp/);assert.match(hook,/timingSafeEqual/);assert.match(hook,/RESEND_WEBHOOK_SECRET/);});
+test("Twilio callbacks verify signature against configured callback URL",()=>{assert.match(hook,/x-twilio-signature/);assert.match(hook,/TWILIO_AUTH_TOKEN/);assert.match(hook,/MME_TWILIO_STATUS_CALLBACK_URL/);});
+test("pager and push callbacks require HMAC authentication",()=>{assert.match(hook,/MME_PAGER_WEBHOOK_SECRET/);assert.match(hook,/MME_PUSH_WEBHOOK_SECRET/);assert.match(hook,/X-MME-SIGNATURE/);});
+test("webhook rejects oversized payloads and persists raw payload digest",()=>{assert.match(hook,/1024\*1024/);assert.match(hook,/createHash\("sha256"\)/);assert.match(hook,/mme_security_notification_apply_provider_receipt/);});
+test("receipt API returns receipt ledger to privileged operations users",()=>{assert.match(api,/mme_security_notification_provider_receipts/);assert.match(api,/delivery_admin_access_denied/);});
+test("dashboard exposes provider receipt reconciliation history",()=>{assert.match(page,/Provider receipt reconciliation/);assert.match(page,/normalized_status/);});
