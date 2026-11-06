@@ -169,7 +169,8 @@
     "test:build010:crm": "node --test tests/build010-crm.test.mjs",
     "test:build010:communications": "node --test tests/build010-communications.test.mjs",
     "test:build010:notifications": "node --test tests/build010-notifications.test.mjs",
-    "test:build010:inventory-intelligence": "node --test tests/build010-inventory-intelligence.test.mjs"
+    "test:build010:inventory-intelligence": "node --test tests/build010-inventory-intelligence.test.mjs",
+    "test:build010:vendor-catalog": "node --test tests/build010-vendor-catalog-price-intelligence.test.mjs"
   },
   "dependencies": {
     "next": "^15.2.4",
