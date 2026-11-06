@@ -90,4 +90,29 @@ end $$;
 revoke all on function public.mme_warranty_api_security_alert_action(uuid,uuid,text,text,uuid) from public,anon,authenticated;
 grant execute on function public.mme_warranty_api_security_alert_action(uuid,uuid,text,text,uuid) to service_role;
 revoke all on function public.mme_warranty_api_security_create_alert() from public,anon,authenticated;
+create or replace function public.mme_warranty_api_security_escalate_alerts(p_request_id uuid)
+returns table(escalated_count integer,checked_at timestamptz)
+language plpgsql security definer set search_path=public,pg_temp as $
+declare v_count integer;
+begin
+ with due as (
+  update public.mme_warranty_api_security_alerts
+  set routed_roles=array(select distinct unnest(routed_roles||array['ceo','privacy_officer']::text[])),
+      escalation_due_at=now()+interval '24 hours',updated_at=now()
+  where alert_status='open' and escalation_due_at<=now()
+  returning alert_id,severity
+ ), events as (
+  insert into public.mme_warranty_api_security_alert_events(alert_id,event_type,details,request_id)
+  select alert_id,'escalated',jsonb_build_object('reason','acknowledgment_deadline_elapsed','severity',severity),p_request_id from due
+  returning 1
+ ), deliveries as (
+  insert into public.mme_warranty_api_security_alert_deliveries(alert_id,channel,recipient_role,delivery_status)
+  select d.alert_id,'in_app',r,'queued' from due d cross join unnest(array['ceo','privacy_officer']::text[]) r
+  on conflict(alert_id,channel,recipient_role) do update set delivery_status='queued'
+  returning 1
+ ) select count(*) into v_count from events;
+ return query select coalesce(v_count,0),now();
+end $;
+revoke all on function public.mme_warranty_api_security_escalate_alerts(uuid) from public,anon,authenticated;
+grant execute on function public.mme_warranty_api_security_escalate_alerts(uuid) to service_role;
 commit;
