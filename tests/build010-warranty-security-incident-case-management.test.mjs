@@ -1,0 +1,16 @@
+import test from"node:test";import assert from"node:assert/strict";import{readFile}from"node:fs/promises";
+const sql=await readFile(new URL("../supabase/migrations/20261105001810_build010_warranty_security_incident_case_management.sql",import.meta.url),"utf8");
+const api=await readFile(new URL("../app/api/warranty/security-cases/route.ts",import.meta.url),"utf8");
+const events=await readFile(new URL("../app/api/warranty/security-cases/[caseId]/events/route.ts",import.meta.url),"utf8");
+const page=await readFile(new URL("../app/warranty/security-cases/page.tsx",import.meta.url),"utf8");
+test("case table has unique human-readable case number and linked source alert",()=>{assert.match(sql,/case_number text not null unique/);assert.match(sql,/source_alert_id uuid unique references public\.mme_warranty_api_security_alerts/);});
+test("case lifecycle and severity are constrained",()=>{for(const x of ["open","triage","investigating","pending_action","pending_approval","resolved","closed","reopened","critical"])assert.ok(sql.includes(x));});
+test("case event notes evidence metadata and corrective actions are persisted",()=>{for(const x of ["mme_warranty_security_case_events","mme_warranty_security_case_notes","mme_warranty_security_case_evidence","mme_warranty_security_case_actions","sha256","storage_object_key"])assert.ok(sql.includes(x));});
+test("case tables use RLS and deny client-role access",()=>{assert.match(sql,/enable row level security/);assert.match(sql,/revoke all on public\.%I from public,anon,authenticated/);});
+test("critical alerts automatically create linked cases",()=>{assert.match(sql,/mme_warranty_security_case_auto_create_from_alert/);assert.match(sql,/after insert on public\.mme_warranty_api_security_alerts/);assert.match(sql,/on conflict\(source_alert_id\) do nothing/);});
+test("case insert and material updates append audit events",()=>{assert.match(sql,/mme_warranty_security_case_audit_trigger/);assert.match(sql,/case_created/);assert.match(sql,/case_updated/);});
+test("case API requires authenticated approved staff roles",()=>{assert.match(api,/auth\/v1\/user/);assert.match(api,/case_access_denied/);assert.match(api,/warranty_investigator/);});
+test("case API supports alert-linked and manual case creation",()=>{assert.match(api,/mme_warranty_security_case_create_from_alert/);assert.match(api,/mme_warranty_security_cases/);assert.match(api,/invalid_case_payload/);});
+test("case events API supports notes assignment status and corrective actions",()=>{for(const x of ['"note"','"assign"','"status"','"action"','mme_warranty_security_case_actions','mme_warranty_security_case_notes'])assert.ok(events.includes(x));});
+test("case workspace lists and creates incident cases",()=>{assert.match(page,/Refresh cases/);assert.match(page,/Create incident case/);assert.match(page,/Incident Cases/);});
+test("evidence registration stores metadata only and enforces a 50MB ceiling",()=>{assert.match(sql,/byte_size between 1 and 52428800/);assert.match(sql,/storage_object_key/);assert.doesNotMatch(api,/upload\(/);});
