@@ -126,7 +126,7 @@ begin
  if s.count_status<>'draft' then raise exception 'count_session_not_draft'; end if;
  select count(*) into n from public.mme_inventory_count_lines where count_session_id=p_session;
  if n=0 then raise exception 'count_session_empty'; end if;
- update public.mme_inventory_count_lines cl set system_quantity_at_count=coalesce(b.quantity_on_hand,0),variance=cl.counted_quantity-coalesce(b.quantity_on_hand,0) from public.mme_inventory_count_sessions cs left join public.mme_inventory_stock_balances b on b.location_id=cs.location_id and b.inventory_item_id=cl.inventory_item_id where cs.count_session_id=p_session and cl.count_session_id=p_session;
+ update public.mme_inventory_count_lines cl set system_quantity_at_count=coalesce((select b.quantity_on_hand from public.mme_inventory_stock_balances b where b.location_id=s.location_id and b.inventory_item_id=cl.inventory_item_id),0),variance=cl.counted_quantity-coalesce((select b.quantity_on_hand from public.mme_inventory_stock_balances b where b.location_id=s.location_id and b.inventory_item_id=cl.inventory_item_id),0) where cl.count_session_id=p_session;
  update public.mme_inventory_count_sessions set count_status='submitted',submitted_by_auth_user_id=p_actor,submitted_at=now() where count_session_id=p_session;
  return jsonb_build_object('count_session_id',p_session,'status','submitted','lines',n);
 end $$;
