@@ -71,7 +71,8 @@
     "test:build009:repair-communications": "node --test tests/build009-repair-customer-communications.test.mjs",
     "test:build009:warranty-financial": "node --test tests/build009-warranty-financial-intelligence.test.mjs",
     "test:build009:warranty-risk": "node --test tests/build009-warranty-fraud-risk-intelligence.test.mjs",
-    "test:build009:warranty-provider-hub": "node --test tests/build009-warranty-provider-integration-hub.test.mjs"
+    "test:build009:warranty-provider-hub": "node --test tests/build009-warranty-provider-integration-hub.test.mjs",
+    "test:build009:warranty-lifecycle": "node --test tests/build009-warranty-lifecycle-automation.test.mjs"
   },
   "dependencies": {
     "next": "^15.2.4",
