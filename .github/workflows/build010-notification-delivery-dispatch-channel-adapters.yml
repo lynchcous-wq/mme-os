@@ -1,0 +1,19 @@
+name: notification delivery dispatch tests
+on:
+  push:
+    branches:
+      - implementation/build-010-17-notification-delivery-dispatch-and-channel-adapters
+  pull_request:
+    branches:
+      - implementation/build-010-16-notification-policy-configuration-outage-automation
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - run: npm run lint
+      - run: npm run test:build010:notification-delivery-dispatch-channel-adapters
