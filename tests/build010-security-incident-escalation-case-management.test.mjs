@@ -1,0 +1,16 @@
+import test from"node:test";import assert from"node:assert/strict";import{readFile}from"node:fs/promises";
+const sql=await readFile(new URL("../supabase/migrations/20261105001930_build010_security_incident_escalation_case_management.sql",import.meta.url),"utf8");
+const api=await readFile(new URL("../app/api/warranty/security-intelligence/incidents/route.ts",import.meta.url),"utf8");
+const obs=await readFile(new URL("../app/api/warranty/security-intelligence/observability/route.ts",import.meta.url),"utf8");
+const page=await readFile(new URL("../app/warranty/security-intelligence/incidents/page.tsx",import.meta.url),"utf8");
+test("incident cases reference alerts and constrain sources, severity and lifecycle",()=>{assert.match(sql,/alert_id uuid references public\.mme_security_integration_alerts/);for(const x of ["pos","inventory","warranty","crm","evidence","payments","returns","low","medium","high","critical","open","triage","investigating","contained","pending_review","resolved","closed"])assert.ok(sql.includes("'"+x+"'"));});
+test("evidence references and incident audit are retained with restrictive deletes",()=>{assert.match(sql,/mme_security_incident_evidence/);assert.match(sql,/mme_security_incident_audit/);assert.match(sql,/on delete restrict/);});
+test("severity escalation response targets are provisioned",()=>{for(const x of ["1440","240","60","15"])assert.ok(sql.includes(x));});
+test("alert-to-incident creation is idempotent per alert",()=>{assert.match(sql,/unique\(alert_id\)/);assert.match(sql,/on conflict\(alert_id\)/);});
+test("incident schema and audit tables enforce RLS and service role access",()=>{assert.match(sql,/enable row level security/);assert.match(sql,/revoke all on public\.mme_security_incidents/);});
+test("incident API restricts access to authorized operational roles",()=>{for(const x of ["ceo","cio","it_admin","privacy_officer"])assert.ok(api.includes('"'+x+'"'));});
+test("incident API supports case creation, assignment, status and severity updates",()=>{for(const x of ["create_from_alert","owner_user_id","severity","status","resolution_summary"])assert.ok(api.includes(x));});
+test("incident API requires resolution summary and resolve-before-close",()=>{assert.match(api,/resolution_summary_required/);assert.match(api,/resolve_before_close/);});
+test("evidence linking records references rather than modifying source evidence",()=>{assert.match(api,/link_evidence/);assert.match(api,/mme_security_incident_evidence/);});
+test("acknowledging an alert invokes incident creation",()=>{assert.match(obs,/mme_security_incident_create_from_alert/);});
+test("dashboard includes register, evidence, audit and escalation targets",()=>{for(const x of ["Security Incident Command Center","Incident register","Preserved evidence references","Immutable audit history","Escalation policy"])assert.ok(page.includes(x));});
