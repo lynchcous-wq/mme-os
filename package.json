@@ -163,7 +163,8 @@
     "test:build010:employee-lifecycle-hr": "node --test tests/build010-employee-lifecycle-hr.test.mjs",
     "test:build010:compensation-benefits-rewards": "node --test tests/build010-compensation-benefits-rewards.test.mjs",
     "test:build010:payroll-timekeeping": "node --test tests/build010-payroll-timekeeping.test.mjs",
-    "test:build010:financial-management": "node --test tests/build010-financial-management.test.mjs"
+    "test:build010:financial-management": "node --test tests/build010-financial-management.test.mjs",
+    "test:build010:inventory-control": "node --test tests/build010-inventory-control.test.mjs"
   },
   "dependencies": {
     "next": "^15.2.4",
