@@ -45,6 +45,12 @@ alter table public.mme_security_notification_escalation_alerts enable row level 
 alter table public.mme_security_notification_escalation_events enable row level security;
 revoke all on public.mme_security_notification_escalation_policies,public.mme_security_notification_escalation_alerts,public.mme_security_notification_escalation_events from public,anon,authenticated;
 grant select,insert,update on public.mme_security_notification_escalation_policies,public.mme_security_notification_escalation_alerts,public.mme_security_notification_escalation_events to service_role;
+insert into public.mme_security_notification_escalation_policies(policy_key,severity,acknowledge_within_minutes,escalation_roles,max_escalation_level)
+values
+ ('security-medium-default','medium',60,array['it_admin','cio']::text[],3),
+ ('security-high-default','high',15,array['cio','ceo']::text[],4),
+ ('security-critical-default','critical',5,array['ceo','cio']::text[],5)
+on conflict(policy_key) do nothing;
 create or replace function public.mme_security_notification_create_escalation_alert(p_source_key text,p_title text,p_summary text,p_severity text,p_department text default null)
 returns public.mme_security_notification_escalation_alerts
 language plpgsql security definer set search_path=public,pg_temp as $$
