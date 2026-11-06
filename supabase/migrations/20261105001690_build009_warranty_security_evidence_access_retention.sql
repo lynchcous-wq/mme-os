@@ -54,7 +54,6 @@ begin
  select * into v from public.mme_warranty_api_security_case_evidence where evidence_id=p_evidence_id;
  if not found then raise exception 'evidence_not_found'; end if;
  if v.ingestion_status<>'clean' then v_reason:='evidence_not_clean';
- elsif exists(select 1 from public.mme_warranty_api_security_evidence_legal_holds h where h.evidence_id=p_evidence_id and h.released_at is null) then v_reason:='legal_hold_active';
  elsif 'ceo'=any(coalesce(p_roles,'{}'::text[])) or 'privacy_officer'=any(coalesce(p_roles,'{}'::text[])) then v_allowed:=true;v_reason:='privileged_role';
  elsif 'manager'=any(coalesce(p_roles,'{}'::text[])) and exists(select 1 from public.mme_warranty_api_security_investigation_cases c where c.case_id=v.case_id and (c.lead_investigator_id=p_actor_id or c.opened_by=p_actor_id)) then v_allowed:=true;v_reason:='assigned_case_access';
  end if;
