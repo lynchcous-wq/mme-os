@@ -1,0 +1,14 @@
+import test from "node:test";import assert from "node:assert/strict";import{readFile}from"node:fs/promises";
+const sql=await readFile(new URL("../supabase/migrations/20261105001690_build009_warranty_security_evidence_access_retention.sql",import.meta.url),"utf8");
+const download=await readFile(new URL("../app/api/warranty/security-evidence/download/route.ts",import.meta.url),"utf8");
+const holds=await readFile(new URL("../app/api/warranty/security-evidence/legal-hold/route.ts",import.meta.url),"utf8");
+const worker=await readFile(new URL("../app/api/internal/warranty-security-evidence-retention/route.ts",import.meta.url),"utf8");
+test("retention policies and legal holds are independently modeled",()=>{assert.match(sql,/security_evidence_retention_policies/);assert.match(sql,/security_evidence_legal_holds/);assert.match(sql,/one_active_hold/);});
+test("download authorization requires clean evidence and scoped role access",()=>{assert.match(sql,/ingestion_status<>'clean'/);assert.match(sql,/privileged_role/);assert.match(sql,/assigned_case_access/);});
+test("download attempts are audited with actor and request id",()=>{assert.match(sql,/security_evidence_access_events/);assert.match(sql,/download_granted/);assert.match(sql,/download_denied/);assert.match(sql,/request_id/);});
+test("download route verifies session then invokes authorization RPC before storage read",()=>{assert.match(download,/auth\/v1\/user/);assert.match(download,/mme_warranty_api_security_evidence_authorize_download/);assert.ok(download.indexOf("authorize_download")<download.indexOf("/storage/v1/object/"));assert.match(download,/Cache-Control.*no-store/);});
+test("legal hold mutation is limited to CEO and privacy officer roles",()=>{assert.match(holds,/ceo","privacy_officer/);assert.match(holds,/evidence_place_hold/);assert.match(holds,/evidence_release_hold/);});
+test("legal hold placement and release require documented reasons",()=>{assert.match(sql,/legal_hold_reason_required/);assert.match(sql,/legal_hold_release_reason_required/);});
+test("retention scheduler derives due dates from configured type policies",()=>{assert.match(sql,/schedule_retention/);assert.match(sql,/collected_at\+make_interval\(days=>p.retention_days\)/);});
+test("retention worker uses authenticated secret and checks legal holds before deletion",()=>{assert.match(worker,/MME_EVIDENCE_RETENTION_WORKER_SECRET/);assert.match(worker,/timingSafeEqual/);assert.match(worker,/released_at=is.null/);assert.ok(worker.indexOf("legal_hold_check_failed")<worker.indexOf('method:"DELETE"'));});
+test("retention queue claim excludes active holds and uses skip locked",()=>{assert.match(sql,/released_at is null\) order by j.due_at for update skip locked/);});
