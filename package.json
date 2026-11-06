@@ -106,7 +106,8 @@
     "test:build010:warranty-security-intelligence-threat-detection": "node --test tests/build010-warranty-security-intelligence-threat-detection.test.mjs",
     "test:build010:cross-system-security-signal-ingestion-correlation": "node --test tests/build010-cross-system-security-signal-ingestion-correlation.test.mjs",
     "test:build010:security-event-reliability-retry-dead-letter": "node --test tests/build010-security-event-reliability-retry-dead-letter.test.mjs",
-    "test:build010:security-event-source-adapters-provider-health": "node --test tests/build010-security-event-source-adapters-provider-health.test.mjs"
+    "test:build010:security-event-source-adapters-provider-health": "node --test tests/build010-security-event-source-adapters-provider-health.test.mjs",
+    "test:build010:security-provider-failover-circuit-breakers": "node --test tests/build010-security-provider-failover-circuit-breakers.test.mjs"
   },
   "dependencies": {
     "next": "^15.2.4",
