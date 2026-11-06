@@ -16,8 +16,7 @@ create table public.mme_warranty_financial_entries (
  approved_at timestamptz,
  notes text,
  created_at timestamptz not null default now(),
- check(approved_by is null or approved_by<>recorded_by),
- check(realization<>'actual' or (approved_by is not null and approved_at is not null))
+ check(approved_by is null or approved_by<>recorded_by)
 );
 create index mme_warranty_financial_case_idx on public.mme_warranty_financial_entries(repair_case_id,effective_at);
 create index mme_warranty_financial_type_idx on public.mme_warranty_financial_entries(entry_type,realization,currency_code,effective_at);
@@ -87,7 +86,7 @@ create or replace function public.mme_warranty_financial_record(
  p_case uuid,p_claim uuid,p_type text,p_realization text,p_amount numeric,p_currency text,
  p_effective_at timestamptz,p_source_reference text,p_actor uuid,p_idempotency_key text,p_notes text
 ) returns uuid language plpgsql security definer set search_path=pg_catalog,public as $$
-declare v uuid; c public.mme_warranty_repair_cases%rowtype; cl public.mme_warranty_provider_claims%rowtype;
+declare v uuid; c public.mme_warranty_repair_cases%rowtype; cl public.mme_warranty_provider_claims%rowtype; existing public.mme_warranty_financial_entries%rowtype;
 begin
  if p_actor is null or p_amount<0 or length(trim(coalesce(p_idempotency_key,'')))<12 or length(trim(coalesce(p_source_reference,'')))=0 then raise exception 'Actor, amount, source and idempotency key required' using errcode='22023'; end if;
  if p_realization not in ('actual','projection') or p_type not in ('warranty_revenue','repair_parts_cost','repair_labor_cost','provider_recovery','customer_charge','reserve_adjustment') then raise exception 'Unsupported financial classification' using errcode='22023'; end if;
@@ -99,8 +98,15 @@ begin
  if p_type='provider_recovery' and (p_claim is null or p_realization<>'actual' and p_realization<>'projection') then raise exception 'Provider recovery must reference a claim' using errcode='23514'; end if;
  insert into public.mme_warranty_financial_entries(repair_case_id,provider_claim_id,entry_type,realization,amount,currency_code,effective_at,source_reference,idempotency_key,recorded_by,notes)
  values(p_case,p_claim,p_type,p_realization,p_amount,p_currency,p_effective_at,p_source_reference,p_idempotency_key,p_actor,left(p_notes,1000))
- on conflict(idempotency_key) do update set idempotency_key=excluded.idempotency_key
+ on conflict(idempotency_key) do nothing
  returning financial_entry_id into v;
+ if v is null then
+  select * into existing from public.mme_warranty_financial_entries where idempotency_key=p_idempotency_key;
+  if existing.entry_type<>p_type or existing.realization<>p_realization or existing.amount<>p_amount or existing.currency_code<>p_currency or existing.repair_case_id is distinct from p_case or existing.provider_claim_id is distinct from p_claim then
+   raise exception 'Idempotency key reused with different financial payload' using errcode='23505';
+  end if;
+  return existing.financial_entry_id;
+ end if;
  insert into public.mme_warranty_financial_events(financial_entry_id,actor_id,event_type,event_data)
  values(v,p_actor,'financial_entry_recorded',jsonb_build_object('entry_type',p_type,'realization',p_realization,'amount',p_amount,'currency',p_currency));
  return v;
