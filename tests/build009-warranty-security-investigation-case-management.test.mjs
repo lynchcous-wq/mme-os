@@ -1,0 +1,12 @@
+import test from "node:test";import assert from "node:assert/strict";import{readFile}from"node:fs/promises";
+const sql=await readFile(new URL("../supabase/migrations/20261105001670_build009_warranty_security_investigation_case_management.sql",import.meta.url),"utf8");
+const route=await readFile(new URL("../app/api/warranty/security-investigations/route.ts",import.meta.url),"utf8");
+test("investigation cases link one-to-one with existing security incidents",()=>{assert.match(sql,/incident_id uuid not null references public\.mme_warranty_api_security_incidents/);assert.match(sql,/unique\(incident_id\)/);});
+test("case notes, evidence, custody and event history are modeled separately",()=>{for(const t of ["security_case_notes","security_case_evidence","security_evidence_custody","security_case_events"])assert.ok(sql.includes(t));});
+test("evidence requires SHA-256 and validates storage path metadata",()=>{assert.match(sql,/sha256_hex text not null check\(sha256_hex ~ '\^\[0-9a-f\]\{64\}\$'/);assert.match(sql,/invalid_evidence_storage_reference/);});
+test("custody transfer verifies the evidence digest and prior custodian",()=>{assert.match(sql,/custody_integrity_validation_failed/);assert.match(sql,/custodian_mismatch/);});
+test("case assignment and notes append audit events",()=>{assert.match(sql,/investigator_assigned/);assert.match(sql,/investigation_note_added/);});
+test("case closure requires a reason and records actor",()=>{assert.match(sql,/closure_approval_reason_required/);assert.match(sql,/closed_by=case when/);});
+test("case RPCs are service-role only",()=>{assert.match(sql,/revoke all on function public\.%I/);assert.match(sql,/grant execute on function public\.%I/);});
+test("API verifies Supabase session and trusted app metadata role",()=>{assert.match(route,/auth\/v1\/user/);assert.match(route,/app_metadata/);for(const role of ["ceo","privacy_officer","manager"])assert.ok(route.includes('"'+role+'"'));});
+test("API maps only fixed investigation RPC actions and binds actor from session",()=>{for(const fn of ["security_case_create","security_case_assign","security_case_add_note","security_case_add_evidence","security_case_transfer_custody","security_case_set_status"])assert.ok(route.includes(fn));assert.match(route,/p_actor_id:actor/);});
