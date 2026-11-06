@@ -1,0 +1,12 @@
+import test from "node:test";import assert from "node:assert/strict";import{readFile}from"node:fs/promises";
+const root=new URL("../",import.meta.url),read=p=>readFile(new URL(p,root),"utf8");
+const sql=await read("supabase/migrations/20261106002230_build010_identity_privileged_access_governance.sql");
+const api=await read("app/api/warranty/security-intelligence/identity-governance/route.ts");
+const page=await read("app/warranty/security-intelligence/identity-governance/page.tsx");
+test("identity governance creates privileged access, access review, freeze and audit ledgers",()=>{for(const n of ["mme_identity_privileged_access_requests","mme_identity_access_review_cycles","mme_identity_emergency_freeze_requests","mme_identity_governance_audit"])assert.match(sql,new RegExp("create table if not exists public\\."+n));});
+test("temporary elevation has lifecycle, approval and bounded expiration fields",()=>{assert.match(sql,/status in \('pending','approved','rejected','expired','revoked'\)/);assert.match(sql,/expires_at/);assert.match(sql,/reviewed_by_auth_user_id/);});
+test("freeze request is a separately auditable state machine",()=>{assert.match(sql,/status in \('requested','approved','rejected','lift_requested','lifted'\)/);assert.match(sql,/requested_by_auth_user_id/);assert.match(sql,/lifted_at/);});
+test("all ledgers enable RLS and deny direct anon/authenticated access",()=>{assert.equal((sql.match(/enable row level security/g)||[]).length,4);assert.match(sql,/revoke all on public\.%I from public,anon,authenticated/);assert.match(sql,/grant all on public\.%I to service_role/);});
+test("API authenticates administrators and enforces a maximum 24-hour elevation window",()=>{assert.match(api,/auth\/v1\/user/);assert.match(api,/admin_access_required/);assert.match(api,/elevation_must_expire_within_24_hours/);});
+test("API records elevation reviews, access reviews and freeze actions with audit events",()=>{for(const x of ["request_elevation","review_elevation","review_access","request_freeze","review_freeze","mme_identity_governance_audit"])assert.ok(api.includes(x));});
+test("dashboard explicitly discloses that ledger records do not enforce live permissions",()=>{assert.match(page,/do not yet change live role claims/);assert.match(page,/Submit elevation request/);assert.match(page,/Emergency freeze request/);assert.match(page,/Periodic access reviews/);});
