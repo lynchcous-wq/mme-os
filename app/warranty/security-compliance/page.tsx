@@ -1,0 +1,37 @@
+"use client";
+import {useCallback,useEffect,useMemo,useState} from "react";
+type Resource="summary"|"evidence"|"access"|"holds"|"retention"|"custody";
+type Report={requestId:string;resource:Resource;data:Record<string,unknown>[];count:number;asOf:string};
+const resources:Resource[]=["summary","evidence","access","holds","retention","custody"];
+const labels:Record<Resource,string>={summary:"Executive overview",evidence:"Evidence integrity",access:"Access activity",holds:"Legal holds",retention:"Retention queue",custody:"Chain of custody"};
+const pretty=(s:string)=>s.replaceAll("_"," ").replace(/\b\w/g,x=>x.toUpperCase());
+function metricValue(row:Record<string,unknown>,key:string){const n=Number(row[key]??0);return Number.isFinite(n)?n.toLocaleString():"—";}
+export default function WarrantySecurityExecutiveDashboard(){
+ const [resource,setResource]=useState<Resource>("summary"),[reports,setReports]=useState<Partial<Record<Resource,Report>>>({}),[loading,setLoading]=useState(false),[error,setError]=useState(""),[token,setToken]=useState(""),[showToken,setShowToken]=useState(false);
+ const load=useCallback(async(r:Resource,accessToken:string)=>{setLoading(true);setError("");try{const res=await fetch("/api/warranty/security-compliance/reports?resource="+r+"&limit=100",{headers:{Authorization:"Bearer "+accessToken},cache:"no-store"});const json=await res.json();if(!res.ok)throw new Error(json.error??"Report request failed");setReports(old=>({...old,[r]:json}));}catch(e){setError(e instanceof Error?e.message:"Unable to load report");}finally{setLoading(false);}},[]);
+ useEffect(()=>{const stored=sessionStorage.getItem("mme-warranty-security-access-token");if(stored)setToken(stored);},[]);
+ const report=reports[resource],summary=reports.summary?.data?.[0]??{},tiles=useMemo(()=>Object.entries(summary).filter(([k])=>k!=="measured_at"),[summary]);
+ const connect=()=>{sessionStorage.setItem("mme-warranty-security-access-token",token.trim());load(resource,token.trim());};
+ const change=(r:Resource)=>{setResource(r);if(token.trim()&&!reports[r])load(r,token.trim());};
+ const exportCsv=()=>{if(!report)return;const keys=[...new Set(report.data.flatMap(x=>Object.keys(x)))];const esc=(v:unknown)=>'"'+String(v??"").replaceAll('"','""')+'"';const csv=[keys.map(esc).join(","),...report.data.map(row=>keys.map(k=>esc(row[k])).join(","))].join("\n");const a=document.createElement("a"),url=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8"}));a.href=url;a.download="mme-warranty-security-"+resource+".csv";a.click();URL.revokeObjectURL(url);};
+ return <main style={{minHeight:"100vh",background:"#f4f6f8",color:"#17212b",padding:"32px clamp(16px,4vw,56px)",fontFamily:"Arial,sans-serif"}}>
+  <header style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:16,flexWrap:"wrap",marginBottom:28}}>
+   <div><div style={{fontSize:11,letterSpacing:2,color:"#53718a",fontWeight:700}}>MME OS · BUILD 009.94</div><h1 style={{fontSize:30,margin:"8px 0 4px"}}>Warranty Security Command</h1><p style={{margin:0,color:"#667482"}}>Executive oversight · evidence · investigations · compliance</p></div>
+   <div style={{fontSize:12,color:"#667482"}}>Live data · refreshed on request</div>
+  </header>
+  <section style={{background:"white",border:"1px solid #dce3e8",borderRadius:12,padding:18,marginBottom:18}}>
+   <strong style={{display:"block",marginBottom:8}}>Secure report connection</strong><p style={{fontSize:12,color:"#667482",margin:"0 0 10px"}}>Enter a current Supabase access token for an authorized MME account. The token is held in this browser tab only and sent over HTTPS to the authenticated reporting API.</p>
+   <div style={{display:"flex",gap:8,flexWrap:"wrap"}}><input aria-label="Supabase access token" type={showToken?"text":"password"} value={token} onChange={e=>setToken(e.target.value)} placeholder="Supabase access token" style={{flex:"1 1 320px",padding:12,border:"1px solid #cbd5dc",borderRadius:7}}/><button onClick={()=>setShowToken(x=>!x)} style={button}>{showToken?"Hide":"Show"}</button><button onClick={connect} disabled={!token.trim()||loading} style={{...button,background:"#173f58",color:"white"}}>{loading?"Loading…":"Connect / refresh"}</button></div>
+   {error&&<p role="alert" style={{color:"#a12d2d",fontSize:13,marginBottom:0}}>{error}</p>}
+  </section>
+  <nav aria-label="Security reports" style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:18}}>{resources.map(r=><button key={r} onClick={()=>change(r)} style={{...button,background:resource===r?"#173f58":"white",color:resource===r?"white":"#263746"}}>{labels[r]}</button>)}</nav>
+  {resource==="summary"&&<section style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(190px,1fr))",gap:12,marginBottom:20}}>{(tiles.length?tiles:[["total_evidence_count","—"],["clean_evidence_count","—"],["pending_scan_count","—"],["flagged_evidence_count","—"],["active_legal_hold_count","—"],["retention_work_backlog","—"],["denied_downloads_30d","—"],["open_security_incidents","—"]]).map(([k,v])=><article key={k} style={tile}><div style={{fontSize:11,color:"#667482",textTransform:"capitalize"}}>{pretty(String(k))}</div><div style={{fontSize:27,fontWeight:700,marginTop:9}}>{tiles.length?metricValue(summary,String(k)):v}</div></article>)}</section>}
+  <section style={{background:"white",border:"1px solid #dce3e8",borderRadius:12,overflow:"hidden"}}>
+   <div style={{padding:18,display:"flex",justifyContent:"space-between",gap:12,alignItems:"center",flexWrap:"wrap",borderBottom:"1px solid #e6ebef"}}><div><h2 style={{fontSize:18,margin:"0 0 4px"}}>{labels[resource]}</h2><div style={{fontSize:12,color:"#667482"}}>{report?report.count+" records · as of "+new Date(report.asOf).toLocaleString():"Connect to load authorized report data"}</div></div><button onClick={exportCsv} disabled={!report?.data.length} style={button}>Export CSV</button></div>
+   {!report?<div style={{padding:34,textAlign:"center",color:"#667482"}}>{loading?"Loading report…":"No report loaded. Connect with an authorized account."}</div>:report.data.length===0?<div style={{padding:34,textAlign:"center",color:"#667482"}}>No records found for this report.</div>:<div style={{overflowX:"auto"}}><table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}><thead><tr>{Object.keys(report.data[0]).map(k=><th key={k} style={{textAlign:"left",padding:12,background:"#f4f6f8",whiteSpace:"nowrap"}}>{pretty(k)}</th>)}</tr></thead><tbody>{report.data.map((row,i)=><tr key={String(row.evidence_id??row.access_id??row.hold_id??row.job_id??i)}>{Object.entries(row).map(([k,v])=><td key={k} style={{padding:12,borderTop:"1px solid #edf0f2",maxWidth:300,overflowWrap:"anywhere"}}>{v===null?"—":typeof v==="object"?JSON.stringify(v):String(v)}</td>)}</tr>)}</tbody></table></div>}
+  </section>
+  <footer style={{fontSize:11,color:"#77838e",marginTop:16,lineHeight:1.6}}>Access is enforced by server-side role checks and report-read audit logging. Metrics are only as complete as the connected warranty security records. This screen does not represent regulatory certification or completed incident sign-off.</footer>
+ </main>;
+}
+const button:React.CSSProperties={border:"1px solid #cbd5dc",borderRadius:7,padding:"10px 13px",background:"white",color:"#263746",fontWeight:600,cursor:"pointer"};
+const tile:React.CSSProperties={background:"white",border:"1px solid #dce3e8",borderRadius:12,padding:18,minHeight:105};
