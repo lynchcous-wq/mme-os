@@ -49,7 +49,7 @@ begin
  return new;
 end $$;
 drop trigger if exists mme_security_notification_alert_delivery_queue on public.mme_security_notification_escalation_alerts;
-create trigger mme_security_notification_alert_delivery_queue after insert on public.mme_security_notification_escalation_alerts for each row execute function public.mme_security_notification_queue_alert_deliveries();
+create trigger mme_security_notification_alert_delivery_queue after insert or update of target_roles,escalation_level on public.mme_security_notification_escalation_alerts for each row execute function public.mme_security_notification_queue_alert_deliveries();
 create or replace function public.mme_security_notification_claim_delivery_jobs(p_worker uuid,p_limit integer default 20)
 returns table(delivery_id uuid,alert_id uuid,channel text,recipient_role text,attempt_count integer,max_attempts integer,title text,message text,severity text)
 language plpgsql security definer set search_path=public,pg_temp as $$
@@ -77,7 +77,6 @@ begin
  status_value:=case when p_outcome='delivered' then 'delivered' when p_outcome='accepted' then 'accepted' when p_outcome='skipped' then 'skipped' when n>=j.max_attempts then 'dead_letter' else 'retry' end;
  update public.mme_security_notification_delivery_jobs set attempt_count=n,delivery_status=status_value,provider=p_provider,provider_reference=p_reference,last_error_code=p_error,delivered_at=case when p_outcome='delivered' then now() else delivered_at end,next_attempt_at=now()+make_interval(secs=>least(3600,30*(2^least(n,6))::integer)),locked_at=null,locked_by=null,updated_at=now() where delivery_id=p_delivery;
  insert into public.mme_security_notification_delivery_attempts(delivery_id,attempt_number,provider,outcome,provider_reference,error_code,request_id) values(p_delivery,n,p_provider,p_outcome,p_reference,p_error,p_request);
- insert into public.mme_security_notification_escalation_events(alert_id,event_type,details) values(j.alert_id,'delivery_attempted',jsonb_build_object('deliveryId',p_delivery,'attempt',n,'channel',j.channel,'provider',p_provider,'outcome',p_outcome,'errorCode',p_error)::text);
 end $$;
 revoke all on function public.mme_security_notification_queue_alert_deliveries(),public.mme_security_notification_claim_delivery_jobs(uuid,integer),public.mme_security_notification_finish_delivery(uuid,uuid,text,text,text,text,uuid) from public,anon,authenticated;
 grant execute on function public.mme_security_notification_claim_delivery_jobs(uuid,integer),public.mme_security_notification_finish_delivery(uuid,uuid,text,text,text,text,uuid) to service_role;
