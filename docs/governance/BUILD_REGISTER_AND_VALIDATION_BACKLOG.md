@@ -437,3 +437,27 @@ Relevant commits:
 - CI test integration: `1da061fb0cef15c6c24a3b48d3808d01f8eefda6`
 
 Validation status: migration source and function signatures were inspected after commit; no new Actions workflow run was visible for the latest PR head at the time of this note. Vercel checks continue to fail due the account build-rate-limit/upgrade response. Do not mark migration or application deployment as production-ready until fresh-database migration replay, pgTAP, Deno type-check, TypeScript/build and Stripe test-mode checkout all pass.
+
+
+## Checkout failure recovery implementation — 2026-11-06
+
+Added to PR #15 branch `implementation/build001-authenticated-checkout-ui`:
+
+- Migration `20261103006700_build001_checkout_failure_recovery.sql` creates private `mme_checkout_recovery_cases` ledger and `mme_expire_single_inventory_reservation(uuid)`.
+- The per-order expiry RPC locks the order/reservation, verifies pending + active + due state, and releases aggregate and serialized inventory lines (including mixed carts) in one transaction.
+- Added `supabase/functions/checkout-recovery-worker/index.ts`, using a dedicated 32+ character constant-time bearer secret and explicit Stripe live/test key-mode validation.
+- Worker scans due active reservations, retrieves the bound PaymentIntent, and attempts cancellation before releasing inventory.
+- If the binding is missing, it searches Stripe metadata by MME order ID and binds only one exact amount/currency/mode match using the customer-bound RPC. Multiple matches remain quarantined.
+- Succeeded, unresolved, mismatched, or uncancelable PaymentIntents retain inventory and open a durable recovery case. Successful expiry resolves existing open cases.
+- Added worker function configuration, contract tests, npm script `test:checkout-recovery`, Deno CI type-check, and `docs/BUILD-001-CHECKOUT-FAILURE-RECOVERY.md`.
+
+Key commits:
+- Recovery ledger and per-order RPC: `59d73644285384016ca945cd2b9d18da387d3bbd`
+- Stripe-aware recovery worker: `3afc191b0c3bb70ddfa740bed4a39a497ab83d8e`
+- Missing binding search/rebind: `96c83a7f1e76c5c9e0cf9ffc22f42912cfab598c`
+- Worker binding correction: `b5f87227c2bb6413be6774bf987689b6f8692928`
+- Atomic mixed-stock expiry: `27d7367fcf797e43fe6956bbf1cdfd8f72a08116`
+- Contract tests and CI: `0fc02a6821b6e943a2444d1d17e9c797321932ec`, `3e607ccee1f9438f4d294cbfb2ea8e1f9fcfbe57`, `aac18f6f2a769c3026b2f35f4005cd9809c7612b`
+- Operational runbook: `e3ca91c498317c06a74718a6c73d9a0279ad9e61`
+
+Release gates: no new Actions workflow run was visible for the latest branch head during this pass; Vercel preview checks remain blocked by the account build-rate-limit response. The worker is not scheduled or deployed, secrets are not configured, migrations are not applied to staging/production, and Stripe test-mode scenarios are not executed. Keep this feature unapproved for production until all listed validation steps pass.
