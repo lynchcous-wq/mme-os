@@ -118,6 +118,6 @@ end $$;
 
 revoke all on function public.mme_warranty_evidence_record_scan_attestation(uuid,uuid,uuid,text,text,bigint,boolean,text,text,text,text,text,text,text) from public,anon,authenticated;
 revoke all on function public.mme_warranty_evidence_register_clean(uuid,text) from public,anon,authenticated;
-grant execute on function public.mme_warranty_evidence_record_scan_attestation(uuid,uuid,text,text,bigint,boolean,text,text,text,text,text,text,text) to service_role;
+grant execute on function public.mme_warranty_evidence_record_scan_attestation(uuid,uuid,uuid,text,text,bigint,boolean,text,text,text,text,text,text,text) to service_role;
 grant execute on function public.mme_warranty_evidence_register_clean(uuid,text) to service_role;
 commit;
