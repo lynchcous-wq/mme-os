@@ -112,6 +112,11 @@ begin
   where i.person_id=p_recipient_person_id and i.lifecycle_status='active') then
   raise exception 'Active notification recipient required' using errcode='22023';
  end if;
+ if not public.mme_pos_authorize_settlement_action(p_recipient_person_id,p_location_id,
+  case p_audience_role when 'executive' then 'pos.settlement.approve'
+   when 'finance' then 'pos.settlement.exception.manage' else 'pos.store.manage' end) then
+  raise exception 'Recipient does not hold the permission required for this alert audience' using errcode='42501';
+ end if;
  insert into public.mme_pos_financial_alert_subscriptions(
   location_id,recipient_person_id,audience_role,channel,enabled,created_by_person_id
  ) values(p_location_id,p_recipient_person_id,p_audience_role,p_channel,p_enabled,p_actor_person_id)
@@ -155,11 +160,14 @@ begin
   insert into public.mme_pos_financial_alert_events(alert_id,actor_person_id,event_type,detail_code)
    values(v_alert,p_actor_person_id,'created',v_code);
   v_count:=v_count+1;
-  v_role:=case when v_severity='critical' then 'executive' else 'finance' end;
+  v_role:=case when v_severity='critical' then 'executive' else 'store_manager' end;
   for v_recipient in
    select s.recipient_person_id,s.channel from public.mme_pos_financial_alert_subscriptions s
    join public.mme_person_identities i on i.person_id=s.recipient_person_id and i.lifecycle_status='active'
    where s.location_id=p_location_id and s.enabled and s.audience_role in (v_role,'finance')
+    and public.mme_pos_authorize_settlement_action(s.recipient_person_id,p_location_id,
+     case s.audience_role when 'executive' then 'pos.settlement.approve'
+      when 'finance' then 'pos.settlement.exception.manage' else 'pos.store.manage' end)
   loop
    insert into public.mme_pos_financial_alert_notifications(alert_id,recipient_person_id,channel)
     values(v_alert,v_recipient.recipient_person_id,v_recipient.channel) on conflict do nothing;
@@ -200,6 +208,8 @@ begin
    join public.mme_person_identities i on i.person_id=s.recipient_person_id and i.lifecycle_status='active'
    where s.location_id=p_location_id and s.enabled
     and s.audience_role in ('executive','finance')
+    and public.mme_pos_authorize_settlement_action(s.recipient_person_id,p_location_id,
+     case s.audience_role when 'executive' then 'pos.settlement.approve' else 'pos.settlement.exception.manage' end)
   loop
    insert into public.mme_pos_financial_alert_notifications(alert_id,recipient_person_id,channel)
     values(v_alert,v_recipient.recipient_person_id,v_recipient.channel) on conflict do nothing;
