@@ -131,7 +131,8 @@
     "test:build010:security-acceptance": "node --test tests/build010-security-e2e-acceptance.test.mjs",
     "test:build010:incident-response-automation": "node --test tests/build010-security-incident-response-automation.test.mjs",
     "test:build010:security-notifications": "node --test tests/build010-security-incident-notifications.test.mjs",
-    "test:build010:notification-ack-sla": "node --test tests/build010-notification-acknowledgement-sla.test.mjs"
+    "test:build010:notification-ack-sla": "node --test tests/build010-notification-acknowledgement-sla.test.mjs",
+    "test:build010:security-risk-intelligence": "node --test tests/build010-security-risk-intelligence.test.mjs"
   },
   "dependencies": {
     "next": "^15.2.4",
