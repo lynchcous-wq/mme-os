@@ -1,0 +1,17 @@
+name: Build 009.84 warranty compliance API
+on:
+  push:
+    branches: [implementation/build-009-84-warranty-compliance-api]
+  pull_request:
+    branches: [implementation/build-009-83-warranty-compliance-dashboard]
+jobs:
+  warranty-compliance-api:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - run: npm run lint
+      - run: npm run test:build009:warranty-compliance-api
