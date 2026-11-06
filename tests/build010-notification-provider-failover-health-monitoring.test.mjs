@@ -1,0 +1,14 @@
+import test from"node:test";import assert from"node:assert/strict";import{readFile}from"node:fs/promises";
+const sql=await readFile(new URL("../supabase/migrations/20261105002010_build010_notification_provider_failover_health_monitoring.sql",import.meta.url),"utf8");
+const api=await readFile(new URL("../app/api/warranty/security-intelligence/providers/health/route.ts",import.meta.url),"utf8");
+const page=await readFile(new URL("../app/warranty/security-intelligence/providers/health/page.tsx",import.meta.url),"utf8");
+test("provider health checks persist latency and outcome telemetry",()=>{for(const x of ["mme_security_notification_provider_checks","latency_ms","status_code","error_code"])assert.ok(sql.includes(x));});
+test("provider registry includes failure and recovery thresholds",()=>{for(const x of ["failure_threshold","recovery_threshold","average_latency_ms","priority"])assert.ok(sql.includes(x));});
+test("health recorder opens circuits after consecutive failures",()=>{assert.match(sql,/consecutive_failures\+1>=threshold/);assert.match(sql,/circuit_state=case when consecutive_failures\+1>=threshold then 'open'/);});
+test("healthy probes support half-open recovery and closure",()=>{assert.match(sql,/circuit_state='half_open'/);assert.match(sql,/then 'closed'/);});
+test("failover selection excludes disabled and open-circuit providers",()=>{assert.match(sql,/where channel=p_channel and enabled and circuit_state='closed'/);assert.match(sql,/order by priority asc/);});
+test("provider health checks are protected by RLS and service role grants",()=>{assert.match(sql,/enable row level security/);assert.match(sql,/revoke all on public\.mme_security_notification_provider_checks/);});
+test("health API requires authenticated operator role",()=>{for(const x of ["ceo","cio","it_admin","privacy_officer"])assert.ok(api.includes('"'+x+'"'));});
+test("probe ingestion requires a healthcheck secret",()=>{assert.match(api,/MME_NOTIFICATION_HEALTHCHECK_SECRET/);assert.match(api,/healthcheck_authentication_required/);});
+test("API supports health probe recording and eligible provider selection",()=>{for(const x of ["record_probe","select_failover","mme_security_notification_record_health","mme_security_notification_select_provider"])assert.ok(api.includes(x));});
+test("dashboard presents circuit state, health checks and route preview",()=>{for(const x of ["Notification Provider Health & Failover","Provider health registry","Failover route preview","Recent health checks"])assert.ok(page.includes(x));});
