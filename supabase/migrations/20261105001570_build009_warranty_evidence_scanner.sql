@@ -56,7 +56,7 @@ grant select,insert,update on public.mme_warranty_evidence_duplicate_matches to 
 revoke update,delete,truncate on public.mme_warranty_evidence_scan_attestations from public,anon,authenticated,service_role;
 
 create or replace function public.mme_warranty_evidence_record_scan_attestation(
- p_upload_intent_id uuid,p_scan_job_id uuid,p_sha256 text,p_detected_type text,p_detected_size bigint,
+ p_upload_intent_id uuid,p_scan_job_id uuid,p_lease_token uuid,p_sha256 text,p_detected_type text,p_detected_size bigint,
  p_signature_valid boolean,p_engine text,p_engine_version text,p_definition_version text,
  p_verdict text,p_result_code text,p_scanner_identity text,p_idempotency_key text
 ) returns uuid language plpgsql security definer set search_path=public,pg_temp as $$
@@ -69,7 +69,7 @@ begin
  select * into v_intent from public.mme_warranty_evidence_upload_intents where upload_intent_id=p_upload_intent_id for update;
  select * into v_job from public.mme_warranty_evidence_scan_jobs where scan_job_id=p_scan_job_id and upload_intent_id=p_upload_intent_id for update;
  if v_intent.upload_intent_id is null or v_job.scan_job_id is null or v_job.status<>'processing'
-   or v_intent.status not in ('uploaded','quarantined','scanning') then
+   or v_intent.status not in ('uploaded','quarantined','scanning') or v_job.lease_token is distinct from p_lease_token then
   raise exception 'scan_job_not_active' using errcode='55000';
  end if;
  if v_job.lease_expires_at<now() then raise exception 'scan_lease_expired' using errcode='55000'; end if;
@@ -112,11 +112,11 @@ begin
  if v_evidence is null then select evidence_id into v_evidence from public.mme_warranty_claim_evidence where idempotency_key=p_registration_key; end if;
  update public.mme_warranty_evidence_upload_intents set status='registered' where upload_intent_id=p_upload_intent_id;
  insert into public.mme_warranty_evidence_upload_events(upload_intent_id,event_type,actor_reference,event_digest)
- values(p_upload_intent_id,'registered','trusted_scanner_pipeline',encode(digest(p_registration_key,'sha256'),'hex'));
+ values(p_upload_intent_id,'registered','trusted_scanner_pipeline',v_intent.content_sha256);
  return v_evidence;
 end $$;
 
-revoke all on function public.mme_warranty_evidence_record_scan_attestation(uuid,uuid,text,text,bigint,boolean,text,text,text,text,text,text,text) from public,anon,authenticated;
+revoke all on function public.mme_warranty_evidence_record_scan_attestation(uuid,uuid,uuid,text,text,bigint,boolean,text,text,text,text,text,text,text) from public,anon,authenticated;
 revoke all on function public.mme_warranty_evidence_register_clean(uuid,text) from public,anon,authenticated;
 grant execute on function public.mme_warranty_evidence_record_scan_attestation(uuid,uuid,text,text,bigint,boolean,text,text,text,text,text,text,text) to service_role;
 grant execute on function public.mme_warranty_evidence_register_clean(uuid,text) to service_role;
