@@ -1,0 +1,14 @@
+import test from "node:test";import assert from "node:assert/strict";import{readFile}from"node:fs/promises";
+const sql=await readFile(new URL("../supabase/migrations/20261105001700_build009_warranty_security_compliance_reporting.sql",import.meta.url),"utf8");
+const route=await readFile(new URL("../app/api/warranty/security-compliance/reports/route.ts",import.meta.url),"utf8");
+const views=["mme_warranty_security_compliance_kpis","mme_warranty_security_compliance_evidence","mme_warranty_security_compliance_access","mme_warranty_security_compliance_holds","mme_warranty_security_compliance_retention","mme_warranty_security_compliance_custody"];
+test("migration creates six read-only security compliance views",()=>{for(const v of views)assert.match(sql,new RegExp("view public\\."+v));assert.equal((sql.match(/security_invoker=true/g)||[]).length,6);});
+test("KPI report covers scans, holds, retention backlog and security incidents",()=>{for(const f of ["clean_evidence_count","pending_scan_count","flagged_evidence_count","active_legal_hold_count","retention_work_backlog","denied_downloads_30d","open_high_risk_security_events","open_security_incidents"])assert.ok(sql.includes(f));});
+test("evidence and retention reports include digest and legal hold context",()=>{assert.match(sql,/sha256_hex/);assert.match(sql,/has_active_legal_hold/);assert.match(sql,/retention_due_at/);});
+test("access report exposes actor, action, reason and request correlation",()=>{for(const f of ["actor_id","action","reason_code","request_id","occurred_at"])assert.ok(sql.includes(f));});
+test("compliance report access audit is RLS protected and service role only",()=>{assert.match(sql,/report_events enable row level security/);assert.match(sql,/report_resource text not null check/);assert.match(sql,/from public,anon,authenticated/);});
+test("API authenticates bearer token against Supabase Auth",()=>{assert.match(route,/Bearer/);assert.match(route,/auth\/v1\/user/);assert.match(route,/invalid_session/);});
+test("API uses a fixed view allowlist and resource-specific role matrix",()=>{assert.match(route,/const VIEWS=/);assert.match(route,/const ACCESS:/);assert.doesNotMatch(route,/searchParams\.get\(["']table/);});
+test("sensitive access report is restricted to CEO and privacy officer",()=>{assert.match(route,/access:\["ceo","privacy_officer"\]/);});
+test("API bounds pagination and disables caching",()=>{assert.match(route,/Math\.min\(500/);assert.match(route,/Math\.min\(1000000/);assert.match(route,/Cache-Control/);});
+test("API audits granted, denied and failed report requests",()=>{for(const x of ['"granted"','"denied"','"failed"',"mme_warranty_security_compliance_report_events"])assert.ok(route.includes(x));});
