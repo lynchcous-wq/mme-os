@@ -1,0 +1,23 @@
+name: Build 009.65 repair customer communications contracts
+on:
+  push:
+    branches:
+      - implementation/build-009-65-repair-customer-communications
+  pull_request:
+    branches:
+      - implementation/build-009-64-warranty-repair-management
+jobs:
+  repair-communications:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - run: npm run lint
+      - run: npm run test:build009:repair-communications
+      - run: npm run test:build009:notification-delivery
+      - run: npm run test:build009:communications-hub
+      - run: npm run test:build009:warranty-repair
