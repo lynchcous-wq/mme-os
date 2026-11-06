@@ -98,7 +98,7 @@ grant execute on function public.mme_security_notification_upsert_policy(text,te
 
 create or replace function public.mme_security_notification_create_escalation_alert(p_source_key text,p_title text,p_summary text,p_severity text,p_department text default null)
 returns public.mme_security_notification_escalation_alerts
-language plpgsql security definer set search_path=public,pg_temp as $
+language plpgsql security definer set search_path=public,pg_temp as $$
 declare pol public.mme_security_notification_escalation_policies%rowtype; a public.mme_security_notification_escalation_alerts%rowtype;
 begin
  select * into pol from public.mme_security_notification_escalation_policies
@@ -112,10 +112,10 @@ begin
   insert into public.mme_security_notification_escalation_events(alert_id,event_type,to_level,details) values(a.alert_id,'created',1,'Alert created using matching department/severity policy');
  end if;
  return a;
-end $;
+end $$;
 create or replace function public.mme_security_notification_resolve_escalation_alert(p_alert uuid,p_actor uuid,p_summary text)
 returns public.mme_security_notification_escalation_alerts
-language plpgsql security definer set search_path=public,pg_temp as $
+language plpgsql security definer set search_path=public,pg_temp as $$
 declare a public.mme_security_notification_escalation_alerts%rowtype;
 begin
  update public.mme_security_notification_escalation_alerts set status='resolved',resolved_at=now(),resolved_by=p_actor,resolution_summary=left(p_summary,2000)
@@ -124,7 +124,7 @@ begin
  insert into public.mme_security_notification_escalation_events(alert_id,event_type,from_level,to_level,actor_id,details)
  values(a.alert_id,'resolved',a.escalation_level,a.escalation_level,p_actor,left(p_summary,1000));
  return a;
-end $;
+end $$;
 revoke all on function public.mme_security_notification_create_escalation_alert(text,text,text,text,text),public.mme_security_notification_resolve_escalation_alert(uuid,uuid,text) from public,anon,authenticated;
 grant execute on function public.mme_security_notification_create_escalation_alert(text,text,text,text,text),public.mme_security_notification_resolve_escalation_alert(uuid,uuid,text) to service_role;
 commit;
