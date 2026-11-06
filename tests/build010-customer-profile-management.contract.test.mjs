@@ -1,0 +1,11 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import {readFile} from "node:fs/promises";
+const sql=await readFile(new URL("../supabase/migrations/20261106006000_build010_customer_profile_management.sql",import.meta.url),"utf8");
+const api=await readFile(new URL("../app/api/auth/customer/profile/route.ts",import.meta.url),"utf8");
+const page=await readFile(new URL("../app/account/profile/page.tsx",import.meta.url),"utf8");
+test("profile data is isolated by authenticated customer and protected by RLS",()=>{assert.match(sql,/auth_user_id=auth\.uid\(\)/);assert.match(sql,/enable row level security/i);assert.match(sql,/revoke all on public\.mme_customer_profile_audit.*authenticated/s);});
+test("profile writes require matching verified auth session and constrained fields",()=>{assert.match(sql,/auth\.uid\(\) is distinct from p_auth_user_id/);assert.match(sql,/email_confirmed_at/);assert.match(sql,/length\(btrim\(p_preferred_name\)\) between 1 and 80/);});
+test("profile changes are audited and browser cannot update audit table",()=>{assert.match(sql,/insert into public\.mme_customer_profile_audit/);assert.match(sql,/changed_fields/);assert.doesNotMatch(sql,/grant .*update.*mme_customer_profile_audit/i);});
+test("API enforces same-origin and validates preferences",()=>{assert.match(api,/hasSameOrigin/);assert.match(api,/emailNotificationsEnabled/);assert.match(api,/smsNotificationsEnabled/);});
+test("UI keeps email read-only and explains SMS verification boundary",()=>{assert.match(page,/readOnly/);assert.match(page,/separately verified phone number/);assert.match(page,/Save profile/);});
