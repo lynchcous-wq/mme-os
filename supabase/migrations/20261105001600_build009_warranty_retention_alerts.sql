@@ -45,3 +45,27 @@ create table public.mme_warranty_retention_escalation_rules (
  enabled boolean not null default true, rule_version text not null, created_by uuid not null, created_at timestamptz not null default now(),
  unique(alert_type,severity,after_minutes,target_role,rule_version)
 );
+
+-- Access controls and acknowledgement RPC
+begin;
+alter table public.mme_warranty_retention_alerts enable row level security;
+alter table public.mme_warranty_retention_alert_events enable row level security;
+alter table public.mme_warranty_retention_notification_outbox enable row level security;
+alter table public.mme_warranty_retention_escalation_rules enable row level security;
+revoke all on public.mme_warranty_retention_alerts,public.mme_warranty_retention_alert_events,public.mme_warranty_retention_notification_outbox,public.mme_warranty_retention_escalation_rules from public,anon,authenticated;
+grant select,insert,update on public.mme_warranty_retention_alerts to service_role;
+grant select,insert on public.mme_warranty_retention_alert_events to service_role;
+grant select,insert,update on public.mme_warranty_retention_notification_outbox,public.mme_warranty_retention_escalation_rules to service_role;
+revoke update,delete,truncate on public.mme_warranty_retention_alert_events from public,anon,authenticated,service_role;
+create or replace function public.mme_warranty_retention_acknowledge_alert(p_alert uuid,p_actor uuid) returns boolean language plpgsql security definer set search_path=public,pg_temp as $$
+declare a public.mme_warranty_retention_alerts%rowtype;
+begin
+ select * into a from public.mme_warranty_retention_alerts where alert_id=p_alert for update;
+ if a.alert_id is null or a.status not in ('open','acknowledged') then raise exception 'alert_not_actionable'; end if;
+ update public.mme_warranty_retention_alerts set status='acknowledged',acknowledged_by=p_actor,acknowledged_at=coalesce(acknowledged_at,now()),updated_at=now() where alert_id=p_alert;
+ insert into public.mme_warranty_retention_alert_events(alert_id,event_type,actor_id,outcome,reason_code,event_digest) values(p_alert,'acknowledged',p_actor,'recorded','staff_acknowledgement',encode(digest(p_alert::text||p_actor::text||clock_timestamp()::text,'sha256'),'hex'));
+ return true;
+end $$;
+revoke all on function public.mme_warranty_retention_acknowledge_alert(uuid,uuid) from public,anon,authenticated;
+grant execute on function public.mme_warranty_retention_acknowledge_alert(uuid,uuid) to service_role;
+commit;
