@@ -1,0 +1,22 @@
+name: Build 009.51 order event automation contracts
+on:
+  push:
+    branches:
+      - implementation/build-009-51-order-event-automation
+  pull_request:
+    branches:
+      - implementation/build-009-50-customer-employee-communications-hub
+jobs:
+  order-event-automation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - run: npm run lint
+      - run: npm run test:build009:order-event-automation
+      - run: npm run test:build009:communications-hub
+      - run: npm run test:build009:notification-delivery
