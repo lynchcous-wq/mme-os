@@ -1,0 +1,19 @@
+name: security notification delivery tests
+on:
+  push:
+    branches:
+      - implementation/build-010-11-security-notification-delivery-acknowledgement
+  pull_request:
+    branches:
+      - implementation/build-010-10-security-incident-escalation-automation
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - run: npm run lint
+      - run: npm run test:build010:security-notification-delivery-acknowledgement
