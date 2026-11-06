@@ -83,7 +83,7 @@ begin
  select * into q from public.mme_warehouse_inventory_posting_queue where fulfillment_job_id=p_job for update;
  if not found then raise exception 'posting_queue_not_found'; end if;
  if q.posting_status='posted' or j.inventory_posting_status='posted' then return jsonb_build_object('fulfillment_job_id',p_job,'status','posted','idempotent_replay',true,'inventory_changed',false); end if;
- if j.fulfillment_status in('cancelled','shipped','blocked') then raise exception 'fulfillment_job_not_postable'; end if;
+ if j.fulfillment_status in('cancelled','shipped') or (j.fulfillment_status='blocked' and j.inventory_posting_status<>'failed') then raise exception 'fulfillment_job_not_postable'; end if;
  if j.source_type<>'customer_order' then raise exception 'source_type_requires_specialized_inventory_workflow'; end if;
  if q.posting_status not in('pending','failed','processing') then raise exception 'posting_queue_not_retryable'; end if;
  update public.mme_warehouse_inventory_posting_queue set posting_status='processing',attempt_count=attempt_count+1,last_attempt_at=now(),updated_at=now(),error_code=null,error_detail=null where posting_id=q.posting_id;
