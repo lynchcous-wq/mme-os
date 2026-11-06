@@ -1,0 +1,23 @@
+name: Build 009.66 warranty financial contracts
+on:
+  push:
+    branches:
+      - implementation/build-009-66-warranty-financial-intelligence
+  pull_request:
+    branches:
+      - implementation/build-009-65-repair-customer-communications
+jobs:
+  warranty-financial:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - run: npm run lint
+      - run: npm run test:build009:warranty-financial
+      - run: npm run test:build009:warranty-repair
+      - run: npm run test:build009:financial-reporting
+      - run: npm run test:build009:inventory-ledger
