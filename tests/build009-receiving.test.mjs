@@ -1,0 +1,11 @@
+import test from "node:test"; import assert from "node:assert/strict"; import {readFile} from "node:fs/promises";
+const sql=await readFile(new URL("../supabase/migrations/20261105001380_build009_receiving_inventory_intake.sql",import.meta.url),"utf8");
+test("receiving, lines, serials, discrepancies, landed cost, staging, AP and audit tables exist",()=>{for(const n of ["mme_receiving_sessions","mme_receiving_lines","mme_receiving_serials","mme_receiving_discrepancies","mme_receiving_landed_costs","mme_receiving_intake_staging","mme_receiving_ap_matches","mme_receiving_audit"])assert.ok(sql.includes(n));});
+test("all eight tables enable RLS",()=>assert.equal((sql.match(/enable row level security/g)||[]).length,8));
+test("over-receipt is blocked and short/damaged discrepancies created",()=>{assert.match(sql,/Over-receipt blocked/);assert.match(sql,/short_shipment/);assert.match(sql,/damaged/);});
+test("serial and IMEI uniqueness is enforced",()=>{assert.match(sql,/unique\(imei\)/);assert.match(sql,/unique\(serial_number\)/);});
+test("accepted goods are staged rather than silently posted to inventory",()=>{assert.match(sql,/pending_inventory_post/);assert.doesNotMatch(sql,/insert into public\.mme_inventory_items/i);});
+test("invoice match handles currency mismatch and variance",()=>{assert.match(sql,/p_currency<>po\.currency_code/);assert.match(sql,/abs\(p_invoice_amount-received\)<=p_tolerance/);});
+test("receiving finalization flags open discrepancies and shortages",()=>{assert.match(sql,/open_exceptions>0 or total_received<r\.requested_quantity/);});
+test("audit is append-only and browser roles have no table access",()=>{assert.match(sql,/revoke update,delete,truncate on public\.mme_receiving_audit/);assert.match(sql,/from public,anon,authenticated/);});
+test("only named receiving RPCs are granted to service role",()=>assert.doesNotMatch(sql,/grant execute on all functions in schema/i));
