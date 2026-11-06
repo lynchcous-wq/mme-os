@@ -1,0 +1,17 @@
+name: Build 009.86 warranty audit security monitoring
+on:
+  push:
+    branches: [implementation/build-009-86-warranty-audit-security-monitoring]
+  pull_request:
+    branches: [implementation/build-009-85-warranty-api-audit-rate-limit]
+jobs:
+  warranty-audit-security-monitoring:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - run: npm run lint
+      - run: npm run test:build009:warranty-audit-security-monitoring

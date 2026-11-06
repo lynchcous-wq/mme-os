@@ -1,0 +1,11 @@
+import test from "node:test";import assert from "node:assert/strict";import{readFile}from"node:fs/promises";
+const sql=await readFile(new URL("../supabase/migrations/20261105001630_build009_warranty_audit_security_monitoring.sql",import.meta.url),"utf8");
+const route=await readFile(new URL("../app/api/warranty/compliance/route.ts",import.meta.url),"utf8");
+test("security events cover auth, authorization, rate and anomaly categories",()=>{for(const x of ["authentication_failure","authorization_denial","rate_limit_exceeded","api_error","access_anomaly","suspicious_ip"])assert.ok(sql.includes("'"+x+"'"));});
+test("security event severity and lifecycle are constrained",()=>{for(const x of ["info","warning","high","critical","open","investigating","resolved","false_positive"])assert.ok(sql.includes("'"+x+"'"));});
+test("event upsert deduplicates and increments occurrence counts",()=>{assert.match(sql,/on conflict\(event_key\) do update/);assert.match(sql,/occurrence_count=public\.mme_warranty_api_security_events\.occurrence_count\+1/);});
+test("incident cases have append-only timeline events",()=>{assert.match(sql,/mme_warranty_api_security_incident_events/);assert.match(sql,/revoke update,delete,truncate on public\.mme_warranty_api_security_incident_events/);});
+test("security views are invoker mode and service-role only",()=>{assert.equal((sql.match(/security_invoker=true/g)||[]).length,2);assert.match(sql,/to service_role/);assert.match(sql,/from public,anon,authenticated/);});
+test("API records failed authentication, denied roles and rate limit events",()=>{for(const x of ["authentication_failure","authorization_denial","rate_limit_exceeded","mme_warranty_api_record_security_event"])assert.ok(route.includes(x));});
+test("API uses hashed IP and user data and never persists raw IP",()=>{assert.match(route,/const ipHash=hash\(ip\)/);assert.match(route,/hash\("user:"\+user\.id\)/);assert.match(route,/p_ip_digest:ipHash/);});
+test("API still uses a fixed resource allowlist and server role check",()=>{assert.match(route,/const VIEWS=/);assert.match(route,/ACCESS\[resource\]/);assert.match(route,/SUPABASE_SERVICE_ROLE_KEY/);});
