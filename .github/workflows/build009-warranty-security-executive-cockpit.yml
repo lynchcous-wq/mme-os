@@ -1,0 +1,17 @@
+name: Build 009.89 warranty security executive cockpit
+on:
+  push:
+    branches: [implementation/build-009-89-warranty-security-executive-cockpit]
+  pull_request:
+    branches: [implementation/build-009-88-warranty-security-escalation-notifications]
+jobs:
+  warranty-security-executive-cockpit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - run: npm run lint
+      - run: npm run test:build009:warranty-security-executive-cockpit
