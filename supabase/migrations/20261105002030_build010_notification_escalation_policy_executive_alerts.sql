@@ -56,7 +56,7 @@ begin
  values(left(p_source_key,200),left(p_title,200),left(p_summary,2000),p_severity,left(p_department,100),pol.escalation_roles,now()+make_interval(mins=>pol.acknowledge_within_minutes))
  on conflict(source_key) do update set summary=excluded.summary
  returning * into a;
- if a.escalation_count=0 then insert into public.mme_security_notification_escalation_events(alert_id,event_type,to_level,details) values(a.alert_id,'created',1,'Escalation alert created'); end if;
+ if not exists(select 1 from public.mme_security_notification_escalation_events where alert_id=a.alert_id and event_type='created') then insert into public.mme_security_notification_escalation_events(alert_id,event_type,to_level,details) values(a.alert_id,'created',1,'Escalation alert created'); end if;
  return a;
 end $$;
 create or replace function public.mme_security_notification_escalate_due(p_limit integer default 50)
