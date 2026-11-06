@@ -1,0 +1,14 @@
+import test from"node:test";import assert from"node:assert/strict";import{readFile}from"node:fs/promises";
+const sql=await readFile(new URL("../supabase/migrations/20261105001900_build010_security_event_source_health.sql",import.meta.url),"utf8");
+const adapter=await readFile(new URL("../app/api/internal/security-event-adapters/route.ts",import.meta.url),"utf8");
+const health=await readFile(new URL("../app/api/warranty/security-intelligence/source-health/route.ts",import.meta.url),"utf8");
+const page=await readFile(new URL("../app/warranty/security-intelligence/source-health/page.tsx",import.meta.url),"utf8");
+test("health registry covers all seven MME sources",()=>{for(const x of ["pos","inventory","warranty","crm","evidence","payments","returns"])assert.ok(sql.includes("'"+x+"'"));});
+test("health states and check outcomes are constrained",()=>{for(const x of ["unknown","healthy","degraded","offline","misconfigured","success","failure","warning"])assert.ok(sql.includes("'"+x+"'"));});
+test("health tables enforce RLS and service role access",()=>{assert.match(sql,/enable row level security/);assert.match(sql,/revoke all on public\.mme_security_event_source_health from public,anon,authenticated/);});
+test("adapter enforces source allowlist and individual source secret",()=>{assert.match(adapter,/SOURCES/);assert.match(adapter,/MME_SOURCE_SECRET_/);});
+test("adapter verifies HMAC with timestamp tolerance and constant-time compare",()=>{assert.match(adapter,/createHmac\("sha256"/);assert.match(adapter,/timingSafeEqual/);assert.match(adapter,/300000/);});
+test("adapter validates event schema and payload size",()=>{assert.match(adapter,/raw.length>32768/);assert.match(adapter,/invalid_event_schema/);});
+test("adapter forwards authenticated event to central ingestion",()=>{assert.match(adapter,/api\/warranty\/security-intelligence\/ingest/);assert.match(adapter,/MME_INTERNAL_APP_URL/);});
+test("health API requires authenticated operational role",()=>{assert.match(health,/auth\/v1\/user/);assert.match(health,/integration_health_access_denied/);});
+test("dashboard displays source status and recent health checks",()=>{for(const x of ["Security Event Source Health","Refresh provider health","Recent health checks","Adapter configuration"])assert.ok(page.includes(x));});
