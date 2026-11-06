@@ -8,6 +8,7 @@ export default function EmployeeSignInPage() {
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
+  const [signedIn, setSignedIn] = useState(false);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -25,6 +26,7 @@ export default function EmployeeSignInPage() {
       const access = await fetch("/api/auth/employee", { credentials: "same-origin", cache: "no-store" });
       const accessResult = await access.json() as { error?: string; authorized?: boolean };
       if (!access.ok) throw new Error(accessResult.error || "Employee access is not active for this login.");
+      setSignedIn(true);
       setMessage("Employee identity verified. Employee dashboard routing is the next integration step.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Unable to verify employee access.");
@@ -49,6 +51,7 @@ export default function EmployeeSignInPage() {
           </label>
           <button disabled={busy} type="submit" style={{ padding: 14, background: "#173f58", color: "#fff", border: 0, borderRadius: 8, fontWeight: 700, cursor: busy ? "wait" : "pointer" }}>{busy ? "Verifying…" : "Sign in securely"}</button>
         </form>
+        {signedIn && <button type="button" onClick={async () => { const response = await fetch("/api/auth/sign-out", { method: "POST", credentials: "same-origin" }); if (response.ok) { setSignedIn(false); setMessage("You have been signed out."); } }} style={{ marginTop: 14, padding: 10, border: "1px solid #cbd4dc", borderRadius: 8, background: "#fff", color: "#173f58" }}>Sign out</button>}
         {message && <p role="status" aria-live="polite" style={{ marginTop: 18, padding: 12, background: "#f3f6f8", borderRadius: 8, lineHeight: 1.5 }}>{message}</p>}
         <p style={{ marginTop: 24, fontSize: 13 }}><Link href="/account" style={{ color: "#1b7181" }}>Customer sign-in</Link></p>
       </section>
