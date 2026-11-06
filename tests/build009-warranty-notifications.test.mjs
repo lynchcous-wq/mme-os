@@ -1,0 +1,8 @@
+import test from 'node:test'; import assert from 'node:assert/strict'; import {readFile} from 'node:fs/promises';
+const sql=await readFile(new URL('../supabase/migrations/20261105001520_build009_warranty_notifications.sql',import.meta.url),'utf8');
+test('notification layer defines templates, consent, preferences and attempts',()=>{for(const n of ['mme_warranty_notification_templates','mme_warranty_notification_consent_events','mme_warranty_notification_channel_preferences','mme_warranty_notification_delivery_attempts'])assert.ok(sql.includes('create table public.'+n));});
+test('consent is purpose and channel specific with immutable event history',()=>{assert.match(sql,/purpose text not null check/);assert.match(sql,/consent_state text not null/);assert.match(sql,/revoke update,delete,truncate on public.mme_warranty_notification_consent_events/);});
+test('quiet hours include explicit timezone',()=>{assert.match(sql,/quiet_hours_start time/);assert.match(sql,/timezone_name text not null/);});
+test('delivery attempts are idempotent and retry-aware',()=>{assert.match(sql,/idempotency_key text not null unique/);assert.match(sql,/temporary_failure/);assert.match(sql,/next_retry_at timestamptz/);});
+test('provider callbacks require signature verification evidence',()=>{assert.match(sql,/signature_verified boolean not null default false/);assert.match(sql,/payload_digest text not null/);});
+test('all new tables enable RLS and revoke browser access',()=>{assert.equal((sql.match(/alter table public.%I enable row level security/g)||[]).length,1);assert.match(sql,/revoke all on public.%I from public,anon,authenticated/);});
