@@ -38,15 +38,21 @@ end $$;
 create or replace view public.mme_security_notification_provider_performance
 with(security_invoker=true) as
 select h.provider,h.channel,h.enabled,h.circuit_state,h.priority,h.consecutive_failures,h.average_latency_ms,
- count(c.check_id) filter(where c.checked_at>=now()-interval '30 days') as checks_30d,
- round(100.0*count(c.check_id) filter(where c.checked_at>=now()-interval '30 days' and c.healthy)/nullif(count(c.check_id) filter(where c.checked_at>=now()-interval '30 days'),0),2) as probe_success_pct_30d,
- percentile_cont(0.95) within group(order by c.latency_ms) filter(where c.checked_at>=now()-interval '30 days' and c.healthy) as p95_latency_ms_30d,
- count(o.outage_id) filter(where o.started_at>=now()-interval '30 days') as outages_30d,
- max(o.started_at) as last_outage_at
+ coalesce(c.checks_30d,0) as checks_30d,c.probe_success_pct_30d,c.p95_latency_ms_30d,
+ coalesce(o.outages_30d,0) as outages_30d,o.last_outage_at
 from public.mme_security_notification_provider_health h
-left join public.mme_security_notification_provider_checks c on c.provider=h.provider
-left join public.mme_security_notification_provider_outages o on o.provider=h.provider
-group by h.provider,h.channel,h.enabled,h.circuit_state,h.priority,h.consecutive_failures,h.average_latency_ms;
+left join lateral (
+ select count(*) as checks_30d,
+ round(100.0*count(*) filter(where healthy)/nullif(count(*),0),2) as probe_success_pct_30d,
+ percentile_cont(0.95) within group(order by latency_ms) filter(where healthy) as p95_latency_ms_30d
+ from public.mme_security_notification_provider_checks
+ where provider=h.provider and checked_at>=now()-interval '30 days'
+) c on true
+left join lateral (
+ select count(*) as outages_30d,max(started_at) as last_outage_at
+ from public.mme_security_notification_provider_outages
+ where provider=h.provider and started_at>=now()-interval '30 days'
+) o on true;
 revoke all on public.mme_security_notification_provider_performance from public,anon,authenticated;
 grant select on public.mme_security_notification_provider_performance to service_role;
 revoke all on function public.mme_security_notification_record_outage(text,text,text,text,text),public.mme_security_notification_recover_outage(text,text) from public,anon,authenticated;
