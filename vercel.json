@@ -11,6 +11,10 @@
     {
       "path": "/api/cron/pos-native-financial-export",
       "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/security-notification-escalations",
+      "schedule": "* * * * *"
     }
   ]
 }
