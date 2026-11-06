@@ -91,4 +91,36 @@ drop trigger if exists mme_security_notification_provider_outage_bridge on publi
 create trigger mme_security_notification_provider_outage_bridge after insert or update of recovered_at on public.mme_security_notification_provider_outages for each row execute function public.mme_security_notification_bridge_provider_outage();
 revoke all on function public.mme_security_notification_upsert_policy(text,text,text,boolean,integer,text[],integer,text[],integer[],uuid,integer),public.mme_security_notification_simulate_policy(text,text),public.mme_security_notification_bridge_provider_outage() from public,anon,authenticated;
 grant execute on function public.mme_security_notification_upsert_policy(text,text,text,boolean,integer,text[],integer,text[],integer[],uuid,integer),public.mme_security_notification_simulate_policy(text,text) to service_role;
+
+create or replace function public.mme_security_notification_create_escalation_alert(p_source_key text,p_title text,p_summary text,p_severity text,p_department text default null)
+returns public.mme_security_notification_escalation_alerts
+language plpgsql security definer set search_path=public,pg_temp as $
+declare pol public.mme_security_notification_escalation_policies%rowtype; a public.mme_security_notification_escalation_alerts%rowtype;
+begin
+ select * into pol from public.mme_security_notification_escalation_policies
+ where severity=p_severity and enabled and (department is null or department=nullif(p_department,''))
+ order by (department is not null) desc,updated_at desc limit 1;
+ if not found then raise exception 'escalation_policy_not_configured'; end if;
+ insert into public.mme_security_notification_escalation_alerts(source_key,title,summary,severity,department,target_roles,acknowledge_by,policy_id,policy_version,source_type)
+ values(left(p_source_key,200),left(p_title,200),left(p_summary,2000),p_severity,left(p_department,100),pol.escalation_roles,now()+make_interval(mins=>pol.acknowledge_within_minutes),pol.policy_id,pol.policy_version,'provider_outage')
+ on conflict(source_key) do update set summary=excluded.summary returning * into a;
+ if not exists(select 1 from public.mme_security_notification_escalation_events where alert_id=a.alert_id and event_type='created') then
+  insert into public.mme_security_notification_escalation_events(alert_id,event_type,to_level,details) values(a.alert_id,'created',1,'Alert created using matching department/severity policy');
+ end if;
+ return a;
+end $;
+create or replace function public.mme_security_notification_resolve_escalation_alert(p_alert uuid,p_actor uuid,p_summary text)
+returns public.mme_security_notification_escalation_alerts
+language plpgsql security definer set search_path=public,pg_temp as $
+declare a public.mme_security_notification_escalation_alerts%rowtype;
+begin
+ update public.mme_security_notification_escalation_alerts set status='resolved',resolved_at=now(),resolved_by=p_actor,resolution_summary=left(p_summary,2000)
+ where alert_id=p_alert and status in ('open','acknowledged') returning * into a;
+ if not found then raise exception 'alert_not_resolvable'; end if;
+ insert into public.mme_security_notification_escalation_events(alert_id,event_type,from_level,to_level,actor_id,details)
+ values(a.alert_id,'resolved',a.escalation_level,a.escalation_level,p_actor,left(p_summary,1000));
+ return a;
+end $;
+revoke all on function public.mme_security_notification_create_escalation_alert(text,text,text,text,text),public.mme_security_notification_resolve_escalation_alert(uuid,uuid,text) from public,anon,authenticated;
+grant execute on function public.mme_security_notification_create_escalation_alert(text,text,text,text,text),public.mme_security_notification_resolve_escalation_alert(uuid,uuid,text) to service_role;
 commit;
