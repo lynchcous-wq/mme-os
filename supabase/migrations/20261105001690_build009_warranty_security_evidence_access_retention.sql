@@ -17,7 +17,7 @@ create table public.mme_warranty_api_security_evidence_legal_holds (
  released_by uuid,
  released_at timestamptz,
  release_reason text,
- check((released_at is null and released_by is null) or (released_at is not null and released_by is not null and length(trim(coalesce(release_reason,'')))>=5)
+ check((released_at is null and released_by is null) or (released_at is not null and released_by is not null and length(trim(coalesce(release_reason,'')))>=5))
 );
 create unique index mme_security_evidence_one_active_hold on public.mme_warranty_api_security_evidence_legal_holds(evidence_id) where released_at is null;
 create table public.mme_warranty_api_security_evidence_access_events (
