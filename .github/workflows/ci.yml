@@ -2,7 +2,7 @@ name: MME OS CI
 
 on:
   pull_request:
-    branches: [main, "foundation/**", "integration/**"]
+    branches: [main, "foundation/**", "integration/**", "implementation/**"]
   push:
     branches: [main, "foundation/**", "integration/**"]
 
