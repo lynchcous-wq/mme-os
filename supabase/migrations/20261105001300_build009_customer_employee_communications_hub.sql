@@ -249,7 +249,7 @@ revoke all on function public.mme_communications_dispatch_recipient(uuid,uuid,uu
 revoke all on function public.mme_communications_record_interaction(uuid,uuid,uuid,text,text,text,jsonb) from public,anon,authenticated;
 revoke all on public.mme_communications_campaign_analytics from public,anon,authenticated;
 grant execute on function public.mme_communications_record_consent(uuid,uuid,text,text,text,text,text) to service_role;
-grant execute on function public.mme_communications_create_campaign(text,text,text,text,text,text,text,text,uuid,timestamptz) to service_role;
+grant execute on function public.mme_communications_create_campaign(text,text,text,text,text,text,text,text,uuid,uuid,timestamptz) to service_role;
 grant execute on function public.mme_communications_approve_campaign(uuid,uuid) to service_role;
 grant execute on function public.mme_communications_dispatch_recipient(uuid,uuid,uuid,jsonb) to service_role;
 grant execute on function public.mme_communications_record_interaction(uuid,uuid,uuid,text,text,text,jsonb) to service_role;
