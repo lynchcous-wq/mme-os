@@ -1,0 +1,14 @@
+import test from"node:test";import assert from"node:assert/strict";import{readFile}from"node:fs/promises";
+const sql=await readFile(new URL("../supabase/migrations/20261105002030_build010_notification_escalation_policy_executive_alerts.sql",import.meta.url),"utf8");
+const api=await readFile(new URL("../app/api/warranty/security-intelligence/escalations/route.ts",import.meta.url),"utf8");
+const page=await readFile(new URL("../app/warranty/security-intelligence/escalations/page.tsx",import.meta.url),"utf8");
+test("escalation policies define bounded acknowledgement deadlines and severity",()=>{assert.match(sql,/acknowledge_within_minutes between 1 and 1440/);for(const x of ["medium","high","critical"])assert.ok(sql.includes("'"+x+"'"));});
+test("alert creation is idempotent by source key",()=>{assert.match(sql,/source_key text not null unique/);assert.match(sql,/on conflict\(source_key\)/);});
+test("alerts preserve target roles, deadlines and acknowledgement metadata",()=>{for(const x of ["target_roles","acknowledge_by","acknowledged_at","acknowledged_by"])assert.ok(sql.includes(x));});
+test("escalation worker uses bounded concurrent-safe claims",()=>{assert.match(sql,/for update of a skip locked/);assert.match(sql,/least\(p_limit,100\)/);});
+test("escalation and acknowledgement actions write immutable event history",()=>{for(const x of ["created","escalated","acknowledged","deadline_missed","mme_security_notification_escalation_events"])assert.ok(sql.includes(x));});
+test("all escalation ledgers have RLS and service-role-only access",()=>{assert.equal((sql.match(/enable row level security/g)||[]).length,3);assert.match(sql,/revoke all on public\.mme_security_notification_escalation_policies/);});
+test("operator API requires privileged roles and exposes policy actions",()=>{for(const x of ["ceo","cio","it_admin","privacy_officer","list_policy_alerts","acknowledge_policy_alert","run_policy_escalations"])assert.ok(api.includes(x));});
+test("worker escalation endpoint requires its dedicated secret",()=>{assert.match(api,/MME_NOTIFICATION_ESCALATION_WORKER_SECRET/);});
+test("dashboard displays executive alerts and acknowledgement action",()=>{for(const x of ["Executive policy alerts","Acknowledge executive alert","BUILD 010.15"])assert.ok(page.includes(x));});
+test("legacy incident escalation controls remain available",()=>{for(const x of ["run_due","acknowledge_notification","complete_task"])assert.ok(api.includes(x));});
