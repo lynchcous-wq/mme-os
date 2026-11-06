@@ -1,0 +1,12 @@
+import test from "node:test"; import assert from "node:assert/strict"; import {readFile} from "node:fs/promises";
+const sql=await readFile(new URL("../supabase/migrations/20261105001390_build009_inventory_ledger_stock_posting.sql",import.meta.url),"utf8");
+test("ledger, balances, cost layers, adjustments, reconciliation and audit exist",()=>{for(const n of ["mme_inventory_ledger","mme_inventory_balances","mme_inventory_cost_layers","mme_inventory_adjustment_requests","mme_inventory_reconciliation_runs","mme_inventory_audit"])assert.ok(sql.includes(n));});
+test("all six ledger tables enable RLS",()=>assert.equal((sql.match(/enable row level security/g)||[]).length,6));
+test("receipt posting locks intake and uses advisory lock for SKU location currency",()=>{assert.match(sql,/where intake_id=p_intake_id for update/);assert.match(sql,/pg_advisory_xact_lock/);});
+test("posting requires finalized session and resolved line exceptions",()=>{assert.match(sql,/session_status not in \('reconciled','exception'\)/);assert.match(sql,/open_discrepancies>0/);});
+test("serialized stock requires accepted tested clear serials when configured",()=>{assert.match(sql,/requires_serial_validation/);assert.match(sql,/device_test_status='passed'/);assert.match(sql,/activation_lock_status/);});
+test("intake posting is idempotent and immutable ledger",()=>{assert.match(sql,/idempotency_key text not null unique/);assert.match(sql,/intake_status='posted'/);assert.match(sql,/revoke update,delete,truncate on public\.mme_inventory_ledger/);});
+test("weighted average cost and cost layers are recorded",()=>{assert.match(sql,/average_unit_cost/);assert.match(sql,/mme_inventory_cost_layers/);});
+test("adjustments require independent approval and cannot create negative stock",()=>{assert.match(sql,/p_reviewer=a\.requested_by/);assert.match(sql,/q<0/);assert.match(sql,/q< b\.reserved_quantity/);});
+test("reconciliation compares ledger quantity and value to balances",()=>{assert.match(sql,/lq=b\.on_hand_quantity/);assert.match(sql,/round\(lv,2\)=round\(b\.inventory_value,2\)/);});
+test("no direct inventory writes granted to browser roles",()=>assert.match(sql,/from public,anon,authenticated/));
