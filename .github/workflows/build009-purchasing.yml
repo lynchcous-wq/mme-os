@@ -1,0 +1,21 @@
+name: Build 009.57 purchasing contracts
+on:
+  push:
+    branches:
+      - implementation/build-009-57-purchasing-command-center
+  pull_request:
+    branches:
+      - implementation/build-009-56-inventory-intelligence-market-research
+jobs:
+  purchasing:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - run: npm run lint
+      - run: npm run test:build009:purchasing
+      - run: npm run test:build009:inventory-intelligence
