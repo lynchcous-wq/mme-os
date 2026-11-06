@@ -1,0 +1,17 @@
+name: Build 009.93 warranty security compliance reporting
+on:
+  push:
+    branches: [implementation/build-009-93-warranty-security-compliance-reporting]
+  pull_request:
+    branches: [implementation/build-009-92-warranty-security-evidence-access-retention]
+jobs:
+  warranty-security-compliance-reporting:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - run: npm run lint
+      - run: npm run test:build009:warranty-security-compliance-reporting
