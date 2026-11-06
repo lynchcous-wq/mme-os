@@ -1,0 +1,12 @@
+import test from "node:test";import assert from "node:assert/strict";import{readFile}from"node:fs/promises";
+const sql=await readFile(new URL("../supabase/migrations/20261105001650_build009_warranty_security_escalation_notifications.sql",import.meta.url),"utf8");
+const workerSql=await readFile(new URL("../supabase/migrations/20261105001651_build009_warranty_security_notification_delivery_worker.sql",import.meta.url),"utf8");
+const route=await readFile(new URL("../app/api/internal/warranty-security-notifications/route.ts",import.meta.url),"utf8");
+test("notification recipients support CEO, privacy officer and manager roles",()=>{for(const role of ["ceo","privacy_officer","manager"])assert.ok(sql.includes("'"+role+"'"));});
+test("severity policies define first response, repeat interval and bounded attempts",()=>{for(const severity of ["low","medium","high","critical"])assert.ok(sql.includes("('"+severity+"'"));assert.match(sql,/repeat_after_minutes/);assert.match(sql,/max_attempts/);});
+test("outbox is idempotent per incident recipient and template",()=>{assert.match(sql,/unique\(incident_id,recipient_id,template_key\)/);});
+test("acknowledgement suppresses further escalation queueing",()=>{assert.match(sql,/incident_acknowledgements/);assert.match(sql,/incident_acknowledged/);assert.match(sql,/set status='cancelled'/);});
+test("notification attempt ledger records provider outcomes",()=>{assert.match(sql,/notification_attempts/);assert.match(sql,/outcome in \('sent','retry','failed'\)/);});
+test("claim worker locks due notifications without concurrent duplicate claims",()=>{assert.match(workerSql,/for update skip locked/);assert.match(workerSql,/status='sending'/);});
+test("delivery finalizer applies bounded retry backoff and terminal failure",()=>{assert.match(workerSql,/attempt_count>=5/);assert.match(workerSql,/make_interval\(mins/);assert.match(workerSql,/dead_letter|failed/);});
+test("worker endpoint requires timing-safe secret and only enqueues server-side",()=>{assert.match(route,/MME_SECURITY_NOTIFICATION_WORKER_SECRET/);assert.match(route,/timingSafeEqual/);assert.match(route,/mme_warranty_api_enqueue_incident_notifications/);assert.match(route,/SUPABASE_SERVICE_ROLE_KEY/);});
