@@ -23,6 +23,7 @@ create table public.mme_communications_campaigns (
  id uuid primary key default gen_random_uuid(),
  campaign_key text not null unique,
  title text not null check(length(btrim(title)) between 3 and 180),
+ location_id uuid not null,
  purpose text not null check(purpose in ('marketing','transactional','employee_operational','executive_announcement')),
  audience_type text not null check(audience_type in ('customers','employees','all_employees','selected_recipients')),
  channel text not null check(channel in ('email','sms','push','in_app')),
@@ -96,9 +97,9 @@ begin
   or p_source not in ('checkout','account_settings','employee_portal','signed_form','support','import') then
   raise exception 'Invalid consent record' using errcode='22023';
  end if;
- if p_person_id<>p_actor_person_id and not exists(
-  select 1 from public.mme_person_identities i where i.person_id=p_actor_person_id and i.lifecycle_status='active'
- ) then raise exception 'Active authorized actor required' using errcode='42501'; end if;
+ if p_person_id<>p_actor_person_id then
+  raise exception 'Only the account holder may record or revoke personal channel consent' using errcode='42501';
+ end if;
  insert into public.mme_communications_contact_consent(person_id,channel,purpose,consent_status,
   source,evidence_reference,captured_by_person_id,revoked_at)
  values(p_person_id,p_channel,p_purpose,p_status,p_source,left(p_evidence_reference,240),p_actor_person_id,
@@ -110,26 +111,26 @@ $$;
 
 create or replace function public.mme_communications_create_campaign(
  p_campaign_key text,p_title text,p_purpose text,p_audience_type text,p_channel text,
- p_template_key text,p_locale text,p_source_reference text,p_actor_person_id uuid,p_scheduled_at timestamptz default null
+ p_template_key text,p_locale text,p_source_reference text,p_actor_person_id uuid,
+ p_location_id uuid,p_scheduled_at timestamptz default null
 ) returns uuid language plpgsql security definer set search_path=pg_catalog,public
 as $$
 declare v_id uuid; v_permission text;
 begin
- if p_actor_person_id is null or p_campaign_key is null or p_title is null
+ if p_actor_person_id is null or p_location_id is null or p_campaign_key is null or p_title is null or p_purpose is null or p_audience_type is null or p_channel is null
   or p_purpose not in ('marketing','transactional','employee_operational','executive_announcement')
   or p_audience_type not in ('customers','employees','all_employees','selected_recipients')
   or p_channel not in ('email','sms','push','in_app') or p_template_key is null
   or p_locale is null then raise exception 'Invalid campaign details' using errcode='22023'; end if;
  v_permission:=case when p_purpose='executive_announcement' then 'pos.financial.executive.alerts'
   when p_purpose='marketing' then 'crm.campaign.manage' else 'communications.manage' end;
- if not public.mme_pos_authorize_settlement_action(p_actor_person_id,
-   coalesce((select id from public.mme_store_locations order by id limit 1),gen_random_uuid()),v_permission) then
+ if not public.mme_pos_authorize_settlement_action(p_actor_person_id,p_location_id,v_permission) then
   raise exception 'Campaign creation permission denied' using errcode='42501';
  end if;
  insert into public.mme_communications_campaigns(campaign_key,title,purpose,audience_type,channel,
-  template_key,locale,source_reference,created_by_person_id,scheduled_at,status)
+  template_key,locale,source_reference,created_by_person_id,location_id,scheduled_at,status)
  values(p_campaign_key,p_title,p_purpose,p_audience_type,p_channel,p_template_key,p_locale,
-  left(p_source_reference,240),p_actor_person_id,p_scheduled_at,'pending_approval')
+  left(p_source_reference,240),p_actor_person_id,p_location_id,p_scheduled_at,'pending_approval')
  returning id into v_id;
  return v_id;
 end;
@@ -149,8 +150,7 @@ begin
  end if;
  v_permission:=case when v_campaign.purpose='executive_announcement' then 'pos.financial.executive.alerts'
   else 'communications.approve' end;
- if not public.mme_pos_authorize_settlement_action(p_actor_person_id,
-   coalesce((select id from public.mme_store_locations order by id limit 1),gen_random_uuid()),v_permission) then
+ if not public.mme_pos_authorize_settlement_action(p_actor_person_id,v_campaign.location_id,v_permission) then
   raise exception 'Campaign approval permission denied' using errcode='42501';
  end if;
  update public.mme_communications_campaigns set status='approved',
@@ -169,8 +169,7 @@ begin
  select * into v_campaign from public.mme_communications_campaigns where id=p_campaign_id for update;
  if not found then raise exception 'Campaign not found' using errcode='P0002'; end if;
  if v_campaign.status not in ('approved','dispatching') then raise exception 'Campaign is not approved for dispatch' using errcode='55000'; end if;
- if not public.mme_pos_authorize_settlement_action(p_actor_person_id,
-   coalesce((select id from public.mme_store_locations order by id limit 1),gen_random_uuid()),'communications.dispatch') then
+ if not public.mme_pos_authorize_settlement_action(p_actor_person_id,v_campaign.location_id,'communications.dispatch') then
   raise exception 'Campaign dispatch permission denied' using errcode='42501';
  end if;
  if not exists(select 1 from public.mme_person_identities i
@@ -211,7 +210,7 @@ create or replace function public.mme_communications_record_interaction(
 as $$
 declare v_id uuid;
 begin
- if p_person_id is null or p_interaction_type not in ('sent','delivered','opened','clicked','replied','bounced','unsubscribed','failed')
+ if p_person_id is null or p_interaction_type is null or p_channel is null or p_interaction_type not in ('sent','delivered','opened','clicked','replied','bounced','unsubscribed','failed')
   or p_channel not in ('email','sms','push','in_app') or p_metadata is null or jsonb_typeof(p_metadata)<>'object' then
   raise exception 'Invalid communication interaction' using errcode='22023';
  end if;
@@ -244,7 +243,7 @@ left join public.mme_communications_interaction_history h on h.campaign_id=c.id
 group by c.id;
 
 revoke all on function public.mme_communications_record_consent(uuid,uuid,text,text,text,text,text) from public,anon,authenticated;
-revoke all on function public.mme_communications_create_campaign(text,text,text,text,text,text,text,text,uuid,timestamptz) from public,anon,authenticated;
+revoke all on function public.mme_communications_create_campaign(text,text,text,text,text,text,text,text,uuid,uuid,timestamptz) from public,anon,authenticated;
 revoke all on function public.mme_communications_approve_campaign(uuid,uuid) from public,anon,authenticated;
 revoke all on function public.mme_communications_dispatch_recipient(uuid,uuid,uuid,jsonb) from public,anon,authenticated;
 revoke all on function public.mme_communications_record_interaction(uuid,uuid,uuid,text,text,text,jsonb) from public,anon,authenticated;
