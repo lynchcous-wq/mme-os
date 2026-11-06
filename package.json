@@ -81,7 +81,8 @@
     "test:build009:warranty-renewal-worker": "node --test tests/build009-warranty-renewal-worker.test.mjs",
     "test:build009:warranty-claims": "node --test tests/build009-warranty-claims.test.mjs",
     "test:build009:warranty-claims-portal": "node --test tests/build009-warranty-claims-portal.test.mjs",
-    "test:build009:warranty-evidence-scanner": "node --test tests/build009-warranty-evidence-scanner.test.mjs"
+    "test:build009:warranty-evidence-scanner": "node --test tests/build009-warranty-evidence-scanner.test.mjs",
+    "test:build009:warranty-retention-access": "node --test tests/build009-warranty-retention-access.test.mjs"
   },
   "dependencies": {
     "next": "^15.2.4",
