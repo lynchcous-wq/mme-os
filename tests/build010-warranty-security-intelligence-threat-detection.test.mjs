@@ -1,0 +1,14 @@
+import test from"node:test";import assert from"node:assert/strict";import{readFile}from"node:fs/promises";
+const sql=await readFile(new URL("../supabase/migrations/20261105001830_build010_warranty_security_intelligence_threat_detection.sql",import.meta.url),"utf8");
+const api=await readFile(new URL("../app/api/warranty/security-intelligence/route.ts",import.meta.url),"utf8");
+const review=await readFile(new URL("../app/api/warranty/security-intelligence/[assessmentId]/review/route.ts",import.meta.url),"utf8");
+const page=await readFile(new URL("../app/warranty/security-intelligence/page.tsx",import.meta.url),"utf8");
+test("signal registry restricts signal types and hashes subjects",()=>{assert.match(sql,/subject_fingerprint text not null check\(subject_fingerprint ~ '\^\[a-f0-9\]\{64\}\$'/);for(const x of ["serial_mismatch","duplicate_serial","claim_velocity","repeat_claim_pattern","evidence_integrity_mismatch","unusual_evidence_access","policy_override_pattern","device_identity_conflict"])assert.ok(sql.includes(x));});
+test("assessment records bounded scores confidence and model version",()=>{assert.match(sql,/score integer not null check\(score between 0 and 100\)/);assert.match(sql,/risk_band text not null/);assert.match(sql,/confidence text not null/);assert.match(sql,/model_version text not null/);assert.match(sql,/review_required boolean not null default true/);});
+test("case correlation and human review are separately persisted",()=>{assert.match(sql,/mme_warranty_security_intelligence_case_links/);assert.match(sql,/mme_warranty_security_intelligence_reviews/);assert.match(sql,/intelligence_reviews_are_append_only/);});
+test("intelligence tables enable RLS and revoke client access",()=>{assert.match(sql,/enable row level security/);assert.match(sql,/revoke all on public\.%I from public,anon,authenticated/);});
+test("API authenticates approved roles and hashes subject before storage",()=>{assert.match(api,/auth\/v1\/user/);assert.match(api,/intelligence_access_denied/);assert.match(api,/createHash\("sha256"\)/);assert.match(api,/subject_fingerprint/);});
+test("risk score is bounded and explainable by signal factors",()=>{assert.match(api,/Math\.min\(100/);assert.match(api,/factor_breakdown/);assert.match(api,/weights/);assert.match(api,/mme-warranty-risk-rules-v1\.0/);});
+test("risk assessment explicitly prevents automated adverse action",()=>{assert.match(api,/automatedAdverseAction:false/);assert.match(api,/review_required:true/);});
+test("review endpoint records reviewer rationale and decision",()=>{assert.match(review,/reviewer_id:user\.id/);assert.match(review,/rationale/);assert.match(review,/review_required:false/);assert.match(review,/reviewer_outcome/);});
+test("workspace supports assessment history and human review",()=>{for(const x of ["Assess risk","Load subject history","Record human review","Governance safeguards","No automatic claim denial"])assert.ok(page.includes(x));});
