@@ -1,0 +1,14 @@
+import test from"node:test";import assert from"node:assert/strict";import{readFile}from"node:fs/promises";
+const sql=await readFile(new URL("../supabase/migrations/20261105001950_build010_security_notification_delivery_acknowledgement.sql",import.meta.url),"utf8");
+const api=await readFile(new URL("../app/api/warranty/security-intelligence/notifications/route.ts",import.meta.url),"utf8");
+const page=await readFile(new URL("../app/warranty/security-intelligence/notifications/page.tsx",import.meta.url),"utf8");
+test("notification preferences, delivery attempts and acknowledgement events are persisted",()=>{for(const x of ["mme_security_notification_preferences","mme_security_notification_delivery_attempts","mme_security_notification_ack_events"])assert.ok(sql.includes(x));});
+test("notification delivery is idempotency-key indexed",()=>{assert.match(sql,/idempotency_key/);assert.match(sql,/unique index if not exists mme_security_incident_notifications_idempotency_idx/);});
+test("delivery queue claims due records safely and bounds concurrency",()=>{assert.match(sql,/for update skip locked/i);assert.match(sql,/greatest\(1,least\(p_limit,100\)\)/);assert.match(sql,/delivery_attempts<10/);});
+test("notification records include recipient and acknowledgement deadlines",()=>{for(const x of ["recipient_user_id","acknowledgement_due_at","delivered_at","next_attempt_at"])assert.ok(sql.includes(x));});
+test("new tables are RLS protected and service-role scoped",()=>{assert.match(sql,/enable row level security/);assert.match(sql,/revoke all on public\.mme_security_notification_preferences/);});
+test("API requires an authenticated operational role",()=>{for(const x of ["ceo","cio","it_admin","privacy_officer"])assert.ok(api.includes('"'+x+'"'));});
+test("API exposes preferences, acknowledgement and delivery receipt operations",()=>{for(const x of ["save_preference","acknowledge","record_delivery_result","process_due"])assert.ok(api.includes(x));});
+test("external delivery receipt endpoint requires adapter secret",()=>{assert.match(api,/MME_NOTIFICATION_ADAPTER_SECRET/);assert.match(api,/delivery_adapter_authentication_required/);});
+test("acknowledgement checks assigned recipient or recipient role",()=>{assert.match(api,/recipient_acknowledgement_required/);});
+test("dashboard distinguishes queue state from real provider delivery",()=>{for(const x of ["Security Notification Command Center","Provider delivery attempts","External provider delivery is not configured","Do not interpret"])assert.ok(page.includes(x));});
