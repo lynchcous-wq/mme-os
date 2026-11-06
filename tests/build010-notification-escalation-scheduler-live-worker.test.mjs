@@ -1,0 +1,15 @@
+import test from"node:test";import assert from"node:assert/strict";import{readFile}from"node:fs/promises";
+const route=await readFile(new URL("../app/api/cron/security-notification-escalations/route.ts",import.meta.url),"utf8");
+const adapter=await readFile(new URL("../lib/security-notification-channel-adapters.ts",import.meta.url),"utf8");
+const vercel=JSON.parse(await readFile(new URL("../vercel.json",import.meta.url),"utf8"));
+const foundation=await readFile(new URL("../supabase/migrations/20261105002085_build010_notification_escalation_dispatch_queue_foundation.sql",import.meta.url),"utf8");
+const hard=await readFile(new URL("../supabase/migrations/20261105002090_build010_notification_escalation_dispatch_materialization_ownership_hardening.sql",import.meta.url),"utf8");
+test("cron route requires CRON_SECRET and a valid configured worker UUID",()=>{assert.match(route,/process\.env\.CRON_SECRET/);assert.match(route,/MME_NOTIFICATION_ESCALATION_WORKER_ID/);assert.match(route,/unauthorized_worker_invocation/);});
+test("scheduler runs SLA claim, materialization and leased dispatch in order",()=>{const a=route.indexOf("mme_security_notification_claim_acknowledgement_sla"),b=route.indexOf("mme_security_notification_materialize_escalation_dispatch"),c=route.indexOf("mme_security_notification_claim_escalation_dispatch");assert.ok(a>=0&&b>a&&c>b);});
+test("worker sends only configured supported channels through shared adapters",()=>{assert.match(route,/MME_ESCALATION_DISPATCH_CHANNELS/);assert.match(route,/dispatch\(job\)/);for(const channel of ["email","sms","pager","push"])assert.ok(adapter.includes(channel));});
+test("worker reports success only after provider accepted or delivered",()=>{assert.match(route,/result\.outcome==="accepted"\|\|result\.outcome==="delivered"/);assert.match(route,/p_success:ok/);});
+test("worker completes dispatch under worker lease and records failures for retry",()=>{assert.match(route,/mme_security_notification_finish_escalation_dispatch/);assert.match(route,/p_worker:worker/);assert.match(route,/No configured channel accepted/);});
+test("Vercel cron is configured to invoke the worker every minute",()=>{assert.ok(vercel.crons.some(x=>x.path==="/api/cron/security-notification-escalations"&&x.schedule==="* * * * *"));});
+test("dispatch queue foundation uses SKIP LOCKED and bounded claim size",()=>{assert.match(foundation,/for update skip locked/);assert.match(foundation,/least\(greatest\(coalesce\(p_limit,20\),1\),50\)/);});
+test("dispatch failures back off and eventually dead-letter",()=>{assert.match(foundation,/attempt_count>=5 then 'dead_letter'/);assert.match(foundation,/power\(2,least\(attempt_count,7\)\)/);});
+test("dispatch queue is generated idempotently from overdue alerts",()=>{assert.match(hard,/mme_security_notification_materialize_escalation_dispatch/);assert.match(hard,/on conflict\(escalation_id,target_role\) do nothing/);});
