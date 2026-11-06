@@ -71,4 +71,19 @@ begin
 end $$;
 revoke all on function public.mme_warranty_api_security_finish_delivery(uuid,uuid,text,text,text,text,uuid) from public,anon,authenticated;
 grant execute on function public.mme_warranty_api_security_finish_delivery(uuid,uuid,text,text,text,text,uuid) to service_role;
+
+-- Queue email and SMS alongside in-app delivery; missing provider config is recorded as skipped by the worker.
+create or replace function public.mme_warranty_api_security_queue_external_deliveries()
+returns trigger language plpgsql security definer set search_path=public,pg_temp as $
+begin
+ insert into public.mme_warranty_api_security_alert_deliveries(alert_id,channel,recipient_role,delivery_status)
+ select new.alert_id,c.channel,r,'queued'
+ from unnest(new.routed_roles) r cross join (values('email'),('sms')) c(channel)
+ on conflict(alert_id,channel,recipient_role) do nothing;
+ return new;
+end $;
+create trigger mme_warranty_security_alert_external_delivery_trigger
+after insert on public.mme_warranty_api_security_alerts
+for each row execute function public.mme_warranty_api_security_queue_external_deliveries();
+revoke all on function public.mme_warranty_api_security_queue_external_deliveries() from public,anon,authenticated;
 commit;
