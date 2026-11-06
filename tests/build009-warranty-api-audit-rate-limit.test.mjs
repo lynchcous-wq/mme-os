@@ -1,0 +1,13 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+const route = await readFile(new URL("../app/api/warranty/compliance/route.ts", import.meta.url), "utf8");
+const sql = await readFile(new URL("../supabase/migrations/20261105001620_build009_warranty_compliance_api_audit_rate_limit.sql", import.meta.url), "utf8");
+test("API issues a correlation ID and returns it in response headers and body",()=>{assert.match(route,/randomUUID\(\)/);assert.match(route,/"X-Request-ID"/);assert.match(route,/requestId, resource/);});
+test("records denied, limited, failed and successful API outcomes",()=>{for(const v of ['"denied"','"rate_limited"','"upstream_error"','"read"'])assert.ok(route.includes(v));assert.match(sql,/p_action text/);});
+test("uses hashed user and IP buckets without storing raw IP",()=>{assert.match(route,/digest\("user:" \+ user\.id\)/);assert.match(route,/digest\("ip:" \+ ipDigest\)/);assert.match(route,/const ipDigest = digest\(ip\)/);assert.doesNotMatch(sql,/ip_address\s+inet/i);});
+test("enforces both per-user and per-IP limits before privileged data query",()=>{assert.match(route,/p_limit: 60/);assert.match(route,/p_limit: 180/);assert.ok(route.indexOf('rate_limit_exceeded')<route.indexOf('VIEW_BY_RESOURCE[resource] + "?select=*'));});
+test("fails closed if rate limit infrastructure is unavailable",()=>{assert.match(route,/rate_limit_unavailable/);assert.match(route,/compliance_api_temporarily_unavailable/);});
+test("database limiter is atomic and bounds caller parameters",()=>{assert.match(sql,/on conflict\(bucket_key,window_start\) do update/);assert.match(sql,/p_limit>1000/);assert.match(sql,/p_window_seconds>3600/);});
+test("audit rows are append-only to application roles and browser access is denied",()=>{assert.match(sql,/revoke all on public\.mme_warranty_compliance_api_audit/);assert.match(sql,/grant select,insert on public\.mme_warranty_compliance_api_audit to service_role/);});
+test("audit RPC accepts only known action and outcome values",()=>{assert.match(sql,/invalid_audit_action/);assert.match(sql,/invalid_audit_outcome/);});
