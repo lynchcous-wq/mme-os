@@ -14,4 +14,23 @@ create table if not exists public.mme_financial_expenses(expense_id uuid primary
 create table if not exists public.mme_purchase_orders(purchase_order_id uuid primary key default gen_random_uuid(),po_number text not null unique,vendor_id uuid not null references public.mme_financial_vendors(vendor_id),order_date date not null,expected_date date,total_amount numeric(16,2) not null check(total_amount>=0),currency_code char(3) not null default 'USD',po_status text not null default 'draft' check(po_status in('draft','submitted','approved','sent','partially_received','received','cancelled')),created_by_auth_user_id uuid not null,approved_by_auth_user_id uuid,created_at timestamptz not null default now());
 create table if not exists public.mme_financial_audit_events(financial_audit_event_id uuid primary key default gen_random_uuid(),entity_type text not null,entity_id uuid not null,action text not null,actor_auth_user_id uuid not null,metadata jsonb not null default '{}'::jsonb,created_at timestamptz not null default now());
 do $$declare t text;begin foreach t in array array['mme_financial_periods','mme_chart_of_accounts','mme_journal_entries','mme_journal_entry_lines','mme_financial_approval_events','mme_financial_vendors','mme_accounts_payable_bills','mme_accounts_receivable_invoices','mme_financial_payments','mme_bank_reconciliation_sessions','mme_financial_expenses','mme_purchase_orders','mme_financial_audit_events'] loop execute format('alter table public.%I enable row level security',t);execute format('revoke all on public.%I from public,anon,authenticated',t);execute format('grant all on public.%I to service_role',t);end loop;end$$;
+
+create or replace function public.mme_post_financial_journal(p_entry_id uuid,p_actor uuid)
+returns jsonb language plpgsql security definer set search_path=public as $
+declare e public.mme_journal_entries%rowtype; totals record;
+begin
+ select * into e from public.mme_journal_entries where journal_entry_id=p_entry_id for update;
+ if not found then raise exception 'journal_entry_not_found'; end if;
+ if e.entry_status not in ('draft','approved') then raise exception 'journal_entry_not_postable'; end if;
+ if e.created_by_auth_user_id=p_actor then raise exception 'separation_of_duties_required'; end if;
+ if not exists(select 1 from public.mme_financial_periods p where p.financial_period_id=e.financial_period_id and p.period_status='open' and e.entry_date between p.period_start and p.period_end) then raise exception 'financial_period_not_open'; end if;
+ select coalesce(sum(debit),0) debit_total,coalesce(sum(credit),0) credit_total,count(*) line_count into totals from public.mme_journal_entry_lines where journal_entry_id=p_entry_id;
+ if totals.line_count<2 or totals.debit_total<=0 or totals.debit_total<>totals.credit_total then raise exception 'journal_entry_not_balanced'; end if;
+ update public.mme_journal_entries set entry_status='posted',posted_by_auth_user_id=p_actor,posted_at=now(),approved_by_auth_user_id=coalesce(approved_by_auth_user_id,p_actor) where journal_entry_id=p_entry_id;
+ insert into public.mme_financial_approval_events(subject_type,subject_id,decision,actor_auth_user_id) values('journal_entry',p_entry_id,'posted',p_actor);
+ insert into public.mme_financial_audit_events(entity_type,entity_id,action,actor_auth_user_id,metadata) values('journal_entry',p_entry_id,'posted',p_actor,jsonb_build_object('debit_total',totals.debit_total,'credit_total',totals.credit_total));
+ return jsonb_build_object('journal_entry_id',p_entry_id,'status','posted','debit_total',totals.debit_total,'credit_total',totals.credit_total);
+end;$;
+revoke all on function public.mme_post_financial_journal(uuid,uuid) from public,anon,authenticated;
+grant execute on function public.mme_post_financial_journal(uuid,uuid) to service_role;
 commit;
