@@ -1,0 +1,17 @@
+name: Build 009.95 warranty security AI risk intelligence
+on:
+  push:
+    branches: [implementation/build-009-95-warranty-security-ai-risk-intelligence]
+  pull_request:
+    branches: [implementation/build-009-94-warranty-security-executive-dashboard]
+jobs:
+  warranty-security-risk-intelligence:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - run: npm run lint
+      - run: node --test tests/build009-warranty-security-ai-risk-intelligence.test.mjs
