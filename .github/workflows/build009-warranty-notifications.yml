@@ -1,0 +1,17 @@
+name: Build 009.73 warranty notification contracts
+on:
+  push:
+    branches: [implementation/build-009-73-warranty-notifications]
+  pull_request:
+    branches: [implementation/build-009-72-warranty-dashboard]
+jobs:
+  notifications:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - run: npm run lint
+      - run: npm run test:build009:warranty-notifications
