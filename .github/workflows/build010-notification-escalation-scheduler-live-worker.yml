@@ -1,0 +1,19 @@
+name: notification escalation live worker tests
+on:
+  push:
+    branches:
+      - implementation/build-010-21-notification-escalation-scheduler-live-worker
+  pull_request:
+    branches:
+      - implementation/build-010-20-notification-escalation-dispatch-ownership-routing
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - run: npm run lint
+      - run: npm run test:build010:notification-escalation-scheduler-live-worker
