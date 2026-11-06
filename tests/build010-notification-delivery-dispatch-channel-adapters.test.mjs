@@ -1,0 +1,22 @@
+import test from"node:test";import assert from"node:assert/strict";import{readFile}from"node:fs/promises";
+const sql=await readFile(new URL("../supabase/migrations/20261105002050_build010_notification_delivery_dispatch_channel_adapters.sql",import.meta.url),"utf8");
+const adapter=await readFile(new URL("../lib/security-notification-channel-adapters.ts",import.meta.url),"utf8");
+const worker=await readFile(new URL("../app/api/internal/security-notification-dispatch/route.ts",import.meta.url),"utf8");
+const api=await readFile(new URL("../app/api/warranty/security-intelligence/delivery-dispatch/route.ts",import.meta.url),"utf8");
+const page=await readFile(new URL("../app/warranty/security-intelligence/delivery-dispatch/page.tsx",import.meta.url),"utf8");
+test("delivery jobs support email SMS pager and push with unique alert channel recipient",()=>{for(const x of ["email","sms","pager","push","unique(alert_id,channel,recipient_role)"])assert.ok(sql.includes(x));});
+test("delivery and attempt ledgers use RLS and service-role access",()=>{assert.equal((sql.match(/enable row level security/g)||[]).length,2);assert.match(sql,/revoke all on public\.mme_security_notification_delivery_jobs/);});
+test("alert creation and escalation changes enqueue new routed recipients",()=>{assert.match(sql,/after insert or update of target_roles,escalation_level/);assert.match(sql,/on conflict\(alert_id,channel,recipient_role\) do nothing/);});
+test("dispatch claims use skip locked leases and bounded batches",()=>{assert.match(sql,/for update skip locked/);assert.match(sql,/least\(coalesce\(p_limit,20\),100\)/);assert.match(sql,/locked_at<now\(\)-interval '5 minutes'/);});
+test("attempt outcomes are recorded with bounded retries and dead lettering",()=>{for(const x of ["accepted","delivered","failed","skipped","dead_letter","unique(delivery_id,attempt_number)"])assert.ok(sql.includes(x));assert.match(sql,/least\(3600/);});
+test("email adapters support Resend and SendGrid failover",()=>{for(const x of ["RESEND_API_KEY","SENDGRID_API_KEY","api.resend.com","api.sendgrid.com"])assert.ok(adapter.includes(x));});
+test("SMS adapters support Twilio and Telnyx failover",()=>{for(const x of ["TWILIO_ACCOUNT_SID","TWILIO_AUTH_TOKEN","TELNYX_API_KEY","api.twilio.com","api.telnyx.com"])assert.ok(adapter.includes(x));});
+test("pager and push adapters use signed idempotent webhooks",()=>{assert.match(adapter,/createHmac\("sha256"/);assert.match(adapter,/Idempotency-Key/);assert.match(adapter,/MME_PAGER_WEBHOOK_URL/);assert.match(adapter,/MME_PUSH_WEBHOOK_URL/);});
+test("worker requires dedicated secret and reports per-channel outcomes",()=>{assert.match(worker,/MME_NOTIFICATION_DISPATCH_SECRET/);assert.match(worker,/mme_security_notification_claim_delivery_jobs/);assert.match(worker,/mme_security_notification_finish_delivery/);});
+test("operator delivery API requires privileged roles",()=>{for(const x of ["ceo","cio","it_admin","privacy_officer","delivery_admin_access_denied"])assert.ok(api.includes(x));});
+test("dashboard displays queue states and provider attempt history",()=>{for(const x of ["Notification Delivery Operations","dead_letter","Provider attempt history","BUILD 010.17"])assert.ok(page.includes(x));});
+
+test("provider requests have bounded network timeouts",()=>{assert.ok((adapter.match(/AbortSignal\.timeout\(10000\)/g)||[]).length>=5);});
+test("email and SMS fail over when the preferred provider is not configured",()=>{assert.match(adapter,/first\.outcome==="skipped"&&first\.error==="provider_not_configured"/g);});
+
+test("pager and push webhooks reject non-HTTPS or credential-bearing destinations",()=>{assert.match(adapter,/destination\.protocol!=="https:"/);assert.match(adapter,/destination\.username\|\|destination\.password/);});

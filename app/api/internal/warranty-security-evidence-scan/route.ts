@@ -11,11 +11,13 @@ export async function POST(req:NextRequest){
  let clean=0,quarantined=0,failed=0;
  for(const job of jobs){
   try{
-   if(!scannerUrl||!scannerToken)throw new Error("scanner_not_configured");\n   const parsedScannerUrl=new URL(scannerUrl);if(parsedScannerUrl.protocol!=="https:")throw new Error("scanner_url_must_use_https");
+   if(!scannerUrl||!scannerToken)throw new Error("scanner_not_configured");
+   const parsedScannerUrl=new URL(scannerUrl);if(parsedScannerUrl.protocol!=="https:")throw new Error("scanner_url_must_use_https");
    const object=await fetch(url+"/storage/v1/object/"+job.storage_bucket+"/"+job.storage_path,{headers:{apikey:key,Authorization:"Bearer "+key},cache:"no-store"});
    if(!object.ok)throw new Error("evidence_object_unavailable");
    const bytes=await object.arrayBuffer();
-   if(bytes.byteLength!==Number(job.byte_size)||!job.sha256_hex)throw new Error("evidence_size_or_digest_metadata_missing");\n   const actualDigest=createHash("sha256").update(Buffer.from(bytes)).digest("hex");if(actualDigest!==job.sha256_hex)throw new Error("evidence_digest_mismatch");
+   if(bytes.byteLength!==Number(job.byte_size)||!job.sha256_hex)throw new Error("evidence_size_or_digest_metadata_missing");
+   const actualDigest=createHash("sha256").update(Buffer.from(bytes)).digest("hex");if(actualDigest!==job.sha256_hex)throw new Error("evidence_digest_mismatch");
    const scan=await fetch(scannerUrl,{method:"POST",headers:{Authorization:"Bearer "+scannerToken,"Content-Type":"application/octet-stream","X-Expected-SHA256":job.sha256_hex},body:bytes,cache:"no-store"});
    if(!scan.ok)throw new Error("scanner_unavailable");
    const result=await scan.json().catch(()=>null);
