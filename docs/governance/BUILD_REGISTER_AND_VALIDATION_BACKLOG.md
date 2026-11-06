@@ -413,3 +413,27 @@ Latest relevant commits:
 - Need test-mode integration tests for identity/customer states, product/catalog publication, active locations, aggregate/serialized inventory, quote timeout/malformed results, pickup/shipping, and concurrent price/stock changes.
 - Need verify Supabase local Deno check and deployment configuration, set secrets in a staging project, apply the consolidated migrations, and complete Stripe test-mode transactions/refunds/webhooks.
 - The latest commits have not yet produced a new observed CI run; do not claim these tests pass.
+
+
+## Atomic checkout quote-to-reservation correction — 2026-11-06
+
+Implemented on PR #15 branch `implementation/build001-authenticated-checkout-ui`:
+
+- Added migration `20261103006600_build001_atomic_pricing_quote_reservation.sql`.
+- New RPC signature includes `p_expected_subtotal_cents`.
+- RPC locks and reads current aggregate/serialized product records, computes the authoritative database subtotal, and compares it to the trusted quote before inserting the order or reservation.
+- A mismatch raises SQLSTATE `40001`; the transaction aborts before stock reservation commits.
+- The request fingerprint includes the expected subtotal, so an idempotency key cannot be reused with a different quoted amount.
+- Revoked service-role execution of the legacy RPC overload that lacks quote validation; only the new signature is granted to service_role.
+- Checkout Edge Function now passes the expected subtotal to the RPC and selects the database subtotal for its secondary consistency check.
+- Added `tests/build001-atomic-pricing-reservation.contract.test.mjs`, npm script `test:checkout-atomic-pricing`, and CI execution.
+
+Relevant commits:
+- Atomic RPC migration initial: `5cb1c3d2547c35a32ba960d7dabab690f9e961cd`
+- Correct legacy/new overload grants: `43bb43869447a2933289909b06d9195fc3633833`
+- Checkout passes quote to atomic RPC and reads subtotal: `fd36e55401c9720918f078b75c093d10fbd78f83`
+- Contract test: `4741a4afc743ebaec4b5dae9ecb9f4e90b3d3988`
+- Package test command: `7484ae7eed3c79cda1caf24c0e13d9c013066d73`
+- CI test integration: `1da061fb0cef15c6c24a3b48d3808d01f8eefda6`
+
+Validation status: migration source and function signatures were inspected after commit; no new Actions workflow run was visible for the latest PR head at the time of this note. Vercel checks continue to fail due the account build-rate-limit/upgrade response. Do not mark migration or application deployment as production-ready until fresh-database migration replay, pgTAP, Deno type-check, TypeScript/build and Stripe test-mode checkout all pass.
