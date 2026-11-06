@@ -271,6 +271,7 @@ grant execute on function public.mme_inventory_post_fulfillment_serialized(uuid,
 do $$declare t text;begin foreach t in array array['mme_inventory_device_assets','mme_inventory_device_events','mme_warehouse_fulfillment_device_manifest'] loop execute format('alter table public.%I enable row level security',t);execute format('revoke all on public.%I from public,anon,authenticated',t);execute format('grant all on public.%I to service_role',t);end loop;end$$;
 commit; or (select sum((substr(new.imei_2, length(new.imei_2)-g, 1)::integer * case when g%2=1 then 2 else 1 end / 10 + (substr(new.imei_2,length(new.imei_2)-g,1)::integer * case when g%2=1 then 2 else 1 end)%10) from generate_series(0,length(new.imei_2)-1) g)%10<>0) then raise exception 'invalid_imei_2'; end if;
  if new.imei_1 is not null and new.imei_2 is not null and new.imei_1=new.imei_2 then raise exception 'duplicate_dual_sim_imei'; end if;
+ if exists(select 1 from public.mme_inventory_device_assets d where d.device_asset_id<>coalesce(new.device_asset_id,'00000000-0000-0000-0000-000000000000'::uuid) and ((new.imei_1 is not null and new.imei_1 in(d.imei_1,d.imei_2)) or (new.imei_2 is not null and new.imei_2 in(d.imei_1,d.imei_2)))) then raise exception 'imei_already_registered'; end if;
  return new;
 end $;
 drop trigger if exists mme_inventory_device_imei_validate on public.mme_inventory_device_assets;
