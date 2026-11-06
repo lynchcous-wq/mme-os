@@ -1,0 +1,10 @@
+import test from "node:test"; import assert from "node:assert/strict"; import {readFile} from "node:fs/promises";
+const sql=await readFile(new URL("../supabase/migrations/20261105001470_build009_warranty_fraud_risk_intelligence.sql",import.meta.url),"utf8");
+test("risk rules, assessments, signals, investigations, evidence, decisions and audit exist",()=>{for(const n of ["mme_warranty_risk_rules","mme_warranty_risk_assessments","mme_warranty_risk_signals","mme_warranty_risk_investigations","mme_warranty_risk_evidence","mme_warranty_risk_decisions","mme_warranty_risk_audit_events"])assert.ok(sql.includes("create table public."+n));});
+test("all seven tables enable RLS and audit events are append only",()=>{assert.equal((sql.match(/enable row level security/g)||[]).length,7);assert.match(sql,/revoke update,delete,truncate on public\.mme_warranty_risk_audit_events/);});
+test("risk is explainable and never directly denies claims",()=>{assert.match(sql,/explanation text not null/);assert.match(sql,/no automated denial, payment hold or adverse customer action/);assert.doesNotMatch(sql,/update public\.mme_warranty_repair_cases set status='denied'/);});
+test("risk rules use bounded weights and versioned assessments",()=>{assert.match(sql,/weight integer not null check\(weight between 1 and 100\)/);assert.match(sql,/model_version text not null/);});
+test("repeat repairs and duplicate provider claim references are evaluated",()=>{assert.match(sql,/serialized-unit-repeat-repair/);assert.match(sql,/provider-claim-reference-collision/);});
+test("evidence gaps and employee control exceptions are review signals only",()=>{assert.match(sql,/diagnostic-evidence-not-recorded/);assert.match(sql,/labor-entry-awaiting-independent-approval/);});
+test("investigation outcomes require documented resolution",()=>{assert.match(sql,/Documented rationale required/);assert.match(sql,/resolution_code/);});
+test("RPCs are restricted to service role",()=>{assert.equal((sql.match(/grant execute on function public\.mme_warranty_risk_/g)||[]).length,3);});
