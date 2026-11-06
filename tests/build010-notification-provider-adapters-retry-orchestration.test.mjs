@@ -1,0 +1,14 @@
+import test from"node:test";import assert from"node:assert/strict";import{readFile}from"node:fs/promises";
+const sql=await readFile(new URL("../supabase/migrations/20261105002000_build010_notification_provider_adapters_retry_orchestration.sql",import.meta.url),"utf8");
+const api=await readFile(new URL("../app/api/warranty/security-intelligence/providers/route.ts",import.meta.url),"utf8");
+const page=await readFile(new URL("../app/warranty/security-intelligence/providers/page.tsx",import.meta.url),"utf8");
+test("delivery jobs use expiring leases to recover abandoned claims",()=>{assert.match(sql,/delivery_lease_expires_at/);assert.match(sql,/now\(\)\+interval '2 minutes'/);assert.match(sql,/delivery_lease_expires_at<now\(\)/);});
+test("claim worker is bounded and concurrency safe",()=>{assert.match(sql,/for update skip locked/i);assert.match(sql,/greatest\(1,least\(p_limit,100\)\)/);});
+test("attempt budget is configurable and bounded",()=>{assert.match(sql,/delivery_max_attempts between 1 and 10/);assert.match(sql,/delivery_attempts<n\.delivery_max_attempts/);});
+test("dead-letter queue preserves final failed notification",()=>{assert.match(sql,/mme_security_notification_dead_letters/);assert.match(sql,/retry_budget_remaining/);assert.match(sql,/unique/);});
+test("provider health records circuit state and failure streak",()=>{assert.match(sql,/mme_security_notification_provider_health/);for(const x of ["closed","open","half_open","consecutive_failures"])assert.ok(sql.includes(x));});
+test("new operational tables are RLS protected",()=>{assert.match(sql,/enable row level security/);assert.match(sql,/revoke all on public\.mme_security_notification_dead_letters/);});
+test("provider API enforces operator and adapter authentication",()=>{assert.match(api,/notification_access_denied/);assert.match(api,/MME_NOTIFICATION_ADAPTER_SECRET/);});
+test("provider receipt requires the active leased attempt",()=>{assert.match(api,/stale_or_unclaimed_delivery_attempt/);assert.match(api,/delivery_attempts!==b\.attemptNumber/);});
+test("provider API exposes dispatch, receipt and health operations",()=>{for(const x of ["dispatch_due","record_provider_result","set_provider_health","mme_security_notification_quarantine"])assert.ok(api.includes(x));});
+test("provider dashboard distinguishes configured adapters from empty registry",()=>{for(const x of ["Notification Provider Operations","Provider health & circuit state","Dead-letter queue","No external provider is configured"])assert.ok(page.includes(x));});
