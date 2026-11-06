@@ -45,6 +45,7 @@ test("payment service verifies user identity and server-side trusted pricing", (
 
 test("webhook path verifies Stripe signature before payment processing", () => {
   assert.match(webhook, /verifyStripeWebhook/);
-  assert.match(webhook, /mme_process_verified_payment_event/);
+  assert.match(webhook, /mme_process_unified_order_payment_event/);
   assert.match(webhook, /mme_record_return_refund_event/);
+  assert.ok(webhook.indexOf("verifyStripeWebhook") < webhook.indexOf("mme_process_unified_order_payment_event"), "Stripe signature verification must precede payment ledger processing");
 });
