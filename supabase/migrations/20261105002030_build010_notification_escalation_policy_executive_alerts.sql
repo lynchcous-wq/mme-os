@@ -77,9 +77,13 @@ begin
   update public.mme_security_notification_escalation_alerts a
   set escalation_level=a.escalation_level+1,target_roles=case when a.escalation_level+1>=2 then array['cio','ceo']::text[] else due.escalation_roles end,
       acknowledge_by=now()+interval '15 minutes',last_escalated_at=now(),escalation_count=a.escalation_count+1
-  from due where a.alert_id=due.alert_id returning a.*,due.max_escalation_level
+  from due where a.alert_id=due.alert_id returning a.*
+ ), logged as (
+  insert into public.mme_security_notification_escalation_events(alert_id,event_type,from_level,to_level,details)
+  select upd.alert_id,'escalated',upd.escalation_level-1,upd.escalation_level,'Acknowledgement deadline missed; alert escalated'
+  from upd returning alert_id
  )
- select (upd).* from upd;
+ select upd.* from upd join logged using(alert_id);
 end $$;
 create or replace function public.mme_security_notification_acknowledge_escalation(p_alert uuid,p_actor uuid)
 returns public.mme_security_notification_escalation_alerts
