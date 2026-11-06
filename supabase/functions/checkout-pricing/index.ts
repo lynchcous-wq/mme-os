@@ -254,7 +254,7 @@ Deno.serve(async (request) => {
     if (!isObject(quote) || !Number.isSafeInteger(quote.tax_cents) || Number(quote.tax_cents) < 0 ||
         !Number.isSafeInteger(quote.fulfillment_cents) || Number(quote.fulfillment_cents) < 0 ||
         !Number.isSafeInteger(quote.discount_cents) || Number(quote.discount_cents) < 0 ||
-        (quote.discount_cents > 0 && !cleanText(quote.discount_reference, 180)) ||
+        (Number(quote.discount_cents) > 0 && !cleanText(quote.discount_reference, 180)) ||
         (quote.discount_snapshot !== undefined && !isObject(quote.discount_snapshot))) {
       return reply({ error: "tax_shipping_discount_quote_invalid" }, 502);
     }
