@@ -66,7 +66,8 @@
     "test:build009:inventory-ledger": "node --test tests/build009-inventory-ledger.test.mjs",
     "test:build009:transfers": "node --test tests/build009-transfers.test.mjs",
     "test:build009:reservations": "node --test tests/build009-reservations.test.mjs",
-    "test:build009:fulfillment": "node --test tests/build009-fulfillment.test.mjs"
+    "test:build009:fulfillment": "node --test tests/build009-fulfillment.test.mjs",
+    "test:build009:reverse-logistics": "node --test tests/build009-reverse-logistics.test.mjs"
   },
   "dependencies": {
     "next": "^15.2.4",
