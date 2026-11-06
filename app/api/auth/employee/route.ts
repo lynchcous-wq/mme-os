@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireBrowserUser, requireEmployeeIdentity } from "@/lib/auth/supabase-session";
+import { requireBrowserUser, requireEmployeeIdentity, setSessionCookies } from "@/lib/auth/supabase-session";
 
 export const dynamic = "force-dynamic";
 
@@ -11,11 +11,13 @@ export async function GET(request: NextRequest) {
     if (!employee) {
       return NextResponse.json({ error: "This login is not linked to an active MME employee identity." }, { status: 403 });
     }
-    return NextResponse.json({
+    const response = NextResponse.json({
       authorized: true,
       personId: employee.personId,
       employeeAccess: true,
     }, { headers: { "Cache-Control": "no-store" } });
+    if (session.refreshed) setSessionCookies(response, session.refreshed);
+    return response;
   } catch {
     return NextResponse.json({ error: "Employee authorization is temporarily unavailable." }, {
       status: 503, headers: { "Cache-Control": "no-store" },
