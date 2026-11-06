@@ -1,0 +1,22 @@
+name: Build 009.59 inventory ledger contracts
+on:
+  push:
+    branches:
+      - implementation/build-009-59-inventory-ledger-stock-posting
+  pull_request:
+    branches:
+      - implementation/build-009-58-receiving-inventory-intake
+jobs:
+  inventory-ledger:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - run: npm run lint
+      - run: npm run test:build009:inventory-ledger
+      - run: npm run test:build009:receiving
+      - run: npm run test:build009:purchasing
