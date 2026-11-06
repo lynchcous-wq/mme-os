@@ -80,8 +80,8 @@ function verifyTwilio(raw: string, req: NextRequest) {
   return safeEqual(signature, expected);
 }
 
-function verifyTimestampedHmac(raw: string, req: NextRequest, provider: "pager" | "push") {
-  const secret = process.env[provider === "pager" ? "MME_PAGER_WEBHOOK_SECRET" : "MME_PUSH_WEBHOOK_SECRET"];
+function verifyTimestampedHmac(raw: string, req: NextRequest, provider: "pagerduty" | "push") {
+  const secret = process.env[provider === "pagerduty" ? "MME_PAGER_WEBHOOK_SECRET" : "MME_PUSH_WEBHOOK_SECRET"];
   const timestamp = req.headers.get("x-mme-timestamp") ?? "";
   const signature = req.headers.get("x-mme-signature") ?? "";
   if (!secret || !freshTimestamp(timestamp) || !signature.startsWith("sha256=")) return false;
@@ -89,11 +89,11 @@ function verifyTimestampedHmac(raw: string, req: NextRequest, provider: "pager" 
   return safeEqual(signature.slice(7), expected);
 }
 
-async function persist(provider: string, eventId: string, reference: string, eventType: string, status: string, raw: string) {
+async function persist(provider: string, eventId: string, reference: string, channel: string, status: string, event: Record<string, any>) {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) return { ok: false, status: 503 };
-  const response = await fetch(url + "/rest/v1/rpc/mme_security_notification_apply_provider_receipt", {
+  const response = await fetch(url + "/rest/v1/rpc/mme_security_notification_ingest_provider_receipt", {
     method: "POST",
     headers: {
       apikey: key,
@@ -103,10 +103,10 @@ async function persist(provider: string, eventId: string, reference: string, eve
     body: JSON.stringify({
       p_provider: provider,
       p_event_id: eventId,
-      p_provider_reference: reference,
-      p_event_type: eventType,
+      p_reference: reference,
+      p_channel: channel,
       p_status: status,
-      p_digest: digest(raw),
+      p_event: event,
     }),
     cache: "no-store",
   });
@@ -135,9 +135,8 @@ export async function POST(req: NextRequest) {
       reference = String(event.data?.email_id ?? event.data?.id ?? "");
       type = String(event.type ?? "unknown");
       status = type === "email.delivered" ? "delivered" :
-        type === "email.bounced" ? "bounced" :
-        type === "email.complained" ? "complained" :
-        type === "email.sent" ? "sent" : "unknown";
+        type === "email.bounced" || type === "email.complained" ? "failed" :
+        type === "email.sent" ? "accepted" : "unknown";
     } else if (provider === "twilio") {
       if (!verifyTwilio(raw, req)) return NextResponse.json({ error: "invalid_provider_signature", requestId }, { status: 401 });
       const params = new URLSearchParams(raw);
@@ -148,9 +147,9 @@ export async function POST(req: NextRequest) {
       status = type === "delivered" ? "delivered" :
         type === "undelivered" ? "undelivered" :
         type === "failed" ? "failed" :
-        type === "sent" ? "sent" :
+        type === "sent" ? "accepted" :
         type === "queued" ? "accepted" : "unknown";
-    } else if (provider === "pager" || provider === "push") {
+    } else if (provider === "pagerduty" || provider === "push") {
       if (!verifyTimestampedHmac(raw, req, provider)) {
         return NextResponse.json({ error: "invalid_provider_signature", requestId }, { status: 401 });
       }
@@ -170,7 +169,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "receipt_correlation_fields_invalid", requestId }, { status: 400 });
   }
 
-  const saved = await persist(provider, eventId, reference, type, status, raw);
+  const channel = provider === "resend" ? "email" : provider === "twilio" ? "sms" : provider === "pagerduty" ? "pager" : "push";
+  const saved = await persist(provider, eventId, reference, channel, status, event);
   if (!saved.ok) {
     return NextResponse.json({ error: "receipt_persistence_failed", requestId }, { status: saved.status });
   }
