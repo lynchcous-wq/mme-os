@@ -31,4 +31,34 @@ end;$$;
 revoke all on function public.mme_inventory_adjust_stock(uuid,uuid,integer,text,uuid) from public,anon,authenticated;
 grant execute on function public.mme_inventory_adjust_stock(uuid,uuid,integer,text,uuid) to service_role;
 do $$declare t text;begin foreach t in array array['mme_inventory_locations','mme_inventory_items','mme_inventory_serials','mme_inventory_balances','mme_inventory_movements','mme_inventory_reservations','mme_inventory_transfers','mme_inventory_transfer_lines','mme_inventory_counts','mme_inventory_count_lines','mme_inventory_receipts','mme_inventory_receipt_lines','mme_inventory_alerts','mme_inventory_audit_events'] loop execute format('alter table public.%I enable row level security',t);execute format('revoke all on public.%I from public,anon,authenticated',t);execute format('grant all on public.%I to service_role',t);end loop;end$$;
+
+create or replace function public.mme_inventory_receive_stock(p_item uuid,p_location uuid,p_quantity integer,p_receipt text,p_actor uuid)
+returns jsonb language plpgsql security definer set search_path=public as $
+declare b public.mme_inventory_balances%rowtype;
+begin
+ if p_quantity<=0 or p_receipt is null or length(trim(p_receipt))=0 then raise exception 'valid_receipt_required'; end if;
+ insert into public.mme_inventory_balances(inventory_item_id,location_id,on_hand,reserved) values(p_item,p_location,0,0) on conflict(inventory_item_id,location_id) do nothing;
+ select * into b from public.mme_inventory_balances where inventory_item_id=p_item and location_id=p_location for update;
+ update public.mme_inventory_balances set on_hand=on_hand+p_quantity,updated_at=now() where balance_id=b.balance_id returning * into b;
+ insert into public.mme_inventory_movements(inventory_item_id,to_location_id,movement_type,quantity,source_type,source_reference,actor_auth_user_id) values(p_item,p_location,'receipt',p_quantity,'receipt',p_receipt,p_actor);
+ insert into public.mme_inventory_audit_events(entity_type,entity_id,action,actor_auth_user_id,metadata) values('inventory_item',p_item,'stock_received',p_actor,jsonb_build_object('location_id',p_location,'quantity',p_quantity,'receipt',p_receipt));
+ return jsonb_build_object('item_id',p_item,'location_id',p_location,'on_hand',b.on_hand,'receipt',p_receipt);
+end;$;
+create or replace function public.mme_inventory_reserve_stock(p_item uuid,p_location uuid,p_quantity integer,p_reference_type text,p_reference_id text,p_actor uuid)
+returns jsonb language plpgsql security definer set search_path=public as $
+declare b public.mme_inventory_balances%rowtype; rid uuid;
+begin
+ if p_quantity<=0 or p_reference_id is null or length(trim(p_reference_id))=0 then raise exception 'valid_reservation_required'; end if;
+ select * into b from public.mme_inventory_balances where inventory_item_id=p_item and location_id=p_location for update;
+ if not found or b.on_hand-b.reserved<p_quantity then raise exception 'insufficient_available_stock'; end if;
+ update public.mme_inventory_balances set reserved=reserved+p_quantity,updated_at=now() where balance_id=b.balance_id;
+ insert into public.mme_inventory_reservations(inventory_item_id,location_id,quantity,reference_type,reference_id,created_by_auth_user_id) values(p_item,p_location,p_quantity,p_reference_type,p_reference_id,p_actor) returning reservation_id into rid;
+ insert into public.mme_inventory_movements(inventory_item_id,from_location_id,movement_type,quantity,source_type,source_reference,actor_auth_user_id) values(p_item,p_location,'reservation',p_quantity,p_reference_type,p_reference_id,p_actor);
+ insert into public.mme_inventory_audit_events(entity_type,entity_id,action,actor_auth_user_id,metadata) values('inventory_item',p_item,'stock_reserved',p_actor,jsonb_build_object('location_id',p_location,'quantity',p_quantity,'reference',p_reference_id));
+ return jsonb_build_object('reservation_id',rid,'available',b.on_hand-b.reserved-p_quantity);
+end;$;
+revoke all on function public.mme_inventory_receive_stock(uuid,uuid,integer,text,uuid) from public,anon,authenticated;
+revoke all on function public.mme_inventory_reserve_stock(uuid,uuid,integer,text,text,uuid) from public,anon,authenticated;
+grant execute on function public.mme_inventory_receive_stock(uuid,uuid,integer,text,uuid) to service_role;
+grant execute on function public.mme_inventory_reserve_stock(uuid,uuid,integer,text,text,uuid) to service_role;
 commit;
