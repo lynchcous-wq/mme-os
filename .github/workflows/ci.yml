@@ -36,6 +36,7 @@ jobs:
           npm run test:workflow-reconciliation-decision
           npm run test:workflow-reconciliation-history
           npm run test:checkout-ui
+          npm run test:checkout-pricing
 
       - name: Type-check
         run: npm run lint
@@ -56,6 +57,7 @@ jobs:
           deno-version: v2.x
       - name: Type-check checkout and webhook functions
         run: |
+          deno check --node-modules-dir=none supabase/functions/checkout-pricing/index.ts
           deno check --node-modules-dir=none supabase/functions/create-checkout-payment/index.ts
           deno check --node-modules-dir=none supabase/functions/stripe-webhook/index.ts
 
