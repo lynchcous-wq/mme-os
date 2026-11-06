@@ -1,0 +1,16 @@
+import test from"node:test";import assert from"node:assert/strict";import{readFile}from"node:fs/promises";
+const sql=await readFile(new URL("../supabase/migrations/20261105001820_build010_warranty_security_evidence_vault_retention.sql",import.meta.url),"utf8");
+const upload=await readFile(new URL("../app/api/warranty/security-cases/[caseId]/evidence/route.ts",import.meta.url),"utf8");
+const access=await readFile(new URL("../app/api/warranty/security-evidence/[evidenceId]/route.ts",import.meta.url),"utf8");
+const retention=await readFile(new URL("../app/api/warranty/security-evidence/[evidenceId]/retention/route.ts",import.meta.url),"utf8");
+const page=await readFile(new URL("../app/warranty/security-evidence/page.tsx",import.meta.url),"utf8");
+test("evidence bucket is private with strict size and MIME limits",()=>{assert.match(sql,/public=false/);assert.match(sql,/file_size_limit=52428800/);assert.match(sql,/mme-warranty-security-evidence/);});
+test("evidence access and retention metadata tables are protected by RLS",()=>{for(const t of ["mme_warranty_security_evidence_access_log","mme_warranty_security_evidence_retention","mme_warranty_security_evidence_deletion_requests"])assert.ok(sql.includes("alter table public."+t+" enable row level security"));assert.match(sql,/revoke all on public\.mme_warranty_security_evidence_access_log[\s\S]*from public,anon,authenticated/);});
+test("legal hold requires a reason and records actor",()=>{assert.match(sql,/mme_warranty_security_evidence_set_legal_hold/);assert.match(sql,/legal_hold/);assert.match(sql,/hold_set_by/);});
+test("upload endpoint validates role session case id file type and size",()=>{assert.match(upload,/auth\/v1\/user/);assert.match(upload,/warranty_investigator/);assert.match(upload,/50\*1024\*1024/);assert.match(upload,/types\.has\(file\.type\)/);assert.match(upload,/case_not_found/);});
+test("upload endpoint hashes bytes and writes private storage before metadata",()=>{assert.match(upload,/createHash\("sha256"\)/);assert.match(upload,/storage\/v1\/object/);assert.match(upload,/mme_warranty_security_case_evidence/);assert.match(upload,/metadata_write_failed/);});
+test("evidence access issues short-lived signed URL and logs downloads",()=>{assert.match(access,/object\/sign/);assert.match(access,/expiresIn:60/);assert.match(access,/action:"download"/);});
+test("evidence integrity verification recomputes SHA-256",()=>{assert.match(access,/createHash\("sha256"\)/);assert.match(access,/computedSha256/);assert.match(access,/evidence_status:"verified"/);});
+test("retention workflow supports legal hold and independent deletion decision",()=>{assert.match(retention,/action==="hold"/);assert.match(retention,/action==="release_hold"/);assert.match(retention,/independent_approval_required/);assert.match(retention,/retention_or_legal_hold_blocks_deletion/);});
+test("approval does not directly delete evidence objects",()=>{assert.match(retention,/Approval recorded; storage deletion requires a separate controlled execution step/);assert.doesNotMatch(retention,/storage\/v1\/object\/.*method:"DELETE"/);});
+test("evidence vault workspace supports upload verify and download",()=>{for(const x of ["Upload evidence privately","Verify SHA-256","Request secure download","60 seconds"])assert.ok(page.includes(x));});

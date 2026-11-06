@@ -1,0 +1,19 @@
+name: warranty security evidence vault tests
+on:
+  push:
+    branches:
+      - implementation/build-010-02-warranty-security-evidence-vault-retention
+  pull_request:
+    branches:
+      - implementation/build-010-01-warranty-security-incident-case-management
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - run: npm run lint
+      - run: npm run test:build010:warranty-security-evidence-vault-retention
