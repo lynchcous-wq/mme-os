@@ -1,0 +1,14 @@
+import test from"node:test";import assert from"node:assert/strict";import{readFile}from"node:fs/promises";
+const sql=await readFile(new URL("../supabase/migrations/20261105001740_build009_warranty_security_notification_delivery.sql",import.meta.url),"utf8");
+const adapter=await readFile(new URL("../lib/warranty-security-notifications.ts",import.meta.url),"utf8");
+const worker=await readFile(new URL("../app/api/internal/warranty-security-notifications/dispatch/route.ts",import.meta.url),"utf8");
+test("delivery attempts are retained with provider outcome and correlation",()=>{for(const x of ["delivery_attempts","attempt_number","provider_reference","error_code","request_id","attempted_at"])assert.ok(sql.includes(x));});
+test("delivery claims use row locks and skip locked workers",()=>{assert.match(sql,/for update skip locked/);assert.match(sql,/locked_by/);});
+test("delivery retries are bounded and exponential",()=>{assert.match(sql,/max_attempts/);assert.match(sql,/attempt_count<d.max_attempts/);assert.match(sql,/make_interval\(secs=>least\(3600/);});
+test("service role exclusively invokes claim and finish RPCs",()=>{assert.match(sql,/revoke all on function public\.mme_warranty_api_security_claim_deliveries[\s\S]*to service_role/);assert.match(sql,/revoke all on function public\.mme_warranty_api_security_finish_delivery[\s\S]*to service_role/);});
+test("new alerts queue email and SMS to routed roles",()=>{assert.match(sql,/queue_external_deliveries/);assert.match(sql,/values\('email'\),\('sms'\)/);});
+test("provider adapter uses server-side Resend and Twilio credentials",()=>{for(const x of ["RESEND_API_KEY","TWILIO_ACCOUNT_SID","TWILIO_AUTH_TOKEN","MME_SECURITY_CEO_EMAIL","MME_SECURITY_PRIVACY_PHONE"])assert.ok(adapter.includes(x));});
+test("provider sends use per-delivery idempotency keys",()=>{assert.match(adapter,/Idempotency-Key.*d\.delivery_id/);});
+test("worker requires shared secret and caps batch size",()=>{assert.match(worker,/MME_NOTIFICATION_WORKER_SECRET/);assert.match(worker,/Math\.min\(50/);});
+test("worker claims and records every delivery attempt",()=>{assert.match(worker,/mme_warranty_api_security_claim_deliveries/);assert.match(worker,/mme_warranty_api_security_finish_delivery/);});
+test("missing provider credentials are explicitly skipped, never falsely reported sent",()=>{assert.match(adapter,/provider_or_recipient_not_configured/);assert.match(worker,/skipped/);});

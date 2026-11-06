@@ -1,0 +1,19 @@
+name: warranty security notification delivery tests
+on:
+  push:
+    branches:
+      - implementation/build-009-98-warranty-security-notification-delivery
+  pull_request:
+    branches:
+      - implementation/build-009-97-warranty-security-real-time-alerting
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - run: npm run lint
+      - run: npm run test:build009:warranty-security-notification-delivery
