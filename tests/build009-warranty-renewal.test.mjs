@@ -1,0 +1,9 @@
+import test from 'node:test'; import assert from 'node:assert/strict'; import {readFile} from 'node:fs/promises';
+const sql=await readFile(new URL('../supabase/migrations/20261105001530_build009_warranty_renewal_retention.sql',import.meta.url),'utf8');
+test('renewal campaigns support approved 30, 60 and 90 day horizons',()=>{assert.match(sql,/lead_days integer not null check\(lead_days in \(30,60,90\)\)/);assert.match(sql,/status in \('draft','approved','active','paused','retired'\)/);});
+test('opportunities are idempotent per lifecycle and horizon',()=>{assert.match(sql,/unique\(lifecycle_id,horizon_days\)/);assert.match(sql,/idempotency_key text not null unique/);});
+test('pricing snapshots preserve cost, margin, currency and rule version',()=>{for(const x of ['product_cost','service_reserve','provider_cost','gross_margin','margin_pct','pricing_rule_version','currency_code'])assert.ok(sql.includes(x));});
+test('customer acceptance requires terms and evidence',()=>{assert.match(sql,/acceptance_terms_version/);assert.match(sql,/acceptance_evidence_reference text not null/);assert.match(sql,/where decision='accepted'/);});
+test('renewal order and payment lifecycle never imply automatic charge',()=>{assert.match(sql,/awaiting_payment/);assert.match(sql,/requires_customer_action/);assert.doesNotMatch(sql,/create trigger.*payment/is);});
+test('retention facts separate actuals from versioned projections',()=>{assert.match(sql,/realization text not null check\(realization in \('actual','projection'\)\)/);assert.match(sql,/realization<>'projection' or model_version is not null/);});
+test('all renewal tables enable RLS and revoke browser access',()=>{assert.match(sql,/alter table public.%I enable row level security/);assert.match(sql,/revoke all on public.%I from public,anon,authenticated/);});
