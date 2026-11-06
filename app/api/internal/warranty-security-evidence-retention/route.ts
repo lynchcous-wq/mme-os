@@ -11,7 +11,7 @@ export async function POST(req:NextRequest){
  let deleted=0,failed=0;
  for(const job of jobs){
   try{
-   const hold=await fetch(url+"/rest/v1/mme_warranty_api_security_evidence_legal_holds?select=hold_id& evidence_id=eq."+encodeURIComponent(job.evidence_id)+"&released_at=is.null",{headers:{apikey:key,Authorization:"Bearer "+key},cache:"no-store"});
+   const hold=await fetch(url+"/rest/v1/mme_warranty_api_security_evidence_legal_holds?select=hold_id&evidence_id=eq."+encodeURIComponent(job.evidence_id)+"&released_at=is.null",{headers:{apikey:key,Authorization:"Bearer "+key},cache:"no-store"});
    if(!hold.ok)throw new Error("legal_hold_check_failed");const holds=await hold.json();if(holds.length){await fetch(url+"/rest/v1/rpc/mme_warranty_api_security_evidence_finish_retention",{method:"POST",headers:{apikey:key,Authorization:"Bearer "+key,"Content-Type":"application/json"},body:JSON.stringify({p_job_id:job.job_id,p_deleted:false,p_error:"legal_hold_active"}),cache:"no-store"});continue;}
    const remove=await fetch(url+"/storage/v1/object/"+encodeURIComponent(job.storage_bucket)+"/"+job.storage_path.split("/").map(encodeURIComponent).join("/"),{method:"DELETE",headers:{apikey:key,Authorization:"Bearer "+key},cache:"no-store"});
    if(!remove.ok)throw new Error("storage_delete_failed");
