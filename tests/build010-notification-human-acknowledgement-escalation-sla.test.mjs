@@ -1,0 +1,13 @@
+import test from"node:test";import assert from"node:assert/strict";import{readFile}from"node:fs/promises";
+const sql=await readFile(new URL("../supabase/migrations/20261105002070_build010_notification_human_acknowledgement_escalation_sla.sql",import.meta.url),"utf8");
+const api=await readFile(new URL("../app/api/warranty/security-intelligence/acknowledgements/route.ts",import.meta.url),"utf8");
+const page=await readFile(new URL("../app/warranty/security-intelligence/acknowledgements/page.tsx",import.meta.url),"utf8");
+test("alerts retain acknowledgement state, actor, note and deadline",()=>{for(const x of ["acknowledgement_due_at","acknowledged_at","acknowledged_by","acknowledgement_status","acknowledgement_note"])assert.ok(sql.includes(x));});
+test("acknowledgement and escalation ledgers are append-oriented and RLS protected",()=>{assert.match(sql,/mme_security_notification_acknowledgement_events/);assert.match(sql,/mme_security_notification_acknowledgement_escalations/);assert.match(sql,/enable row level security/g);});
+test("acknowledgement locks alert and rejects unassigned actors",()=>{assert.match(sql,/for update/);assert.match(sql,/actor_not_assigned_to_alert/);assert.match(sql,/alert_closed/);});
+test("acknowledgement is idempotent and cancels pending escalations",()=>{assert.match(sql,/already_acknowledged/);assert.match(sql,/escalation_status='cancelled'/);});
+test("SLA worker marks expired alerts overdue and inserts escalation records",()=>{assert.match(sql,/acknowledgement_due_at<=now\(\)/);assert.match(sql,/acknowledgement_status='overdue'/);assert.match(sql,/on conflict\(alert_id,escalation_level\) do nothing/);});
+test("acknowledgement and SLA RPCs are service-role only",()=>{assert.match(sql,/revoke all on function public\.mme_security_notification_acknowledge_alert/);assert.match(sql,/grant execute on function public\.mme_security_notification_acknowledge_alert[\s\S]*to service_role/);});
+test("API verifies signed-in user and authorized MME roles",()=>{assert.match(api,/auth\/v1\/user/);assert.match(api,/acknowledgement_access_denied/);assert.match(api,/app_metadata/);});
+test("API delegates acknowledgement to protected database function",()=>{assert.match(api,/mme_security_notification_acknowledge_alert/);assert.match(api,/actor_not_assigned_to_alert/);});
+test("dashboard shows SLA states and allows acknowledgement with note",()=>{for(const x of ["Executive Acknowledgement & SLA","overdue","Acknowledge & take ownership","acknowledgement_due_at"])assert.ok(page.includes(x));});

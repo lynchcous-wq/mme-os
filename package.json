@@ -118,7 +118,8 @@
     "test:build010:notification-escalation-policy-executive-alerts": "node --test tests/build010-notification-escalation-policy-executive-alerts.test.mjs",
     "test:build010:notification-policy-configuration-outage-automation": "node --test tests/build010-notification-policy-configuration-outage-automation.test.mjs",
     "test:build010:notification-delivery-dispatch-channel-adapters": "node --test tests/build010-notification-delivery-dispatch-channel-adapters.test.mjs",
-    "test:build010:notification-provider-receipts-delivery-reconciliation": "node --test tests/build010-notification-provider-receipts-delivery-reconciliation.test.mjs"
+    "test:build010:notification-provider-receipts-delivery-reconciliation": "node --test tests/build010-notification-provider-receipts-delivery-reconciliation.test.mjs",
+    "test:build010:notification-human-acknowledgement-escalation-sla": "node --test tests/build010-notification-human-acknowledgement-escalation-sla.test.mjs"
   },
   "dependencies": {
     "next": "^15.2.4",

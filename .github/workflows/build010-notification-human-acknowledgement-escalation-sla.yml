@@ -1,0 +1,19 @@
+name: notification human acknowledgement SLA tests
+on:
+  push:
+    branches:
+      - implementation/build-010-19-notification-human-acknowledgement-escalation-sla
+  pull_request:
+    branches:
+      - implementation/build-010-18-notification-provider-receipts-delivery-reconciliation
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - run: npm run lint
+      - run: npm run test:build010:notification-human-acknowledgement-escalation-sla
