@@ -1,0 +1,14 @@
+import test from"node:test";import assert from"node:assert/strict";import{readFile}from"node:fs/promises";
+const sql=await readFile(new URL("../supabase/migrations/20261105001920_build010_security_integration_observability_alerting.sql",import.meta.url),"utf8");
+const adapter=await readFile(new URL("../app/api/internal/security-event-adapters/route.ts",import.meta.url),"utf8");
+const api=await readFile(new URL("../app/api/warranty/security-intelligence/observability/route.ts",import.meta.url),"utf8");
+const page=await readFile(new URL("../app/warranty/security-intelligence/observability/page.tsx",import.meta.url),"utf8");
+test("metrics capture seven source systems and constrained metric types",()=>{for(const x of ["pos","inventory","warranty","crm","evidence","payments","returns"])assert.ok(sql.includes("'"+x+"'"));for(const x of ["delivery_success","delivery_failure","delivery_latency_ms","queue_backlog","dead_letter_count","circuit_open"])assert.ok(sql.includes("'"+x+"'"));});
+test("alert policies have bounded windows and severity",()=>{assert.match(sql,/window_minutes integer not null default 5/);assert.match(sql,/severity text not null default 'warning'/);});
+test("default alert policies cover latency backlog dead-letter and circuits",()=>{for(const x of ["delivery-failure-warning","delivery-latency-critical","queue-backlog-warning","dead-letter-critical","circuit-open-critical"])assert.ok(sql.includes(x));});
+test("alert evaluation deduplicates open alerts within policy window",()=>{assert.match(sql,/mme_security_integration_evaluate_alerts/);assert.match(sql,/not exists\(select 1 from public\.mme_security_integration_alerts/);});
+test("observability tables are RLS restricted",()=>{assert.match(sql,/enable row level security/);assert.match(sql,/revoke all on public\.mme_security_integration_metrics from public,anon,authenticated/);});
+test("adapter records failure metrics and evaluates alerts",()=>{assert.match(adapter,/mme_security_integration_metrics/);assert.match(adapter,/mme_security_integration_evaluate_alerts/);});
+test("observability API authenticates approved leadership roles",()=>{assert.match(api,/ceo/);assert.match(api,/cio/);assert.match(api,/privacy_officer/);});
+test("API supports acknowledge and resolve actions",()=>{assert.match(api,/acknowledge/);assert.match(api,/resolve/);});
+test("dashboard shows health, alerts and metrics",()=>{for(const x of ["Security Integration Observability","Operational alerts","Recent integration metrics","Department integration health"])assert.ok(page.includes(x));});
