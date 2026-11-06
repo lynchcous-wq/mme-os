@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { clearSessionCookies, getAuthUser, requireBrowserUser, setSessionCookies } from "@/lib/auth/supabase-session";
+import { clearSessionCookies, requireBrowserUser, setSessionCookies } from "@/lib/auth/supabase-session";
 
 export const dynamic = "force-dynamic";
 
