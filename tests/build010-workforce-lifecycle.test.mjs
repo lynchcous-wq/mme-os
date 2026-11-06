@@ -1,0 +1,12 @@
+import test from "node:test";import assert from "node:assert/strict";import{readFile}from"node:fs/promises";
+const root=new URL("../",import.meta.url),read=p=>readFile(new URL(p,root),"utf8");
+const sql=await read("supabase/migrations/20261106002240_build010_workforce_lifecycle_provisioning.sql");
+const api=await read("app/api/workforce/lifecycle/route.ts");
+const page=await read("app/workforce/lifecycle/page.tsx");
+test("migration creates lifecycle, task, provisioning, asset and audit ledgers",()=>{for(const n of ["mme_workforce_lifecycle_cases","mme_workforce_lifecycle_tasks","mme_workforce_access_provisioning_requests","mme_workforce_asset_assignments","mme_workforce_lifecycle_audit"])assert.match(sql,new RegExp("create table if not exists public\\."+n));});
+test("lifecycle cases constrain supported event and status values",()=>{assert.match(sql,/case_type in \('onboarding','transfer','promotion','leave','return','termination'\)/);assert.match(sql,/pending_approval/);});
+test("provisioning requests distinguish grant change and revoke from execution status",()=>{assert.match(sql,/action in \('grant','change','revoke'\)/);assert.match(sql,/status in \('pending','approved','rejected','queued','executed','failed','cancelled'\)/);});
+test("all workforce ledgers enable RLS and deny direct client access",()=>{assert.equal((sql.match(/enable row level security/g)||[]).length,5);assert.match(sql,/revoke all on public\.%I from public,anon,authenticated/);assert.match(sql,/grant all on public\.%I to service_role/);});
+test("API authenticates workforce administrators and supports lifecycle and equipment actions",()=>{assert.match(api,/auth\/v1\/user/);for(const x of ["create_case","review_case","add_task","complete_task","request_provisioning","review_provisioning","record_asset","return_asset"])assert.ok(api.includes(x));});
+test("API explicitly limits provisioning to ledger-only behavior",()=>{assert.match(api,/workflow_ledger_only/);assert.match(api,/no live account permissions or device controls were changed/);});
+test("dashboard provides lifecycle cases, task queue, access requests and equipment custody",()=>{for(const x of ["Employee lifecycle case","Lifecycle task tracking","Access provisioning requests","Equipment custody"])assert.ok(page.includes(x));});
