@@ -54,6 +54,9 @@ export async function passwordSignIn(email: string, password: string): Promise<A
   if (!response.ok || typeof body.access_token !== "string" || typeof body.refresh_token !== "string") {
     throw new Error("Email or password could not be verified.");
   }
+  const verifiedUser = await getAuthUser(body.access_token);
+  if (!verifiedUser) throw new Error("Authentication provider did not return a verifiable session.");
+  body.user = verifiedUser;
   return body;
 }
 
