@@ -1,0 +1,15 @@
+import test from"node:test";import assert from"node:assert/strict";import{readFile}from"node:fs/promises";
+const sql=await readFile(new URL("../supabase/migrations/20261105001940_build010_security_incident_escalation_automation.sql",import.meta.url),"utf8");
+const api=await readFile(new URL("../app/api/warranty/security-intelligence/escalations/route.ts",import.meta.url),"utf8");
+const page=await readFile(new URL("../app/warranty/security-intelligence/escalations/page.tsx",import.meta.url),"utf8");
+const obs=await readFile(new URL("../app/api/warranty/security-intelligence/observability/route.ts",import.meta.url),"utf8");
+test("escalation jobs, notification queue and response tasks are persisted",()=>{for(const x of ["mme_security_incident_escalation_jobs","mme_security_incident_notifications","mme_security_incident_tasks"])assert.ok(sql.includes(x));});
+test("job claims are bounded and concurrent-worker safe",()=>{assert.match(sql,/skip locked/i);assert.match(sql,/greatest\(1,least\(p_limit,100\)\)/);});
+test("escalation jobs only claim overdue unresolved incidents",()=>{assert.match(sql,/j\.due_at<=now\(\)/);assert.match(sql,/i\.status not in \('resolved','closed'\)/);});
+test("critical escalation routes to CEO and CIO",()=>{assert.match(sql,/i\.severity='critical' then 'ceo;cio'/);});
+test("alert-created incidents schedule their escalation job",()=>{assert.match(sql,/perform public\.mme_security_incident_schedule_escalation\(i\)/);});
+test("all new tables are RLS protected and service role only",()=>{assert.match(sql,/enable row level security/);assert.match(sql,/revoke all on public\.mme_security_incident_escalation_jobs/);});
+test("API requires authenticated operational roles",()=>{for(const x of ["ceo","cio","it_admin","privacy_officer"])assert.ok(api.includes('"'+x+'"'));});
+test("API provides due-job processing and notification/task actions",()=>{for(const x of ["run_due","acknowledge_notification","complete_task","mme_security_incident_claim_due_jobs","mme_security_incident_process_escalation"])assert.ok(api.includes(x));});
+test("dashboard provides job, notification and task queues",()=>{for(const x of ["Incident Escalation Operations","Escalation job queue","Leadership notifications","Escalation response tasks","Process due escalations"])assert.ok(page.includes(x));});
+test("alert acknowledgement invokes case creation workflow",()=>{assert.match(obs,/mme_security_incident_create_from_alert/);});
