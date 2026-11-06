@@ -1,0 +1,12 @@
+import test from "node:test";import assert from "node:assert/strict";import{readFile}from"node:fs/promises";
+const root=new URL("../",import.meta.url),read=p=>readFile(new URL(p,root),"utf8");
+const sql=await read("supabase/migrations/20261106002250_build010_hr_payroll_workforce_performance.sql");
+const api=await read("app/api/workforce/hr-payroll/route.ts");
+const page=await read("app/workforce/hr-payroll/page.tsx");
+test("migration creates compensation, time, payroll, commission, review, schedule and audit ledgers",()=>{for(const n of ["mme_workforce_compensation_profiles","mme_workforce_time_entries","mme_workforce_payroll_periods","mme_workforce_payroll_line_items","mme_workforce_commission_ledger","mme_workforce_performance_reviews","mme_workforce_schedule_shifts","mme_workforce_hr_payroll_audit"])assert.match(sql,new RegExp("create table if not exists public\\."+n));});
+test("time and payroll data have domain constraints",()=>{assert.match(sql,/clock_out>clock_in/);assert.match(sql,/period_end>=period_start/);assert.match(sql,/commission_amount numeric\(14,2\) not null check\(commission_amount>=0\)/);});
+test("all HR payroll ledgers enable RLS and deny direct client access",()=>{assert.equal((sql.match(/enable row level security/g)||[]).length,8);assert.match(sql,/revoke all on public\.%I from public,anon,authenticated/);assert.match(sql,/grant all on public\.%I to service_role/);});
+test("API authenticates HR and payroll administrators",()=>{assert.match(api,/auth\/v1\/user/);assert.match(api,/hr_payroll_admin_required/);});
+test("API supports compensation, time, payroll, commission and performance actions",()=>{for(const x of ["set_compensation","submit_time","review_time","create_period","add_payroll_line","record_commission","review_commission","create_performance_review","schedule_shift"])assert.ok(api.includes(x));});
+test("API discloses no external payment or payroll filing",()=>{assert.match(api,/No funds were disbursed/);});
+test("dashboard exposes HR payroll and performance workflows",()=>{for(const x of ["Employee compensation profile","Time clock review","Payroll periods","Commission ledger","Performance reviews","Workforce scheduling"])assert.ok(page.includes(x));});
