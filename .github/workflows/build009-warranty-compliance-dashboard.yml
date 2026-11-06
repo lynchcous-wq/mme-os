@@ -1,0 +1,17 @@
+name: Build 009.83 warranty compliance dashboard contracts
+on:
+  push:
+    branches: [implementation/build-009-83-warranty-compliance-dashboard]
+  pull_request:
+    branches: [implementation/build-009-82-warranty-retention-alerts]
+jobs:
+  warranty-compliance-dashboard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - run: npm run lint
+      - run: npm run test:build009:warranty-compliance-dashboard
