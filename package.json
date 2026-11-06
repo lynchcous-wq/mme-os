@@ -176,7 +176,8 @@
     "test:build010:warehouse-fulfillment": "node --test tests/build010-warehouse-fulfillment.test.mjs",
     "test:build010:warehouse-fulfillment-integration": "node --test tests/build010-warehouse-fulfillment-integration.test.mjs",
     "test:build010:inventory-posting-reconciliation": "node --test tests/build010-inventory-posting-reconciliation.test.mjs",
-    "test:build010:serialized-imei-device-tracking": "node --test tests/build010-serialized-imei-device-tracking.test.mjs"
+    "test:build010:serialized-imei-device-tracking": "node --test tests/build010-serialized-imei-device-tracking.test.mjs",
+    "test:build010:warranty-returns-repair-management": "node --test tests/build010-warranty-returns-repair-management.test.mjs"
   },
   "dependencies": {
     "next": "^15.2.4",
