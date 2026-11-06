@@ -43,7 +43,7 @@ create unique index mme_notification_templates_one_active_idx
 
 create table public.mme_notification_delivery_jobs (
  id uuid primary key default gen_random_uuid(),
- alert_notification_id uuid references public.mme_pos_financial_notifications(id) on delete restrict,
+ alert_notification_id uuid references public.mme_pos_financial_alert_notifications(id) on delete restrict,
  recipient_person_id uuid not null,
  channel text not null check(channel in ('email','sms','push','in_app')),
  template_key text not null,
@@ -208,11 +208,11 @@ begin
   updated_at=now()
  where id=p_job_id;
  if v_job.alert_notification_id is not null and p_outcome='sent' then
-  update public.mme_pos_financial_alert_notifications set delivery_status='sent',delivered_at=now()
+  update public.mme_pos_financial_alert_notifications set delivery_status='sent',sent_at=now()
    where id=v_job.alert_notification_id and recipient_person_id=v_job.recipient_person_id;
  elsif v_job.alert_notification_id is not null and p_outcome in ('retryable_failure','permanent_failure') then
   update public.mme_pos_financial_alert_notifications set delivery_status='failed',
-   attempt_count=least(20,attempt_count+1),last_error_code=left(p_error_code,120)
+   delivery_attempts=least(20,delivery_attempts+1),last_error_code=left(p_error_code,120)
    where id=v_job.alert_notification_id and recipient_person_id=v_job.recipient_person_id;
  end if;
  return p_job_id;
