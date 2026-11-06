@@ -1,0 +1,23 @@
+name: Build 009.63 reverse logistics contracts
+on:
+  push:
+    branches:
+      - implementation/build-009-63-returns-reverse-logistics
+  pull_request:
+    branches:
+      - implementation/build-009-62-order-fulfillment-orchestration
+jobs:
+  reverse-logistics:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - run: npm run lint
+      - run: npm run test:build009:reverse-logistics
+      - run: npm run test:build009:returns-management
+      - run: npm run test:build009:inventory-ledger
+      - run: npm run test:build009:fulfillment
