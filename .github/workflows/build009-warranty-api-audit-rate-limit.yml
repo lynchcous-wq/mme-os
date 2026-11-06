@@ -1,0 +1,17 @@
+name: Build 009.85 warranty API audit and rate limits
+on:
+  push:
+    branches: [implementation/build-009-85-warranty-api-audit-rate-limit]
+  pull_request:
+    branches: [implementation/build-009-84-warranty-compliance-api]
+jobs:
+  warranty-api-audit-rate-limit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - run: npm run lint
+      - run: npm run test:build009:warranty-api-audit-rate-limit
