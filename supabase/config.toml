@@ -38,3 +38,7 @@ verify_jwt = false
 [functions.checkout-recovery-worker]
 # Internal scheduled worker authenticates with its dedicated secret.
 verify_jwt = false
+
+[functions.customer-notification-worker]
+# Internal worker performs its own dedicated constant-time bearer authentication.
+verify_jwt = false
