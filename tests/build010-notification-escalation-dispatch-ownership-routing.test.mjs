@@ -1,0 +1,16 @@
+import test from"node:test";import assert from"node:assert/strict";import{readFile}from"node:fs/promises";
+const sql=await readFile(new URL("../supabase/migrations/20261105002080_build010_notification_escalation_dispatch_ownership_routing.sql",import.meta.url),"utf8");
+const hard=await readFile(new URL("../supabase/migrations/20261105002090_build010_notification_escalation_dispatch_materialization_ownership_hardening.sql",import.meta.url),"utf8");
+const api=await readFile(new URL("../app/api/warranty/security-intelligence/incident-command/route.ts",import.meta.url),"utf8");
+const page=await readFile(new URL("../app/warranty/security-intelligence/incident-command/page.tsx",import.meta.url),"utf8");
+test("incident ownership, dispatch and audit ledgers are RLS protected",()=>{for(const x of ["mme_security_notification_incident_ownership","mme_security_notification_escalation_dispatch_events","mme_security_notification_ownership_events"])assert.ok(sql.includes(x));assert.equal((sql.match(/enable row level security/g)||[]).length,3);});
+test("dispatch queue has idempotent escalation and target-role uniqueness",()=>{assert.match(sql,/unique\(escalation_id,target_role\)/);assert.match(sql,/on conflict\(escalation_id,target_role\) do nothing/);});
+test("dispatch worker claims work with skip locked leases",()=>{assert.match(sql,/for update skip locked/);assert.match(sql,/dispatch_status='processing'/);assert.match(sql,/claimed_by=p_worker/);});
+test("dispatch retries use exponential backoff and dead-letter after five attempts",()=>{assert.match(sql,/attempt_count>=5 then 'dead_letter'/);assert.match(sql,/power\(2,least\(attempt_count,7\)\)/);});
+test("worker completion enforces ownership lease",()=>{assert.match(sql,/dispatch_lease_invalid/);assert.match(sql,/d\.claimed_by<>p_worker/);});
+test("ownership transfer closes prior owner and creates audit event",()=>{assert.match(sql,/ownership_status='transferred'/);assert.match(sql,/mme_security_notification_ownership_events/);});
+test("executive override is recorded and destination identity validated",()=>{assert.match(sql,/executive_override/);assert.match(hard,/auth\.users where id=p_new_owner/);assert.match(hard,/invalid_owner_role/);});
+test("escalation ledger materializes dispatch by assigned target role",()=>{assert.match(hard,/mme_security_notification_materialize_escalation_dispatch/);assert.match(hard,/a\.acknowledgement_status='overdue'/);assert.match(hard,/unnest\(coalesce\(a\.target_roles/);});
+test("API authenticates and limits to authorized MME roles",()=>{assert.match(api,/auth\/v1\/user/);assert.match(api,/incident_command_access_denied/);assert.match(api,/app_metadata/);});
+test("API exposes queue and ownership and accepts controlled transfer",()=>{assert.match(api,/mme_security_notification_escalation_dispatch_events/);assert.match(api,/mme_security_notification_transfer_ownership/);});
+test("dashboard exposes incident ownership and dispatch status",()=>{assert.match(page,/Incident Command & Ownership Routing/);assert.match(page,/Assign \/ transfer ownership/);assert.match(page,/Escalation dispatch queue/);});
