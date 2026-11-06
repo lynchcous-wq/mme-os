@@ -12,7 +12,8 @@
     "test:workflow-reconciliation-history": "node --test tests/workflow-reconciliation-history-api.contract.test.mjs",
     "test:checkout-ui": "node --test tests/build001-checkout-ui.contract.test.mjs",
     "test:checkout-pricing": "node --test tests/build001-checkout-pricing.contract.test.mjs",
-    "test:checkout-atomic-pricing": "node --test tests/build001-atomic-pricing-reservation.contract.test.mjs"
+    "test:checkout-atomic-pricing": "node --test tests/build001-atomic-pricing-reservation.contract.test.mjs",
+    "test:checkout-recovery": "node --test tests/build001-checkout-recovery.contract.test.mjs"
   },
   "dependencies": {
     "@stripe/react-stripe-js": "^3.9.0",
