@@ -176,3 +176,97 @@ A build cannot be marked **Complete** until all applicable checks are evidenced:
 2. Before marking it complete, reconcile its dispatch contract with 010.11–010.16 and the provider health/circuit-breaker APIs.
 3. Work through P0 validation in parallel, prioritizing security, payments, inventory ledger and worker reliability.
 4. Resolve the canonical 009/010 numbering crosswalk with the project owner before changing labels or branch history.
+
+
+---
+
+## Launch-readiness audit — 2026-11-06
+
+**Overall assessment: NOT READY FOR LIVE CUSTOMER LAUNCH.** This is based on a direct comparison of the repository default branch (`main`) and the Build 010.17 implementation branch, plus inspection of the public routes, package manifest, Build 010.17 worker, migration, and CI logs.
+
+### P0 — Default branch is still a storefront prototype
+
+The default branch README explicitly describes the app as an initial storefront shell and states that there is no live catalog, account system, checkout, Stripe connection, or inventory integration. Direct inspection confirms:
+
+- `app/products/page.tsx` displays a “catalog is being prepared” placeholder.
+- `app/account/page.tsx` displays “Coming soon” and says customer accounts are part of a future build.
+- No `app/login/page.tsx`, `app/cart/page.tsx`, `app/checkout/page.tsx`, `app/api/checkout/route.ts`, or `app/api/stripe/webhook/route.ts` was found on the inspected Build 010.17 branch at those paths.
+- The default `package.json` contains only Next.js, React and React DOM runtime dependencies and only dev/build/start/type-check scripts.
+- The public home page contains hard-coded illustrative product names and prices; it is not a database-backed live catalog.
+
+**Launch consequence:** Do not advertise the current default-branch site as a functioning store or accept customer payments through it.
+
+### P0 — Build branch integration is not release-safe
+
+Commit comparison reports the Build 010.17 branch as **1,004 commits ahead and 24 commits behind `main`**; the compare response is capped at 300 changed files. This is a substantial divergence, not a small feature branch.
+
+The shared foundation branch `implementation-foundation-001-009` compares as zero commits ahead and 22 behind `main`, with no changed files in that comparison. This is not evidence that all Build 001–009 modules have been integrated into the default branch.
+
+**Required:** inventory pull requests and commit ancestry; map each build's migrations, routes, libraries, tests and dependencies; reconcile the 24-commit divergence; integrate in reviewed, testable slices. Do not merge the full 010.17 branch into `main` blindly.
+
+### P0 — Build 010.17 CI has a recorded failure
+
+The Build 010.17 workflow run (PR 113) installed dependencies successfully, then failed at `npm run lint` (`tsc --noEmit`). The failure was caused by inherited syntax errors in:
+
+- `app/api/internal/security-event-adapters/route.ts`
+- `app/api/internal/warranty-security-evidence-scan/route.ts`
+
+The notification-specific test step was skipped because lint failed. Two syntax corrections were subsequently committed to the Build 010.17 branch, but a successful rerun has not been observed. The PR's Vercel deployment status was also reported as failure. Do not treat the later commits as validated until CI reruns successfully.
+
+### P0 — Customer checkout and identity are not live on the release branch
+
+No evidence was found on the inspected release branch that the public storefront is wired to:
+- Supabase-backed catalog reads and stock reservations,
+- customer registration/login/session recovery and account ownership,
+- employee/CEO role separation on the public app,
+- cart and order creation,
+- tax, shipping and local-pickup selection,
+- Stripe checkout session creation and signed webhook reconciliation,
+- refunds/chargebacks tied to a real order ledger.
+
+Some related internal implementation branches and APIs exist, but they are not exposed by the current public product/account routes. These capabilities must be integrated and acceptance-tested before launch.
+
+### P1 — Build 010.17 provider delivery is not production proven
+
+The Build 010.17 documentation explicitly states that no provider credentials were supplied or tested, no actual messages were sent, provider callbacks/receipts are not implemented in this build, and a protected worker schedule remains to be configured.
+
+Code inspection also identified release-hardening points:
+- The pager/push webhook adapter signs payloads but does not itself enforce HTTPS on the configured URL.
+- SendGrid/Twilio/Telnyx delivery idempotency and uncertain-timeout duplicate behavior need provider-specific verification; do not assume the local delivery ID guarantees external exactly-once delivery.
+- Provider acceptance is not final recipient delivery; receipt callbacks and reconciliation remain necessary.
+- Role-to-recipient environment mappings need real owner-approved destinations and a safe test procedure.
+
+### P1 — Build numbering and scope require reconciliation
+
+Branch searches found:
+- Build 001-related branches and a shared `implementation-foundation-001-009` branch.
+- No matching branch result for Build 002 or Build 006.
+- Build 003, 004, 005, 007 and 008 branches.
+- Implementation stream 009.20–009.99 and 010.00–010.24.
+- Duplicate identifiers 010.03 and 010.19 across distinct branches.
+
+The previously approved architecture map assigned 009 to Product Catalog and 010 to Inventory, while the current 009/010 branch families represent POS/commerce/warranty and security/notification work. Owner approval of a canonical crosswalk remains required. Do not silently rename branches.
+
+### Release gates — must all pass
+
+- [ ] Identify the intended release branch and confirm it contains the complete, reviewed integration of Builds 001–010.17.
+- [ ] Reconcile main/feature branch divergence without losing existing changes.
+- [ ] Make the public catalog database-backed; remove all sample/illustrative prices from customer purchase flows.
+- [ ] Complete customer sign-in, employee sign-in, role separation, account recovery and authorization tests.
+- [ ] Complete cart, order, tax, shipping/local pickup and Stripe checkout/webhook/reconciliation workflows in Stripe test mode.
+- [ ] Validate inventory reservation, serialized-device/IMEI controls, COGS, refunds, returns and warranty state transitions.
+- [ ] Apply every migration to a clean staging database and upgrade a representative existing database; verify RLS, grants and service-role boundaries.
+- [ ] Run all relevant build tests, full TypeScript check, lint and production build; record passing commit SHA and logs.
+- [ ] Configure and verify all worker schedules, secrets, provider endpoints, webhook signatures, retry recovery and dead-letter operations.
+- [ ] Complete end-to-end customer, employee, manager, CEO and operations acceptance testing.
+- [ ] Verify domain/DNS, TLS, environment variables, backups, monitoring, rollback and Vercel production deployment.
+- [ ] Obtain explicit owner approval for production cutover and a controlled first live transaction/refund.
+
+### Immediate work order
+
+1. Stabilize the Build 010.17 branch: rerun CI after the syntax fixes, fix all type/lint/build/test failures, and harden provider transport/receipt handling.
+2. Build an evidence-based migration and module inventory across 001–010.17; separate implemented, branch-only, merged, tested, migrated, configured and production-verified states.
+3. Integrate the foundational identity/catalog/checkout capabilities into a dedicated release branch in dependency order; do not deploy the current `main` storefront as a live store.
+4. Complete staging acceptance, then production readiness and cutover.
+
+**No production deployment, Supabase migration application, live Stripe transaction, or live notification provider delivery is certified by this audit.**
