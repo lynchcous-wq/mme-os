@@ -173,7 +173,8 @@
     "test:build010:vendor-catalog": "node --test tests/build010-vendor-catalog-price-intelligence.test.mjs",
     "test:build010:intelligent-purchasing": "node --test tests/build010-intelligent-purchasing.test.mjs",
     "test:build010:logistics": "node --test tests/build010-supply-chain-logistics.test.mjs",
-    "test:build010:warehouse-fulfillment": "node --test tests/build010-warehouse-fulfillment.test.mjs"
+    "test:build010:warehouse-fulfillment": "node --test tests/build010-warehouse-fulfillment.test.mjs",
+    "test:build010:warehouse-fulfillment-integration": "node --test tests/build010-warehouse-fulfillment-integration.test.mjs"
   },
   "dependencies": {
     "next": "^15.2.4",
