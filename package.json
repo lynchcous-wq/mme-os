@@ -109,7 +109,8 @@
     "test:build010:security-event-source-adapters-provider-health": "node --test tests/build010-security-event-source-adapters-provider-health.test.mjs",
     "test:build010:security-provider-failover-circuit-breakers": "node --test tests/build010-security-provider-failover-circuit-breakers.test.mjs",
     "test:build010:security-integration-observability-alerting": "node --test tests/build010-security-integration-observability-alerting.test.mjs",
-    "test:build010:security-incident-escalation-case-management": "node --test tests/build010-security-incident-escalation-case-management.test.mjs"
+    "test:build010:security-incident-escalation-case-management": "node --test tests/build010-security-incident-escalation-case-management.test.mjs",
+    "test:build010:security-incident-escalation-automation": "node --test tests/build010-security-incident-escalation-automation.test.mjs"
   },
   "dependencies": {
     "next": "^15.2.4",
