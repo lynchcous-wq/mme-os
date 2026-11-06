@@ -23,7 +23,7 @@ test("pricing requires active identity security and customer relationship", () =
 test("pricing requires explicitly linked published catalog products and active commerce records", () => {
   assert.match(pricing, /catalog_product_id/);
   assert.match(pricing, /catalog_status/);
-  assert.match(pricing, /eq\("published"\)/);
+  assert.match(pricing, /eq\("catalog_status", "published"\)/);
   assert.match(pricing, /eq\("active", true\)/);
 });
 
