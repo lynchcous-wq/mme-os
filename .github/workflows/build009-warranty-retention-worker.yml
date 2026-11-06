@@ -1,0 +1,17 @@
+name: Build 009.81 warranty retention worker contracts
+on:
+  push:
+    branches: [implementation/build-009-81-warranty-retention-worker]
+  pull_request:
+    branches: [implementation/build-009-80-warranty-retention-and-access]
+jobs:
+  warranty-retention-worker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - run: npm run lint
+      - run: npm run test:build009:warranty-retention-worker
