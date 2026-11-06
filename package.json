@@ -180,7 +180,8 @@
     "test:build010:warranty-returns-repair-management": "node --test tests/build010-warranty-returns-repair-management.test.mjs",
     "test:build010:warranty-service-automation": "node --test tests/build010-warranty-service-automation.test.mjs",
     "test:build010:secure-account-sign-in": "node --test tests/build010-secure-account-sign-in.contract.test.mjs",
-    "test:build010:customer-registration": "node --test tests/build010-customer-registration.contract.test.mjs"
+    "test:build010:customer-registration": "node --test tests/build010-customer-registration.contract.test.mjs",
+    "test:build010:email-verification": "node --test tests/build010-email-verification.contract.test.mjs"
   },
   "dependencies": {
     "next": "^15.2.4",
