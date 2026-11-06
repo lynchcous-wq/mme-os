@@ -1,0 +1,19 @@
+name: notification provider failover health tests
+on:
+  push:
+    branches:
+      - implementation/build-010-13-notification-provider-failover-health-monitoring
+  pull_request:
+    branches:
+      - implementation/build-010-12-notification-provider-adapters-retry-orchestration
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - run: npm run lint
+      - run: npm run test:build010:notification-provider-failover-health-monitoring
