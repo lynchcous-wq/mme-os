@@ -1,0 +1,15 @@
+import test from "node:test";import assert from "node:assert/strict";import{readFile}from"node:fs/promises";
+const sql=await readFile(new URL("../supabase/migrations/20261105001730_build009_warranty_security_real_time_alerting.sql",import.meta.url),"utf8");
+const api=await readFile(new URL("../app/api/warranty/security-alerts/route.ts",import.meta.url),"utf8");
+const esc=await readFile(new URL("../app/api/warranty/security-alerts/escalate/route.ts",import.meta.url),"utf8");
+const page=await readFile(new URL("../app/warranty/security-alerts/page.tsx",import.meta.url),"utf8");
+test("alert queue has severity, status, routing and escalation deadline",()=>{for(const x of ["critical","high","medium","low","open","acknowledged","resolved","dismissed","routed_roles","escalation_due_at"])assert.ok(sql.includes(x));});
+test("new risk signals automatically create one deduplicated alert",()=>{assert.match(sql,/after insert on public\.mme_warranty_api_security_risk_signals/);assert.match(sql,/unique\(signal_id\)/);assert.match(sql,/on conflict\(signal_id\) do nothing/);});
+test("severity controls acknowledgment deadline and role routing",()=>{assert.match(sql,/interval '5 minutes'/);assert.match(sql,/interval '15 minutes'/);assert.match(sql,/interval '4 hours'/);assert.match(sql,/array\['ceo','privacy_officer','manager'\]/);});
+test("alert action RPC locks row and records immutable event history",()=>{assert.match(sql,/for update/);assert.match(sql,/security_alert_events/);assert.match(sql,/invalid_alert_action/);assert.match(sql,/alert_action_note_required/);});
+test("overdue alerts are escalated and routed to CEO and privacy officer",()=>{assert.match(sql,/security_escalate_alerts/);assert.match(sql,/escalation_due_at<=now\(\)/);assert.match(sql,/acknowledgment_deadline_elapsed/);});
+test("alert API authenticates and bounds queue results",()=>{assert.match(api,/auth\/v1\/user/);assert.match(api,/Math\.min\(200/);assert.match(api,/routed_roles/);assert.match(api,/Cache-Control/);});
+test("alert API limits actions to authorized roles and validates notes",()=>{assert.match(api,/alert_action_forbidden/);assert.match(api,/action_note_required/);assert.match(api,/mme_warranty_api_security_alert_action/);});
+test("escalation endpoint is CEO and privacy-officer restricted",()=>{assert.match(esc,/escalation_forbidden/);assert.match(esc,/ceo.*privacy_officer/);assert.match(esc,/mme_warranty_api_security_escalate_alerts/);});
+test("console supports alert counts, acknowledgment and escalation check",()=>{for(const x of ["critical","high","medium","low","Acknowledge","Resolve","Dismiss","Check escalations","sessionStorage"])assert.ok(page.includes(x));});
+test("console documents provider delivery and manual escalation limitation",()=>{assert.match(page,/External email, SMS and webhook delivery require provider configuration/);assert.match(page,/manually invoked/);});
