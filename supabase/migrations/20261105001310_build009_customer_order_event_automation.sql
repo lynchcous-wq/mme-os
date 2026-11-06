@@ -151,12 +151,12 @@ begin
  end loop;
  update public.mme_customer_order_notification_events e set
   processing_status=case
-   when exists(select 1 from public.mme_customer_order_notification_rules r
-    where r.event_type=e.event_type and r.enabled)
-    and not exists(select 1 from public.mme_customer_order_notification_rules r
-     where r.event_type=e.event_type and r.enabled
-      and not exists(select 1 from public.mme_customer_order_notification_dispatches d
-       where d.event_id=e.id and d.channel=r.channel))
+   when not exists(select 1 from public.mme_customer_order_notification_rules r
+    where r.event_type=e.event_type and r.enabled) then 'suppressed'
+   when not exists(select 1 from public.mme_customer_order_notification_rules r
+    where r.event_type=e.event_type and r.enabled
+     and not exists(select 1 from public.mme_customer_order_notification_dispatches d
+      where d.event_id=e.id and d.channel=r.channel))
    then case when exists(select 1 from public.mme_customer_order_notification_dispatches d
      where d.event_id=e.id and d.dispatch_status='queued') then 'completed' else 'suppressed' end
    else 'partially_dispatched' end,
