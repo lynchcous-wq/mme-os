@@ -1,0 +1,17 @@
+name: Build 009.90 warranty security investigation case management
+on:
+  push:
+    branches: [implementation/build-009-90-warranty-security-investigation-case-management]
+  pull_request:
+    branches: [implementation/build-009-89-warranty-security-executive-cockpit]
+jobs:
+  warranty-security-investigation-case-management:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - run: npm run lint
+      - run: npm run test:build009:warranty-security-investigation-case-management
