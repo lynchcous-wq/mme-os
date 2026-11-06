@@ -78,7 +78,8 @@
     "test:build009:warranty-dashboard": "node --test tests/build009-warranty-dashboard.test.mjs",
     "test:build009:warranty-notifications": "node --test tests/build009-warranty-notifications.test.mjs",
     "test:build009:warranty-renewal": "node --test tests/build009-warranty-renewal.test.mjs",
-    "test:build009:warranty-renewal-worker": "node --test tests/build009-warranty-renewal-worker.test.mjs"
+    "test:build009:warranty-renewal-worker": "node --test tests/build009-warranty-renewal-worker.test.mjs",
+    "test:build009:warranty-claims": "node --test tests/build009-warranty-claims.test.mjs"
   },
   "dependencies": {
     "next": "^15.2.4",
