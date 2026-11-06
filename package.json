@@ -58,7 +58,8 @@
     "test:build009:order-event-automation": "node --test tests/build009-order-event-automation.test.mjs",
     "test:build009:customer-order-portal": "node --test tests/build009-customer-order-portal.test.mjs",
     "test:build009:returns-management": "node --test tests/build009-returns-management.test.mjs",
-    "test:build009:inventory-recovery": "node --test tests/build009-inventory-recovery.test.mjs"
+    "test:build009:inventory-recovery": "node --test tests/build009-inventory-recovery.test.mjs",
+    "test:build009:recovered-pricing": "node --test tests/build009-recovered-pricing.test.mjs"
   },
   "dependencies": {
     "next": "^15.2.4",
