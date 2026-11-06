@@ -1,0 +1,11 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import {readFile} from "node:fs/promises";
+const api=await readFile(new URL("../app/api/auth/customer/dashboard/route.ts",import.meta.url),"utf8");
+const page=await readFile(new URL("../app/account/dashboard/page.tsx",import.meta.url),"utf8");
+const auth=await readFile(new URL("../app/api/auth/customer/route.ts",import.meta.url),"utf8");
+test("dashboard requires authenticated session and exactly one active customer link",()=>{assert.match(api,/requireBrowserUser/);assert.match(api,/link_status=eq\\.active/);assert.match(api,/links.length!==1/);assert.match(api,/lifecycle_status=eq\\.active/);});
+test("dashboard reads only the authenticated person's customer-safe projections",()=>{for(const name of ["mme_customer_order_portal","mme_customer_subscription_portal","mme_customer_order_warranty_portal","mme_customer_order_refund_portal","mme_customer_order_fulfillment_portal"])assert.ok(api.includes(name));assert.match(api,/Cache-Control.*no-store/);});
+test("dashboard does not expose internal identity IDs or accept browser identity selectors",()=>{assert.doesNotMatch(api,/personId:/);assert.doesNotMatch(api,/searchParams/);});
+test("dashboard renders account sections and safe empty states",()=>{for(const label of ["Order history","Warranties","Subscriptions & rewards","Account security","Sign out"])assert.ok(page.includes(label),label);});
+test("existing customer authorization remains the source of truth",()=>{assert.match(auth,/mme_customer_account_links/);assert.match(auth,/mme_person_identities/);});
