@@ -162,7 +162,8 @@
     "test:build010:workforce-organizational-intelligence": "node --test tests/build010-workforce-organizational-intelligence.test.mjs",
     "test:build010:employee-lifecycle-hr": "node --test tests/build010-employee-lifecycle-hr.test.mjs",
     "test:build010:compensation-benefits-rewards": "node --test tests/build010-compensation-benefits-rewards.test.mjs",
-    "test:build010:payroll-timekeeping": "node --test tests/build010-payroll-timekeeping.test.mjs"
+    "test:build010:payroll-timekeeping": "node --test tests/build010-payroll-timekeeping.test.mjs",
+    "test:build010:financial-management": "node --test tests/build010-financial-management.test.mjs"
   },
   "dependencies": {
     "next": "^15.2.4",
