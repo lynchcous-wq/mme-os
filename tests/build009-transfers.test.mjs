@@ -1,0 +1,10 @@
+import test from "node:test"; import assert from "node:assert/strict"; import {readFile} from "node:fs/promises";
+const sql=await readFile(new URL("../supabase/migrations/20261105001400_build009_inventory_transfers.sql",import.meta.url),"utf8");
+test("transfer, line, serial, event and exception tables exist",()=>{for(const n of ["mme_inventory_transfers","mme_inventory_transfer_lines","mme_inventory_transfer_serials","mme_inventory_transfer_events","mme_inventory_transfer_exceptions"])assert.ok(sql.includes(n));});
+test("all transfer tables enable RLS",()=>assert.equal((sql.match(/enable row level security/g)||[]).length,5));
+test("approval requires independent reviewer and available stock",()=>{assert.match(sql,/requested_by=p_reviewer/);assert.match(sql,/b\.on_hand_quantity-b\.reserved_quantity<l\.requested_quantity/);});
+test("dispatch creates source transfer-out ledger entries and reduces balance",()=>{assert.match(sql,/movement_type,quantity_delta,unit_cost,value_delta/);assert.match(sql,/'transfer_out',-q/);assert.match(sql,/on_hand_quantity=on_hand_quantity-q/);});
+test("dispatch requires picked quantities and serialized capture count",()=>{assert.match(sql,/picked_quantity<>approved_quantity/);assert.match(sql,/serials<>q/);});
+test("destination receipt posts transfer-in and carries source cost",()=>{assert.match(sql,/'transfer_in',p_received,unit,val/);assert.match(sql,/unit:=l\.unit_cost/);});
+test("damaged and missing shipments create exceptions",()=>{assert.match(sql,/damaged_in_transit/);assert.match(sql,/missing_in_transit/);});
+test("transfer events are append-only and all RPCs service-role only",()=>{assert.match(sql,/revoke update,delete,truncate on public\.mme_inventory_transfer_events/);assert.match(sql,/grant execute on function public\.mme_inventory_transfer_dispatch/);assert.doesNotMatch(sql,/grant execute on all functions in schema/i);});
