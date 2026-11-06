@@ -1,0 +1,9 @@
+import test from 'node:test'; import assert from 'node:assert/strict'; import {readFile} from 'node:fs/promises';
+const sql=await readFile(new URL('../supabase/migrations/20261105001540_build009_warranty_renewal_worker.sql',import.meta.url),'utf8');
+test('renewal scan considers active verified lifecycle rows and approved active campaigns',()=>{assert.match(sql,/l\.lifecycle_status='active'/);assert.match(sql,/c\.status='active'/);assert.match(sql,/c\.approved_by is not null/);assert.match(sql,/c\.approved_at is not null/);});
+test('scan covers 30, 60 and 90 day windows and prevents duplicates',()=>{assert.match(sql,/values\(30\),\(60\),\(90\)/);assert.match(sql,/on conflict\(lifecycle_id,horizon_days\) do nothing/);});
+test('new opportunities enqueue one idempotent review job',()=>{assert.match(sql,/renewal-review:/);assert.match(sql,/on conflict\(idempotency_key\) do nothing/);});
+test('worker claims use row locks, leases and bounded batches',()=>{assert.match(sql,/for update skip locked/);assert.match(sql,/p_limit>100/);assert.match(sql,/lease_expires_at/);});
+test('completion and failure require the active lease token',()=>{assert.match(sql,/lease_token=p_lease_token/);assert.match(sql,/status='dead_letter'/);assert.match(sql,/status='retry'/);});
+test('worker tables use RLS and service role only RPC execution',()=>{assert.equal((sql.match(/enable row level security/g)||[]).length,2);assert.match(sql,/grant execute on function public\.mme_warranty_renewal_claim_jobs/);assert.match(sql,/revoke all on function public\.mme_warranty_renewal_scan/);});
+test('worker does not send messages, create offers or charge customers',()=>{assert.doesNotMatch(sql,/insert into public\.mme_warranty_customer_notifications/i);assert.doesNotMatch(sql,/insert into public\.mme_warranty_renewal_offers/i);assert.doesNotMatch(sql,/payment_intent|charge_customer/i);});
