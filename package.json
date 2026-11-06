@@ -166,7 +166,8 @@
     "test:build010:financial-management": "node --test tests/build010-financial-management.test.mjs",
     "test:build010:inventory-control": "node --test tests/build010-inventory-control.test.mjs",
     "test:build010:procurement": "node --test tests/build010-procurement.test.mjs",
-    "test:build010:crm": "node --test tests/build010-crm.test.mjs"
+    "test:build010:crm": "node --test tests/build010-crm.test.mjs",
+    "test:build010:communications": "node --test tests/build010-communications.test.mjs"
   },
   "dependencies": {
     "next": "^15.2.4",
