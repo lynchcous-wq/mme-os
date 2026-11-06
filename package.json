@@ -171,7 +171,8 @@
     "test:build010:notifications": "node --test tests/build010-notifications.test.mjs",
     "test:build010:inventory-intelligence": "node --test tests/build010-inventory-intelligence.test.mjs",
     "test:build010:vendor-catalog": "node --test tests/build010-vendor-catalog-price-intelligence.test.mjs",
-    "test:build010:intelligent-purchasing": "node --test tests/build010-intelligent-purchasing.test.mjs"
+    "test:build010:intelligent-purchasing": "node --test tests/build010-intelligent-purchasing.test.mjs",
+    "test:build010:logistics": "node --test tests/build010-supply-chain-logistics.test.mjs"
   },
   "dependencies": {
     "next": "^15.2.4",
