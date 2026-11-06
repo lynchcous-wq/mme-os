@@ -1,0 +1,13 @@
+import test from "node:test";import assert from "node:assert/strict";import{readFile}from"node:fs/promises";
+const sql=await readFile(new URL("../supabase/migrations/20261105001680_build009_warranty_security_evidence_ingestion_integrity.sql",import.meta.url),"utf8");
+const upload=await readFile(new URL("../app/api/warranty/security-evidence/upload/route.ts",import.meta.url),"utf8");
+const worker=await readFile(new URL("../app/api/internal/warranty-security-evidence-scan/route.ts",import.meta.url),"utf8");
+test("evidence quarantine bucket is private, size limited and MIME allowlisted",()=>{assert.match(sql,/values\('mme-security-evidence-quarantine'.*false,26214400/s);assert.match(sql,/allowed_mime_types/);});
+test("upload API authenticates trusted privileged roles",()=>{assert.match(upload,/auth\/v1\/user/);assert.match(upload,/app_metadata/);for(const role of ["ceo","privacy_officer","manager"])assert.ok(upload.includes('"'+role+'"'));});
+test("upload API enforces a 25 MB cap and supported MIME types",()=>{assert.match(upload,/MAX=25\*1024\*1024/);assert.match(upload,/MIME=new Set/);assert.match(upload,/file_size_limit_exceeded/);});
+test("upload API validates file signatures and computes SHA-256 from bytes",()=>{assert.match(upload,/function detected/);assert.match(upload,/file_signature_mismatch/);assert.match(upload,/createHash\("sha256"\)/);});
+test("upload writes only to private quarantine storage and registers pending scan",()=>{assert.match(upload,/mme-security-evidence-quarantine/);assert.match(upload,/mme_warranty_api_security_evidence_register_upload/);assert.match(upload,/status:"pending_scan"/);});
+test("database creates unique scan jobs and claims with skip locked",()=>{assert.match(sql,/evidence_id uuid not null unique/);assert.match(sql,/for update skip locked/);});
+test("scan outcomes are restricted and persisted on evidence metadata",()=>{assert.match(sql,/p_outcome not in \('clean','quarantined','rejected','failed'\)/);assert.match(sql,/ingestion_status=case/);});
+test("scan worker requires a timing-safe secret and configured scanner",()=>{assert.match(worker,/MME_EVIDENCE_SCAN_WORKER_SECRET/);assert.match(worker,/timingSafeEqual/);assert.match(worker,/MME_EVIDENCE_SCANNER_URL/);});
+test("scan worker recomputes digest and rejects non-HTTPS scanner endpoint",()=>{assert.match(worker,/createHash\("sha256"\)/);assert.match(worker,/evidence_digest_mismatch/);assert.match(worker,/scanner_url_must_use_https/);});
