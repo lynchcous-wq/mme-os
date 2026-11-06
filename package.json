@@ -140,7 +140,8 @@
     "test:build010:finance": "node --test tests/build010-finance.test.mjs",
     "test:build010:executive-command-center": "node --test tests/build010-executive-command-center.test.mjs",
     "test:build010:bi": "node --test tests/build010-business-intelligence.test.mjs",
-    "test:build010:inventory": "node --test tests/build010-inventory.test.mjs"
+    "test:build010:inventory": "node --test tests/build010-inventory.test.mjs",
+    "test:build010:purchasing": "node --test tests/build010-purchasing.test.mjs"
   },
   "dependencies": {
     "next": "^15.2.4",
