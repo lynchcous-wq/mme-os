@@ -120,7 +120,8 @@
     "test:build010:notification-delivery-dispatch-channel-adapters": "node --test tests/build010-notification-delivery-dispatch-channel-adapters.test.mjs",
     "test:build010:notification-provider-receipts-delivery-reconciliation": "node --test tests/build010-notification-provider-receipts-delivery-reconciliation.test.mjs",
     "test:build010:notification-human-acknowledgement-escalation-sla": "node --test tests/build010-notification-human-acknowledgement-escalation-sla.test.mjs",
-    "test:build010:notification-escalation-dispatch-ownership-routing": "node --test tests/build010-notification-escalation-dispatch-ownership-routing.test.mjs"
+    "test:build010:notification-escalation-dispatch-ownership-routing": "node --test tests/build010-notification-escalation-dispatch-ownership-routing.test.mjs",
+    "test:build010:notification-escalation-scheduler-live-worker": "node --test tests/build010-notification-escalation-scheduler-live-worker.test.mjs"
   },
   "dependencies": {
     "next": "^15.2.4",
