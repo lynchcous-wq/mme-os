@@ -42,6 +42,14 @@ test("malformed payloads and invalid correlation fields fail closed", () => {
   assert.match(route, /reference\.length > 500/);
 });
 
+test("webhook persistence calls the exact migration RPC contract", () => {
+  assert.match(route, /mme_security_notification_ingest_provider_receipt/);
+  assert.match(route, /p_reference: reference/);
+  assert.match(route, /p_channel: channel/);
+  assert.match(route, /p_event: event/);
+  assert.doesNotMatch(route, /mme_security_notification_apply_provider_receipt/);
+});
+
 test("provider receipt persistence remains server-side and cache-disabled", () => {
   assert.match(route, /SUPABASE_SERVICE_ROLE_KEY/);
   assert.match(route, /mme_security_notification_apply_provider_receipt/);
