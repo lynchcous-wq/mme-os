@@ -1,0 +1,11 @@
+import test from "node:test";import assert from "node:assert/strict";import{readFile}from"node:fs/promises";
+const root=new URL("../",import.meta.url),read=p=>readFile(new URL(p,root),"utf8");
+const sql=await read("supabase/migrations/20261106002210_build010_security_risk_intelligence.sql");
+const api=await read("app/api/warranty/security-intelligence/risk/route.ts");
+const page=await read("app/warranty/security-intelligence/risk/page.tsx");
+test("risk exposure view scores only open incident severity, escalation and SLA state",()=>{assert.match(sql,/mme_security_risk_exposure/);assert.match(sql,/status<>'closed'/);assert.match(sql,/open_critical/);assert.match(sql,/exposure_score/);assert.match(sql,/not a probability of compromise/i);});
+test("daily trend provides a continuous 30-day series with severity counts",()=>{assert.match(sql,/generate_series\(current_date-29,current_date/);assert.match(sql,/critical_count/);assert.match(sql,/warning_count/);assert.match(sql,/info_count/);});
+test("summary compares current and previous seven-day periods and exposes 30-day run rate",()=>{assert.match(sql,/current_7d/);assert.match(sql,/previous_7d/);assert.match(sql,/weekly_change_pct/);assert.match(sql,/simple_30d_run_rate/);});
+test("analytics views are not granted to public or authenticated clients",()=>{assert.equal((sql.match(/revoke all on public\.mme_security_/g)||[]).length,3);assert.equal((sql.match(/grant select on public\.mme_security_/g)||[]).length,3);});
+test("API validates Supabase session and restricts access to authorized roles",()=>{assert.match(api,/auth\/v1\/user/);assert.match(api,/authentication_required/);assert.match(api,/access_denied/);assert.match(api,/SUPABASE_SERVICE_ROLE_KEY/);});
+test("dashboard presents evidence-based metrics and explicitly labels descriptive limits",()=>{assert.match(page,/Security Risk Intelligence/);assert.match(page,/Exposure index/);assert.match(page,/Daily incident ledger/);assert.match(page,/not a probability of compromise/);assert.match(page,/no machine-learning prediction/);});
