@@ -1,0 +1,22 @@
+name: Build 009.50 communications hub contracts
+on:
+  push:
+    branches:
+      - implementation/build-009-50-customer-employee-communications-hub
+  pull_request:
+    branches:
+      - implementation/build-009-49-notification-delivery-infrastructure
+jobs:
+  communications-hub:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - run: npm run lint
+      - run: npm run test:build009:communications-hub
+      - run: npm run test:build009:notification-delivery
+      - run: npm run test:build009:financial-alert-notifications
