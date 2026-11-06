@@ -1,0 +1,19 @@
+name: notification provider receipt reconciliation tests
+on:
+  push:
+    branches:
+      - implementation/build-010-23-notification-provider-receipt-webhooks-reconciliation
+  pull_request:
+    branches:
+      - implementation/build-010-22-notification-escalation-per-channel-reconciliation
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - run: npm run lint
+      - run: npm run test:build010:notification-provider-receipt-webhooks-reconciliation

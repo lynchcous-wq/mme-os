@@ -1,0 +1,13 @@
+import test from"node:test";import assert from"node:assert/strict";import{readFile}from"node:fs/promises";
+const sql=await readFile(new URL("../supabase/migrations/20261105002120_build010_notification_provider_receipt_webhook_reconciliation.sql",import.meta.url),"utf8");
+const hard=await readFile(new URL("../supabase/migrations/20261105002130_build010_notification_provider_receipt_correlation_hardening.sql",import.meta.url),"utf8");
+const route=await readFile(new URL("../app/api/webhooks/notification-receipts/[provider]/route.ts",import.meta.url),"utf8");
+test("provider receipt events have idempotent provider event identity",()=>{assert.match(sql,/unique\(provider,provider_event_id\)/);assert.match(sql,/on conflict\(provider,provider_event_id\) do nothing/);});
+test("receipt ledger is RLS protected and service-role only",()=>{assert.match(sql,/enable row level security/);assert.match(sql,/revoke all/);assert.match(sql,/to service_role/);});
+test("webhook route supports configured email SMS pager and push providers",()=>{for(const p of ["resend","twilio","telnyx","pagerduty","push"])assert.ok(route.includes(p));});
+test("webhook payload size and signature are checked before ingestion",()=>{assert.match(route,/payload_too_large/);assert.match(route,/webhook_signature_invalid/);assert.ok(route.indexOf("valid(provider")<route.indexOf("mme_security_notification_ingest_provider_receipt"));});
+test("webhook events are normalized into known receipt states",()=>{for(const s of ["delivered","failed","undelivered","acknowledged","unknown"])assert.ok(route.includes(s));});
+test("receipt ingestion refuses unsafe ambiguous matching",()=>{assert.match(hard,/provider_reference_missing/);assert.match(hard,/provider=p_provider and provider_reference=p_reference/);});
+test("duplicate receipt cannot be applied twice",()=>{assert.match(hard,/result','duplicate/);});
+test("receipt updates channel and parent dispatch reconciliation",()=>{assert.match(hard,/mme_security_notification_escalation_channel_deliveries/);assert.match(hard,/mme_security_notification_escalation_dispatch_events/);});
+test("only authenticated backend can execute receipt ingestion RPC",()=>{assert.match(sql,/revoke all on function public\.mme_security_notification_ingest_provider_receipt/);assert.match(sql,/to service_role/);});
