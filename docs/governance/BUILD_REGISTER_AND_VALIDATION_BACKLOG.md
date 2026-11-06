@@ -327,3 +327,56 @@ Commit: `8928281c83805b84e49a0809ea466abab9ecaf6f`.
 6. Only then connect Builds 007–010.17 to the accepted identity, catalog, order and permission interfaces.
 
 No PR was merged and no production migration or live payment was activated during this pass.
+
+
+## Latest foundation-to-checkout pass — 2026-11-06
+
+### PR #15 CI is now fully green
+
+Workflow run [#680](https://github.com/lynchcous-wq/mme-os/actions/runs/42173200346) on checkout branch commit `8928281c83805b84e49a0809ea466abab9ecaf6f` completed successfully:
+
+- Supabase local startup: passed.
+- Complete migration chain on a fresh local database: passed.
+- Full pgTAP database suite: passed.
+- TypeScript check: passed.
+- Next.js production build: passed.
+- Supabase Edge Function type-check: passed.
+
+PR #15 remains an open draft targeting `integration/build001-catalog-inventory`. Its Vercel preview checks still report the account build-rate-limit/upgrade failure. GitHub Actions green is not a deployed preview or production release.
+
+### Build 004 identity integration findings
+
+Inspected the Build 004 helper, authorization RPC and protected inventory inspection routes on `integration/build004-identity-validation`.
+
+- `authenticateAndAuthorizeEmployee` verifies the bearer token against Supabase Auth, derives the actor UUID from the Auth response, calls server-only `mme_authorize_employee_action`, and fails closed on an unavailable authorization service.
+- The identity model intentionally separates `auth.users.id` from `mme_person_identities.id`. The four inventory inspection routes resolve the person identity separately and derive product/location authorization scope from protected database rows.
+- Legacy authorization and transactional RPC controls are retained as defense in depth.
+- Build 004 documentation reports the four route contract suites and live local Supabase Auth/RPC smoke test as passing on its validated commits. The live smoke test is not full request-level coverage of all four endpoints and does not prove production cutover.
+- Permission migration and production authorization cutover remain explicitly blocked.
+
+### Checkout pricing service is a concrete P0 dependency
+
+PR #15's checkout Edge Function is intentionally dependent on `MME_CHECKOUT_PRICING_URL` and `MME_CHECKOUT_PRICING_SECRET`. No trusted pricing-service endpoint was found in the inspected PR #13/#14/#15 file changes. The checkout cannot prepare a payable order until that service exists and is configured.
+
+The required trusted service contract is now explicit:
+
+1. Accept calls only from the checkout Edge Function using a constant-time verified server secret; never trust browser-supplied customer identity or price.
+2. Verify the supplied Auth user UUID corresponds to exactly one `mme_person_identities.auth_user_id` record and an eligible active customer relationship.
+3. Validate every product, store location, publication state, quantity and serialized-unit selection against live database records.
+4. Recompute item eligibility and return only canonical `product_id`, `location_id`, quantity and optional serialized-unit IDs; the mixed-order RPC independently snapshots current DB prices and reserves stock atomically.
+5. Validate pickup selection against active MME locations; validate shipping address and supported destination.
+6. Calculate tax from an approved tax service/ruleset and shipping charges from an approved carrier/rate policy. Do not guess tax rates, shipping charges, or discounts.
+7. Apply only persisted, approved discount/subscription/rewards entitlements; browser-submitted discounts are never authoritative.
+8. Return the exact schema expected by `create-checkout-payment`: customer identity ID, canonical items, tax cents, fulfillment cents, discount cents and immutable fulfillment snapshot.
+9. Enforce strict request/response schemas, bounded payloads, timeouts, rate limits, structured non-sensitive logs and idempotent quote semantics.
+10. Add tests for inactive/frozen customer, invalid product/location, stale stock, wrong serialized unit, invalid pickup, unsupported shipping destination, tax/shipping service outage, discount abuse, duplicate requests and malformed provider response.
+
+**No tax provider, shipping-rate provider, or approved tax/discount policy has been selected/verified in this audit.** Keep the endpoint fail-closed until these business and provider inputs are supplied. Do not substitute zero tax or arbitrary flat shipping rates.
+
+### Next implementation work order
+
+1. Build and test the trusted checkout pricing endpoint against the exact Edge Function contract, with tax and fulfillment adapters required by configuration.
+2. Add request-level integration tests for Build 004's four protected inventory-inspection routes using local Supabase and test identities/permissions.
+3. Reconcile PR #11 atomic order/reservation migration with PR #13 catalog/inventory migrations and PR #14 identity dependencies.
+4. Re-run complete CI on the final combined integration head, then perform Stripe test-mode end-to-end tests.
+5. Keep all PRs in draft and do not merge or deploy until required checks, business policy and owner approvals are complete.
