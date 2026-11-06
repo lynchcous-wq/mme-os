@@ -4,7 +4,7 @@ const ACCESS_COOKIE = "mme_access_token";
 const REFRESH_COOKIE = "mme_refresh_token";
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-export type AuthUser = { id: string; email?: string; role?: string };
+export type AuthUser = { id: string; email?: string; role?: string; email_confirmed_at?: string | null };
 export type AuthSession = { access_token: string; refresh_token: string; expires_in?: number; user?: AuthUser };
 
 export function supabaseConfig() {
