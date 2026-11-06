@@ -1,0 +1,19 @@
+name: security integration observability tests
+on:
+  push:
+    branches:
+      - implementation/build-010-08-security-integration-observability-alerting
+  pull_request:
+    branches:
+      - implementation/build-010-07-security-provider-failover-circuit-breakers
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - run: npm run lint
+      - run: npm run test:build010:security-integration-observability-alerting
