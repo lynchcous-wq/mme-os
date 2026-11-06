@@ -7,6 +7,8 @@ const sql=await read("supabase/migrations/20261106002190_build010_security_incid
 const delivery=await read("supabase/migrations/20261105001290_build009_notification_delivery_infrastructure.sql");
 const incident=await read("supabase/migrations/20261106002170_build010_security_incident_response_automation.sql");
 const page=await read("app/warranty/security-intelligence/notifications/page.tsx");
+const routingPage=await read("app/warranty/security-intelligence/notification-routing/page.tsx");
+const routingApi=await read("app/api/warranty/security-intelligence/notification-routing/route.ts");
 const route=await read("app/api/warranty/security-intelligence/notifications/route.ts");
 test("security subscriptions and notification queue are RLS protected and service-role gated",()=>{
  assert.match(sql,/mme_security_incident_notification_subscriptions/);
@@ -42,4 +44,8 @@ test("existing security notification center reports provider setup limits and su
  assert.match(page,/External provider delivery is not configured/);
  assert.match(route,/record_delivery_result/);
  assert.match(route,/MME_NOTIFICATION_ADAPTER_SECRET/);
+ assert.match(routingPage,/Security Notification Routing/);
+ assert.match(routingPage,/Save subscription/);
+ assert.match(routingApi,/auth\\/v1\\/user/);
+ assert.match(routingApi,/subscription_admin_required/);
 });
