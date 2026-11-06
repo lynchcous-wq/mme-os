@@ -1,0 +1,14 @@
+begin;
+select plan(10);
+select has_function('public','mme_claim_customer_notifications',array['text','integer','integer'],'notification lease claim exists');
+select has_function('public','mme_complete_customer_notification',array['uuid','text','text','text'],'notification completion exists');
+select has_function('public','mme_fail_customer_notification',array['uuid','text','text','boolean'],'notification retry/failure handler exists');
+select has_column('public','mme_customer_notification_outbox','locked_by','notification worker lease owner is stored');
+select has_column('public','mme_customer_notification_outbox','next_attempt_at','retry schedule is stored');
+select ok(not has_function_privilege('authenticated','mme_claim_customer_notifications(text,integer,integer)','execute'),'browser cannot claim notification jobs');
+select ok(not has_function_privilege('authenticated','mme_complete_customer_notification(uuid,text,text,text)','execute'),'browser cannot complete notification jobs');
+select ok(not has_function_privilege('authenticated','mme_fail_customer_notification(uuid,text,text,boolean)','execute'),'browser cannot fail notification jobs');
+select ok(has_column('public','mme_customer_notification_outbox','attempt_count'),'attempt counter bounds retry policy');
+select ok(has_column('public','mme_customer_notification_outbox','provider_message_id'),'provider message receipt is recorded');
+select * from finish();
+rollback;

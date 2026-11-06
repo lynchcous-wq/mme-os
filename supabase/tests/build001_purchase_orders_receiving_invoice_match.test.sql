@@ -1,0 +1,12 @@
+begin;
+select plan(8);
+select has_table('public','mme_purchase_orders','purchase orders exist');
+select has_table('public','mme_purchase_order_lines','purchase order lines exist');
+select has_table('public','mme_purchase_order_events','purchase order events exist');
+select has_table('public','mme_purchase_order_shipments','shipment records exist');
+select has_table('public','mme_supplier_invoices','supplier invoices exist');
+select has_table('public','mme_supplier_invoice_lines','invoice lines exist');
+select has_function('public','mme_create_purchase_order',array['text','uuid','uuid','bigint','bigint','uuid'],'PO creation exists');
+select has_function('public','mme_receive_purchase_order_lines',array['uuid','text','uuid','uuid','jsonb'],'partial receiving exists');
+select * from finish();
+rollback;

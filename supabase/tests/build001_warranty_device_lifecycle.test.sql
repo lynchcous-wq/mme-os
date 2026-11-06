@@ -1,0 +1,17 @@
+begin;
+select plan(13);
+select has_table('public','mme_warranty_policies','warranty policy catalog exists');
+select has_table('public','mme_device_warranties','per-device warranty registrations exist');
+select has_table('public','mme_warranty_claims','warranty claim workflow exists');
+select has_table('public','mme_device_service_history','device service history exists');
+select has_function('public','mme_register_device_warranty',array['text','uuid','uuid','text','text','date','date','text','uuid'],'warranty registration RPC exists');
+select has_function('public','mme_open_warranty_claim',array['text','uuid','text','text','jsonb','uuid','uuid','uuid'],'claim intake RPC exists');
+select has_function('public','mme_review_warranty_claim',array['uuid','text','text','uuid','bigint'],'claim review RPC exists');
+select has_function('public','mme_record_device_service',array['uuid','uuid','uuid','text','text','text','jsonb','integer','bigint','text','uuid'],'service history RPC exists');
+select ok(not has_table_privilege('anon','public.mme_device_warranties','select'),'anon cannot read warranty registrations');
+select ok(not has_table_privilege('authenticated','public.mme_warranty_claims','insert'),'browser cannot directly insert claims');
+select ok(not has_function_privilege('authenticated','public.mme_review_warranty_claim(uuid,text,text,uuid,bigint)','execute'),'browser cannot review warranty claims');
+select ok(not has_function_privilege('authenticated','public.mme_record_device_service(uuid,uuid,uuid,text,text,text,jsonb,integer,bigint,text,uuid)','execute'),'browser cannot write service records');
+select ok(not has_table_privilege('anon','public.mme_device_service_history','select'),'anon cannot read device service history');
+select * from finish();
+rollback;

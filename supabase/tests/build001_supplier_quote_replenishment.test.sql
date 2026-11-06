@@ -1,0 +1,14 @@
+begin;
+select plan(10);
+select has_column('public','mme_purchase_proposal_lines','recommended_supplier_id','proposal line records supplier recommendation');
+select has_column('public','mme_purchase_proposal_lines','supplier_quote_history_id','proposal line retains source quote');
+select has_column('public','mme_purchase_proposal_lines','supplier_quote_snapshot','proposal line stores quote snapshot');
+select has_view('public','mme_supplier_quote_comparison_v','supplier quote comparison exists');
+select has_function('public','mme_create_replenishment_draft',array['text','uuid','uuid','text','integer'],'forecast replenishment draft function exists');
+select ok(not has_table_privilege('anon','public.mme_purchase_proposal_lines','select'),'anon cannot read proposal lines');
+select ok(not has_function_privilege('authenticated','public.mme_create_replenishment_draft(text,uuid,uuid,text,integer)','execute'),'browser cannot create replenishment drafts directly');
+select ok(has_function_privilege('service_role','public.mme_create_replenishment_draft(text,uuid,uuid,text,integer)','execute'),'trusted service can create draft');
+select ok(not has_table_privilege('authenticated','public.mme_suppliers','select'),'authenticated cannot read supplier directory directly');
+select ok(not has_table_privilege('anon','public.mme_supplier_price_history','select'),'anon cannot read supplier quotes');
+select * from finish();
+rollback;

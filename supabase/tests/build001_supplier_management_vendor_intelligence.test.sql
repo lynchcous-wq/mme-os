@@ -1,0 +1,16 @@
+begin;
+select plan(12);
+select has_table('public','mme_suppliers','supplier directory exists');
+select has_table('public','mme_supplier_products','supplier product mapping exists');
+select has_table('public','mme_supplier_price_history','supplier quote history exists');
+select has_table('public','mme_supplier_deliveries','delivery tracking exists');
+select has_view('public','mme_supplier_scorecard_v','supplier scorecard exists');
+select has_function('public','mme_upsert_supplier',array['text','text','text','text','text','text','text','text','integer','text','uuid'],'supplier profile RPC exists');
+select has_function('public','mme_record_supplier_quote',array['uuid','uuid','text','bigint','integer','integer','text','timestamp with time zone','text','text','uuid'],'quote history RPC exists');
+select has_function('public','mme_record_supplier_delivery',array['uuid','uuid','text','timestamp with time zone','timestamp with time zone','integer','integer','integer','text','text','uuid'],'delivery RPC exists');
+select ok(not has_table_privilege('anon','public.mme_suppliers','select'),'anon cannot read supplier directory');
+select ok(not has_table_privilege('authenticated','public.mme_supplier_price_history','insert'),'authenticated cannot insert price history');
+select ok(has_function_privilege('service_role','public.mme_record_supplier_delivery(uuid,uuid,text,timestamptz,timestamptz,integer,integer,integer,text,text,uuid)','execute'),'service role can record delivery');
+select ok(not has_function_privilege('authenticated','public.mme_record_supplier_quote(uuid,uuid,text,bigint,integer,integer,text,timestamptz,text,text,uuid)','execute'),'authenticated cannot write quotes directly');
+select * from finish();
+rollback;

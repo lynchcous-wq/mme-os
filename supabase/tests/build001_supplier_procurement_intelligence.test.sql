@@ -1,0 +1,16 @@
+begin;
+select plan(12);
+select has_view('public','mme_supplier_procurement_intelligence_v','supplier intelligence view exists');
+select has_view('public','mme_supplier_quote_cost_trend_v','supplier quote trend view exists');
+select ok(not has_table_privilege('authenticated','public.mme_supplier_procurement_intelligence_v','select'),'browser cannot query supplier intelligence directly');
+select ok(not has_table_privilege('authenticated','public.mme_supplier_quote_cost_trend_v','select'),'browser cannot query supplier quote trends directly');
+select ok(position('delivery' in lower(pg_get_viewdef('public.mme_supplier_procurement_intelligence_v'::regclass)))>0,'delivery metrics are represented');
+select ok(position('units_damaged' in pg_get_viewdef('public.mme_supplier_procurement_intelligence_v'::regclass))>0,'damaged units are tracked');
+select ok(position('invoice_match_rate_percent' in pg_get_viewdef('public.mme_supplier_procurement_intelligence_v'::regclass))>0,'invoice match rate is represented');
+select ok(position('variance_invoice_count' in pg_get_viewdef('public.mme_supplier_procurement_intelligence_v'::regclass))>0,'invoice variances are disclosed');
+select ok(position('quote_count' in pg_get_viewdef('public.mme_supplier_procurement_intelligence_v'::regclass))>0,'quote coverage is represented');
+select ok(position('first_to_latest_change_percent' in pg_get_viewdef('public.mme_supplier_quote_cost_trend_v'::regclass))>0,'quote price trend is represented');
+select ok(position('nullif' in lower(pg_get_viewdef('public.mme_supplier_procurement_intelligence_v'::regclass)))>0,'rates guard against missing denominators');
+select ok(position('group by h.supplier_id' in lower(pg_get_viewdef('public.mme_supplier_quote_cost_trend_v'::regclass)))>0,'quote trend groups independently by supplier and product');
+select * from finish();
+rollback;

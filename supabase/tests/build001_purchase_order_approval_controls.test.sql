@@ -1,0 +1,10 @@
+begin;
+select plan(6);
+select ok(position('p_actor_identity_id=v_po.created_by_identity_id' in replace(lower(pg_get_functiondef('public.mme_set_purchase_order_status(uuid,text,uuid,text)'::regprocedure)),' ',''))>0,'PO creator cannot approve own order');
+select ok(position('rejection reason is required' in lower(pg_get_functiondef('public.mme_set_purchase_order_status(uuid,text,uuid,text)'::regprocedure)))>0,'rejection requires a reason');
+select ok(position('cancellation reason is required' in lower(pg_get_functiondef('public.mme_set_purchase_order_status(uuid,text,uuid,text)'::regprocedure)))>0,'cancellation requires a reason');
+select ok(position('p_action=''approve''' in pg_get_functiondef('public.mme_set_purchase_order_status(uuid,text,uuid,text)'::regprocedure))>0,'approval action remains supported');
+select ok(not has_function_privilege('authenticated','public.mme_set_purchase_order_status(uuid,text,uuid,text)','execute'),'browser cannot transition purchase orders directly');
+select ok(position('mme_purchase_order_events' in pg_get_functiondef('public.mme_set_purchase_order_status(uuid,text,uuid,text)'::regprocedure))>0,'every transition retains audit event');
+select * from finish();
+rollback;

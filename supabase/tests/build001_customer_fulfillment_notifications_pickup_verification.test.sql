@@ -1,0 +1,16 @@
+begin;
+select plan(12);
+select has_table('public','mme_customer_notification_outbox','customer notification outbox exists');
+select has_table('public','mme_pickup_verification_challenges','pickup verification challenge store exists');
+select has_function('public','mme_queue_fulfillment_notification',array['uuid','uuid','text','text','text','text','jsonb'],'notification enqueue RPC exists');
+select has_function('public','mme_issue_pickup_verification_challenge',array['uuid','text','timestamp with time zone','uuid'],'pickup code issue RPC exists');
+select has_function('public','mme_verify_pickup_challenge',array['uuid','text'],'pickup code verification RPC exists');
+select ok(not has_table_privilege('anon','public.mme_customer_notification_outbox','select'),'anon cannot read notification queue');
+select ok(not has_table_privilege('authenticated','public.mme_pickup_verification_challenges','select'),'browser cannot read pickup code hashes');
+select ok(not has_table_privilege('authenticated','public.mme_pickup_verification_challenges','insert'),'browser cannot issue pickup challenges directly');
+select ok(not has_function_privilege('authenticated','public.mme_issue_pickup_verification_challenge(uuid,text,timestamp with time zone,uuid)','execute'),'browser cannot issue pickup codes');
+select ok(not has_function_privilege('authenticated','public.mme_verify_pickup_challenge(uuid,text)','execute'),'browser cannot directly verify pickup codes');
+select ok(has_column('public','mme_pickup_verification_challenges','max_attempts'),'pickup challenge has an attempt limit');
+select ok(has_column('public','mme_customer_notification_outbox','idempotency_key'),'notification queue is idempotent');
+select * from finish();
+rollback;

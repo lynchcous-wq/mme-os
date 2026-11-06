@@ -1,0 +1,16 @@
+begin;
+select plan(12);
+select has_table('public','mme_inventory_receipts','receipt header table exists');
+select has_table('public','mme_inventory_movements','immutable movement audit table exists');
+select has_column('public','mme_inventory_balances','average_unit_cost_cents','weighted average cost is stored');
+select has_function('public','mme_receive_inventory',array['text','text','text','bigint','uuid','uuid','text','jsonb'],'receipt RPC exists');
+select has_function('public','mme_adjust_inventory',array['uuid','uuid','integer','text','text','uuid','uuid','bigint'],'adjustment RPC exists');
+select has_function('public','mme_transfer_inventory',array['uuid','uuid','uuid','integer','text','uuid','uuid'],'transfer RPC exists');
+select ok(not has_table_privilege('anon','public.mme_inventory_movements','select'),'anon cannot read movement audit');
+select ok(not has_table_privilege('authenticated','public.mme_inventory_receipts','insert'),'authenticated cannot create receipts directly');
+select ok(has_function_privilege('service_role','public.mme_receive_inventory(text,text,text,bigint,uuid,uuid,text,jsonb)','execute'),'service role can receive inventory');
+select ok(not has_function_privilege('authenticated','public.mme_receive_inventory(text,text,text,bigint,uuid,uuid,text,jsonb)','execute'),'authenticated cannot receive inventory directly');
+select ok(has_function_privilege('service_role','public.mme_adjust_inventory(uuid,uuid,integer,text,text,uuid,uuid,bigint)','execute'),'service role can adjust inventory');
+select ok(not has_function_privilege('anon','public.mme_transfer_inventory(uuid,uuid,uuid,integer,text,uuid,uuid)','execute'),'anon cannot transfer inventory');
+select * from finish();
+rollback;

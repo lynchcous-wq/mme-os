@@ -1,0 +1,13 @@
+begin;
+select plan(9);
+select has_table('public','mme_inventory_count_sessions','stocktake sessions exist');
+select has_table('public','mme_inventory_count_lines','stocktake count lines exist');
+select has_table('public','mme_inventory_count_events','stocktake audit events exist');
+select has_function('public','mme_start_inventory_count',array['text','uuid','text','jsonb','uuid'],'stocktake start RPC exists');
+select has_function('public','mme_record_inventory_count',array['uuid','uuid','integer','text','uuid'],'count entry RPC exists');
+select has_function('public','mme_submit_inventory_count',array['uuid','uuid'],'count submission RPC exists');
+select has_function('public','mme_decide_inventory_count',array['uuid','text','uuid','text'],'approval decision RPC exists');
+select has_function('public','mme_apply_inventory_count',array['uuid','uuid','uuid'],'approved variance apply RPC exists');
+select ok(not has_table_privilege('anon','public.mme_inventory_count_sessions','select'),'anon cannot read stocktake sessions');
+select * from finish();
+rollback;

@@ -1,0 +1,11 @@
+begin;
+select plan(7);
+select has_table('public','mme_inventory_exception_rules','exception rules exist');
+select has_table('public','mme_inventory_exceptions','exception queue exists');
+select has_table('public','mme_inventory_exception_events','exception audit history exists');
+select has_function('public','mme_raise_inventory_exception',array['text','text','text','text','uuid','uuid','text','uuid','text','text','jsonb','uuid'],'exception creation RPC exists');
+select has_function('public','mme_update_inventory_exception',array['uuid','text','uuid','uuid','text','text'],'exception lifecycle RPC exists');
+select has_function('public','mme_get_inventory_exception_queue',array['uuid','text','text','text','integer','integer'],'exception queue RPC exists');
+select ok(not has_table_privilege('anon','public.mme_inventory_exceptions','select'),'anon cannot read exception records');
+select * from finish();
+rollback;

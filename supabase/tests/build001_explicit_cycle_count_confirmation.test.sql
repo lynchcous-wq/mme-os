@@ -1,0 +1,12 @@
+begin;
+select plan(8);
+select has_column('public','mme_cycle_count_lines','count_confirmed','physical count requires explicit confirmation');
+select has_function('public','mme_record_cycle_count_quantity',array['uuid','integer','uuid','text'],'manual quantity confirmation RPC exists');
+select ok(position('count_confirmed' in pg_get_functiondef('public.mme_record_cycle_count_scan(uuid,text,uuid)'::regprocedure))>0,'barcode scan explicitly confirms its count line');
+select ok(position('count_confirmed' in pg_get_functiondef('public.mme_submit_cycle_count(uuid,uuid)'::regprocedure))>0,'submission flags unconfirmed lines instead of assuming zero');
+select ok(position('count_confirmed' in pg_get_functiondef('public.mme_approve_cycle_count(uuid,uuid,text)'::regprocedure))>0,'approval rejects unconfirmed lines');
+select ok(position('p_counted_quantity not in (0,1)' in pg_get_functiondef('public.mme_record_cycle_count_quantity(uuid,integer,uuid,text)'::regprocedure))>0,'serialized manual count is limited to zero or one');
+select ok(not has_function_privilege('authenticated','public.mme_record_cycle_count_quantity(uuid,integer,uuid,text)','execute'),'browser cannot directly alter count quantities');
+select ok(position('counted_quantity=p_counted_quantity' in replace(lower(pg_get_functiondef('public.mme_record_cycle_count_quantity(uuid,integer,uuid,text)'::regprocedure)),' ',''))>0,'explicit quantity including zero is recorded');
+select * from finish();
+rollback;

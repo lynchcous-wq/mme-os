@@ -1,0 +1,13 @@
+begin;
+select plan(9);
+select has_function('public','mme_create_mixed_order_and_reserve',array['text','uuid','text','jsonb','bigint','bigint','bigint','jsonb','timestamp with time zone'],'mixed order RPC exists');
+select ok(not has_function_privilege('authenticated','public.mme_create_mixed_order_and_reserve(text,uuid,text,jsonb,bigint,bigint,bigint,jsonb,timestamptz)','execute'),'browser cannot create mixed orders directly');
+select ok(position('mme_serialized_unit_reservations' in pg_get_functiondef('public.mme_create_mixed_order_and_reserve(text,uuid,text,jsonb,bigint,bigint,bigint,jsonb,timestamptz)'::regprocedure))>0,'serialized unit reservations are created');
+select ok(position('mme_inventory_reservation_lines' in pg_get_functiondef('public.mme_create_mixed_order_and_reserve(text,uuid,text,jsonb,bigint,bigint,bigint,jsonb,timestamptz)'::regprocedure))>0,'aggregate stock reservations are created');
+select ok(position('mme_order_lines' in pg_get_functiondef('public.mme_create_mixed_order_and_reserve(text,uuid,text,jsonb,bigint,bigint,bigint,jsonb,timestamptz)'::regprocedure))>0,'all cart items get order snapshots');
+select ok(position('serialized_unit_id' in pg_get_functiondef('public.mme_create_mixed_order_and_reserve(text,uuid,text,jsonb,bigint,bigint,bigint,jsonb,timestamptz)'::regprocedure))>0,'serialized units are individually identified');
+select ok(position('request_fingerprint' in pg_get_functiondef('public.mme_create_mixed_order_and_reserve(text,uuid,text,jsonb,bigint,bigint,bigint,jsonb,timestamptz)'::regprocedure))>0,'idempotency fingerprint is enforced');
+select ok(position('for update' in lower(pg_get_functiondef('public.mme_create_mixed_order_and_reserve(text,uuid,text,jsonb,bigint,bigint,bigint,jsonb,timestamptz)'::regprocedure)))>0,'inventory rows are locked during reservation');
+select ok(position('grant execute' in lower(pg_get_functiondef('public.mme_create_mixed_order_and_reserve(text,uuid,text,jsonb,bigint,bigint,bigint,jsonb,timestamptz)'::regprocedure)))>=0,'function definition is present');
+select * from finish();
+rollback;

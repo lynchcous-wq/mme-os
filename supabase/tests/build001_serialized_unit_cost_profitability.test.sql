@@ -1,0 +1,12 @@
+begin;
+select plan(8);
+select has_table('public','mme_serialized_unit_costs','serialized device landed costs exist');
+select has_table('public','mme_serialized_unit_sale_outcomes','serialized sale outcomes exist');
+select has_function('public','mme_record_serialized_unit_landed_cost',array['uuid','bigint','bigint','bigint','bigint','bigint','text','uuid','uuid'],'per-device cost RPC exists');
+select has_function('public','mme_record_serialized_unit_sale_outcome',array['uuid','uuid','bigint','bigint','bigint','bigint','bigint','timestamp with time zone','uuid'],'sale outcome RPC exists');
+select has_function('public','mme_get_serialized_unit_profitability',array['uuid','integer','integer'],'profitability report RPC exists');
+select ok(not has_table_privilege('anon','public.mme_serialized_unit_costs','select'),'anon cannot read device cost');
+select ok(not has_table_privilege('authenticated','public.mme_serialized_unit_sale_outcomes','select'),'authenticated cannot read device sale margin');
+select ok(not has_function_privilege('authenticated','public.mme_record_serialized_unit_sale_outcome(uuid,uuid,bigint,bigint,bigint,bigint,bigint,timestamp with time zone,uuid)','execute'),'authenticated cannot record sale outcome directly');
+select * from finish();
+rollback;

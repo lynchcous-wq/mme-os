@@ -1,0 +1,15 @@
+begin;
+select plan(11);
+select has_table('public','mme_inventory_scan_events','scanner audit exists');
+select has_table('public','mme_cycle_count_sessions','cycle count sessions exist');
+select has_table('public','mme_cycle_count_lines','cycle count lines exist');
+select has_table('public','mme_cycle_count_events','cycle count audit exists');
+select has_column('public','mme_label_print_job_items','serialized_unit_id','labels can bind to physical units');
+select has_function('public','mme_resolve_inventory_scan',array['text','uuid','uuid','text'],'scanner resolver exists');
+select has_function('public','mme_open_cycle_count',array['text','uuid','text','uuid','uuid[]'],'cycle count opener exists');
+select has_function('public','mme_record_cycle_count_scan',array['uuid','text','uuid'],'cycle count scanner exists');
+select has_function('public','mme_submit_cycle_count',array['uuid','uuid'],'cycle count submission exists');
+select ok(not has_table_privilege('anon','public.mme_inventory_scan_events','select'),'anon cannot read scanner events');
+select ok(not has_function_privilege('authenticated','public.mme_resolve_inventory_scan(text,uuid,uuid,text)','execute'),'browser cannot invoke scanner RPC directly');
+select * from finish();
+rollback;

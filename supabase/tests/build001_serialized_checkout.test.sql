@@ -1,0 +1,13 @@
+begin;
+select plan(9);
+select has_function('public','mme_create_serialized_order_and_reserve',array['text','uuid','uuid','text','jsonb','bigint','bigint','bigint','timestamp with time zone'],'serialized order creation exists');
+select has_function('public','mme_release_serialized_order_reservation',array['uuid','text'],'serialized release exists');
+select has_function('public','mme_process_serialized_payment_event',array['text','text','text','uuid','bigint','text','text'],'serialized payment processor exists');
+select ok(has_function_privilege('service_role','public.mme_create_serialized_order_and_reserve(text,uuid,uuid,text,jsonb,bigint,bigint,bigint,timestamp with time zone)','execute'),'service role can create serialized order');
+select ok(not has_function_privilege('authenticated','public.mme_create_serialized_order_and_reserve(text,uuid,uuid,text,jsonb,bigint,bigint,bigint,timestamp with time zone)','execute'),'authenticated cannot create serialized order');
+select ok(has_function_privilege('service_role','public.mme_release_serialized_order_reservation(uuid,text)','execute'),'service role can release serialized unit');
+select ok(not has_function_privilege('anon','public.mme_release_serialized_order_reservation(uuid,text)','execute'),'anon cannot release serialized unit');
+select ok(has_function_privilege('service_role','public.mme_process_serialized_payment_event(text,text,text,uuid,bigint,text,text)','execute'),'service role can process serialized payment');
+select ok(not has_function_privilege('authenticated','public.mme_process_serialized_payment_event(text,text,text,uuid,bigint,text,text)','execute'),'authenticated cannot process serialized payment');
+select * from finish();
+rollback;

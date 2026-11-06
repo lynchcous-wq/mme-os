@@ -1,0 +1,16 @@
+begin;
+select plan(12);
+select has_table('public','mme_return_cases','return authorization cases exist');
+select has_table('public','mme_return_case_lines','return lines retain original order links');
+select has_table('public','mme_return_refund_approvals','refund approval ledger exists');
+select has_table('public','mme_return_refund_events','refund event ledger exists');
+select has_function('public','mme_open_return_case',array['text','uuid','text','uuid'],'return case function exists');
+select has_function('public','mme_add_return_case_line',array['uuid','uuid','integer','uuid'],'return line function exists');
+select has_function('public','mme_receive_return_case',array['uuid','uuid'],'return receipt function exists');
+select has_function('public','mme_approve_return_refund',array['uuid','bigint','uuid','uuid','text','text'],'refund approval function exists');
+select has_function('public','mme_record_return_refund_event',array['uuid','text','text','text','text','bigint','text','text','uuid'],'refund event function exists');
+select ok(not has_table_privilege('anon','public.mme_return_cases','select'),'anon cannot read return cases');
+select ok(not has_table_privilege('authenticated','public.mme_return_refund_events','insert'),'browser cannot write refund events');
+select ok(not has_function_privilege('authenticated','public.mme_approve_return_refund(uuid,bigint,uuid,uuid,text,text)','execute'),'browser cannot approve refunds');
+select * from finish();
+rollback;

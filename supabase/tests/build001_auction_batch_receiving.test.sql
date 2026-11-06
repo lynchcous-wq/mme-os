@@ -1,0 +1,11 @@
+begin;
+select plan(7);
+select has_table('public','mme_auction_import_serials','auction serialized identifiers exist');
+select has_table('public','mme_auction_import_line_costs','auction line cost audit exists');
+select has_function('public','mme_set_auction_import_serials',array['uuid','uuid','jsonb'],'serialized identifiers RPC exists');
+select has_function('public','mme_receive_approved_auction_batch',array['uuid','uuid','uuid','text'],'approved batch receiving RPC exists');
+select ok(not has_table_privilege('anon','public.mme_auction_import_serials','select'),'anon cannot read imported serials');
+select ok(not has_table_privilege('authenticated','public.mme_auction_import_line_costs','select'),'authenticated cannot read cost audit');
+select ok(not has_function_privilege('authenticated','public.mme_receive_approved_auction_batch(uuid,uuid,uuid,text)','execute'),'authenticated cannot invoke receiving directly');
+select * from finish();
+rollback;

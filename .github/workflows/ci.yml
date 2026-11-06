@@ -1,0 +1,53 @@
+name: MME OS CI
+
+on:
+  pull_request:
+    branches: [main, "foundation/**"]
+  push:
+    branches: [main, "foundation/**"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: TypeScript and production build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Type-check
+        run: npm run lint
+
+      - name: Build application
+        run: npm run build
+
+  edge-functions:
+    name: Supabase Edge Function type-check
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Type-check checkout and webhook functions
+        run: |
+          deno check --node-modules-dir=auto supabase/functions/create-checkout-payment/index.ts
+          deno check --node-modules-dir=auto supabase/functions/stripe-webhook/index.ts

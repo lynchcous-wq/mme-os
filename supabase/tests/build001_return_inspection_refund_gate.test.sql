@@ -1,0 +1,13 @@
+begin;
+select plan(9);
+select ok(exists(select 1 from pg_trigger where tgname='mme_return_refund_inspection_guard' and not tgisinternal),'refund approval inspection trigger exists');
+select has_function('public','mme_finalize_return_line_inspection',array['uuid','uuid','text','text','text','uuid','uuid'],'return inspection disposition function exists');
+select ok(not has_function_privilege('authenticated','public.mme_finalize_return_line_inspection(uuid,uuid,text,text,text,uuid,uuid)','execute'),'browser cannot finalize return inspection directly');
+select ok(position('inspection_pending' in pg_get_functiondef('public.mme_finalize_return_line_inspection(uuid,uuid,text,text,text,uuid,uuid)'::regprocedure))>0,'only pending return inspections can be finalized');
+select ok(position('customer_return' in pg_get_functiondef('public.mme_finalize_return_line_inspection(uuid,uuid,text,text,text,uuid,uuid)'::regprocedure))>0,'inspection type must be customer return');
+select ok(position('serialized_unit_id is distinct from' in pg_get_functiondef('public.mme_finalize_return_line_inspection(uuid,uuid,text,text,text,uuid,uuid)'::regprocedure))>0,'inspection must match serialized unit');
+select ok(position('completed matching inspection' in lower(pg_get_functiondef('public.mme_guard_return_refund_inspection()'::regprocedure)))>0,'refund guard requires completed matching inspection');
+select ok(position('v_invalid>0' in replace(lower(pg_get_functiondef('public.mme_guard_return_refund_inspection()'::regprocedure)),' ',''))>0,'refund guard rejects any unresolved return line');
+select ok(position('p_actor_identity_id=p_approved_by_identity_id' in replace(lower(pg_get_functiondef('public.mme_finalize_return_line_inspection(uuid,uuid,text,text,text,uuid,uuid)'::regprocedure)),' ',''))>0,'return inspection requires independent approver');
+select * from finish();
+rollback;

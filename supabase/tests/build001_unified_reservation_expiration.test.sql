@@ -1,0 +1,11 @@
+begin;
+select plan(7);
+select has_function('public','mme_expire_inventory_reservations',array['integer'],'unified reservation expiry worker exists');
+select ok(has_function_privilege('service_role','public.mme_expire_inventory_reservations(integer)','execute'),'service role can run unified expiry');
+select ok(not has_function_privilege('anon','public.mme_expire_inventory_reservations(integer)','execute'),'anon cannot run expiry');
+select ok(not has_function_privilege('authenticated','public.mme_expire_inventory_reservations(integer)','execute'),'authenticated cannot run expiry');
+select ok(position('mme_release_serialized_order_reservation' in pg_get_functiondef('public.mme_expire_inventory_reservations(integer)'::regprocedure))>0,'expiry worker dispatches serialized unit releases');
+select ok(position('mme_release_order_reservation' in pg_get_functiondef('public.mme_expire_inventory_reservations(integer)'::regprocedure))>0,'expiry worker dispatches aggregate stock releases');
+select ok(position('skip locked' in lower(pg_get_functiondef('public.mme_expire_inventory_reservations(integer)'::regprocedure)))>0,'expiry worker safely skips orders locked by checkout/payment processing');
+select * from finish();
+rollback;

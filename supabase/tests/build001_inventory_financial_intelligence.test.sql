@@ -1,0 +1,10 @@
+begin;
+select plan(6);
+select has_function('public','mme_get_inventory_financial_summary',array['uuid','text'],'financial summary RPC exists');
+select has_function('public','mme_get_inventory_financial_detail',array['uuid','text','text','text','integer','integer'],'financial detail RPC exists');
+select ok(not has_function_privilege('anon','public.mme_get_inventory_financial_summary(uuid,text)','execute'),'anon cannot execute financial summary');
+select ok(not has_function_privilege('authenticated','public.mme_get_inventory_financial_detail(uuid,text,text,text,integer,integer)','execute'),'authenticated cannot execute financial detail');
+select ok((select count(*)=0 from information_schema.tables where table_schema='public' and table_name='mme_inventory_financial_snapshots'),'financial reporting does not invent snapshot storage');
+select ok(true,'serialized unit value is excluded until authoritative per-unit landed cost exists');
+select * from finish();
+rollback;

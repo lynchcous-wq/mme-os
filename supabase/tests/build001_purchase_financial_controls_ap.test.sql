@@ -1,0 +1,16 @@
+begin;
+select plan(12);
+select has_table('public','mme_purchase_budget_policies','purchase budget policies exist');
+select has_table('public','mme_supplier_invoice_approvals','invoice approval audit exists');
+select has_table('public','mme_supplier_payment_schedules','accounts payable schedules exist');
+select has_table('public','mme_supplier_payment_events','payment reconciliation events exist');
+select has_function('public','mme_approve_supplier_invoice',array['uuid','uuid','uuid','text','text'],'independent invoice approval exists');
+select has_function('public','mme_create_supplier_payment_schedule',array['uuid','date','text','uuid'],'payment schedule function exists');
+select has_function('public','mme_record_supplier_payment_event',array['uuid','text','text','text','bigint','text','uuid','text'],'payment event function exists');
+select ok(not has_table_privilege('anon','public.mme_supplier_payment_schedules','select'),'anon cannot read AP schedules');
+select ok(not has_table_privilege('authenticated','public.mme_supplier_payment_events','insert'),'authenticated cannot write payment events');
+select ok(not has_function_privilege('authenticated','public.mme_approve_supplier_invoice(uuid,uuid,uuid,text,text)','execute'),'browser cannot approve invoices');
+select ok(not has_function_privilege('authenticated','public.mme_record_supplier_payment_event(uuid,text,text,text,bigint,text,uuid,text)','execute'),'browser cannot record payment events');
+select ok(has_trigger('public','mme_purchase_orders','mme_purchase_order_budget_guard'),'PO approval budget guard is installed');
+select * from finish();
+rollback;

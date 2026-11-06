@@ -1,0 +1,14 @@
+begin;
+select plan(10);
+select has_column('public','mme_channel_stock_claims','converted_order_id','converted order link exists');
+select has_function('public','mme_convert_channel_claim_to_order',array['uuid','text','uuid','text','jsonb','bigint','bigint','bigint','timestamp with time zone'],'claim conversion function exists');
+select ok(not has_function_privilege('authenticated','public.mme_convert_channel_claim_to_order(uuid,text,uuid,text,jsonb,bigint,bigint,bigint,timestamp with time zone)','execute'),'browser cannot convert claims directly');
+select ok(position('status=''converted''' in lower(pg_get_functiondef('public.mme_convert_channel_claim_to_order(uuid,text,uuid,text,jsonb,bigint,bigint,bigint,timestamp with time zone)'::regprocedure)))>0,'successful conversion marks claim converted');
+select ok(position('mixed serialized and aggregate claims' in lower(pg_get_functiondef('public.mme_convert_channel_claim_to_order(uuid,text,uuid,text,jsonb,bigint,bigint,bigint,timestamp with time zone)'::regprocedure)))>0,'mixed claim modes are explicitly rejected');
+select ok(position('mme_inventory_reservation_lines' in pg_get_functiondef('public.mme_convert_channel_claim_to_order(uuid,text,uuid,text,jsonb,bigint,bigint,bigint,timestamp with time zone)'::regprocedure))>0,'aggregate claims attach to standard order reservations');
+select ok(position('mme_serialized_unit_reservations' in pg_get_functiondef('public.mme_convert_channel_claim_to_order(uuid,text,uuid,text,jsonb,bigint,bigint,bigint,timestamp with time zone)'::regprocedure))>0,'serialized claims attach to serialized order reservations');
+select ok(position('unit_price_cents' in pg_get_functiondef('public.mme_convert_channel_claim_to_order(uuid,text,uuid,text,jsonb,bigint,bigint,bigint,timestamp with time zone)'::regprocedure))>0,'conversion snapshots authoritative product price');
+select ok(position('for update' in lower(pg_get_functiondef('public.mme_convert_channel_claim_to_order(uuid,text,uuid,text,jsonb,bigint,bigint,bigint,timestamp with time zone)'::regprocedure)))>0,'conversion locks claim and inventory rows');
+select ok(position('status=''converted''' in lower(pg_get_functiondef('public.mme_convert_channel_claim_to_order(uuid,text,uuid,text,jsonb,bigint,bigint,bigint,timestamp with time zone)'::regprocedure)))>0,'converted claim cannot be released or expired as active');
+select * from finish();
+rollback;

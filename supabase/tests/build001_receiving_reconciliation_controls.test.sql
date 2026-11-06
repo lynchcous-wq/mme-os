@@ -1,0 +1,13 @@
+begin;
+select plan(9);
+select has_view('public','mme_receiving_po_reconciliation_v','PO receiving reconciliation view exists');
+select ok(not has_table_privilege('authenticated','public.mme_receiving_po_reconciliation_v','select'),'browser cannot directly query privileged receiving reconciliation');
+select ok(position('exceptions_open' in pg_get_viewdef('public.mme_receiving_po_reconciliation_v'::regclass))>0,'view identifies unresolved scan exceptions');
+select ok(position('overage' in pg_get_viewdef('public.mme_receiving_po_reconciliation_v'::regclass))>0,'view identifies over-receipt');
+select ok(position('remaining_after_session_if_completed' in pg_get_viewdef('public.mme_receiving_po_reconciliation_v'::regclass))>0,'view calculates remaining PO quantity');
+select ok(position('unmatched' in lower(pg_get_functiondef('public.mme_complete_receiving_station_session(uuid,text,uuid,uuid)'::regprocedure)))>0,'completion blocks unmatched scans');
+select ok(position('rejected' in lower(pg_get_functiondef('public.mme_complete_receiving_station_session(uuid,text,uuid,uuid)'::regprocedure)))>0,'completion blocks rejected scans');
+select ok(position('duplicate' in lower(pg_get_functiondef('public.mme_complete_receiving_station_session(uuid,text,uuid,uuid)'::regprocedure)))>0,'completion blocks duplicate scans');
+select ok(not has_function_privilege('authenticated','public.mme_complete_receiving_station_session(uuid,text,uuid,uuid)','execute'),'browser cannot directly complete receiving sessions');
+select * from finish();
+rollback;
