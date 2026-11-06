@@ -19,6 +19,8 @@ test("approval validates active person and verified Auth email, blocks conflicti
  assert.match(migration,/email_confirmed_at/);
  assert.match(migration,/v_existing_person<>p_person_id/);
  assert.match(migration,/mme_customer_portal_provision_account_link/);
+ assert.match(migration,/Customer login already belongs to a different MME person/);
+ assert.match(migration,/MME person is already linked to another customer login/);
  assert.match(migration,/mme_login_identities/);
 });
 test("approval and review decisions use one transaction and service-role-only RPC",()=>{
