@@ -1,0 +1,14 @@
+import test from"node:test";import assert from"node:assert/strict";import{readFile}from"node:fs/promises";
+const sql=await readFile(new URL("../supabase/migrations/20261105001840_build010_cross_system_security_signal_ingestion.sql",import.meta.url),"utf8");
+const ingest=await readFile(new URL("../app/api/warranty/security-intelligence/ingest/route.ts",import.meta.url),"utf8");
+const corr=await readFile(new URL("../app/api/warranty/security-intelligence/correlations/route.ts",import.meta.url),"utf8");
+const page=await readFile(new URL("../app/warranty/security-intelligence/cross-system/page.tsx",import.meta.url),"utf8");
+test("event inbox restricts systems and processing states",()=>{for(const x of ["pos","inventory","warranty","crm","evidence","payments","returns","accepted","processed","rejected","failed"])assert.ok(sql.includes("'"+x+"'"));assert.match(sql,/payload_sha256 text not null/);});
+test("inbox and correlations are private to service role",()=>{for(const t of ["mme_warranty_security_intelligence_event_inbox","mme_warranty_security_intelligence_correlations"]){assert.match(sql,new RegExp("alter table public\."+t+" enable row level security"));assert.match(sql,new RegExp("revoke all on public\."+t+" from public,anon,authenticated"));}});
+test("correlations require multiple systems and signals",()=>{assert.match(sql,/cardinality\(source_systems\)>=2/);assert.match(sql,/cardinality\(signal_ids\)>=2/);});
+test("ingestion verifies signed timestamp with constant-time HMAC comparison",()=>{assert.match(ingest,/createHmac\("sha256"/);assert.match(ingest,/timingSafeEqual/);assert.match(ingest,/age>5\*60\*1000/);});
+test("ingestion enforces payload size and event schema",()=>{assert.match(ingest,/raw\.length>32768/);assert.match(ingest,/invalid_event_schema/);assert.match(ingest,/SOURCES/);});
+test("ingestion fingerprints subjects and hashes raw payload",()=>{assert.match(ingest,/subject_fingerprint/);assert.match(ingest,/payloadHash/);assert.match(ingest,/createHash\("sha256"\)/);});
+test("ingestion persists idempotent inbox and typed signals",()=>{assert.match(ingest,/resolution=ignore-duplicates/);assert.match(ingest,/signal_key/);assert.match(ingest,/processing_status:"processed"/);});
+test("correlation route checks authenticated role and fingerprint",()=>{assert.match(corr,/auth\/v1\/user/);assert.match(corr,/intelligence_access_denied/);assert.match(corr,/valid_subject_fingerprint_required/);});
+test("dashboard presents cross-system signal and correlation history",()=>{for(const x of ["Cross-System Security Intelligence","Load correlated activity","Signal timeline","Cross-system correlations","HMAC-SHA256"])assert.ok(page.includes(x));});
