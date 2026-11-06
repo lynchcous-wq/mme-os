@@ -99,7 +99,8 @@
     "test:build009:warranty-security-anomaly-detection": "node --test tests/build009-warranty-security-anomaly-detection.test.mjs",
     "test:build009:warranty-security-real-time-alerting": "node --test tests/build009-warranty-security-real-time-alerting.test.mjs",
     "test:build009:warranty-security-notification-delivery": "node --test tests/build009-warranty-security-notification-delivery.test.mjs",
-    "test:build009:warranty-security-delivery-receipts-provider-failover": "node --test tests/build009-warranty-security-delivery-receipts-provider-failover.test.mjs"
+    "test:build009:warranty-security-delivery-receipts-provider-failover": "node --test tests/build009-warranty-security-delivery-receipts-provider-failover.test.mjs",
+    "test:build010:warranty-security-operations-dashboard": "node --test tests/build010-warranty-security-operations-dashboard.test.mjs"
   },
   "dependencies": {
     "next": "^15.2.4",
