@@ -95,5 +95,18 @@ begin
  update public.mme_warranty_api_security_evidence_retention_jobs set status=case when p_deleted then 'deleted' when v.attempt_count>=5 then 'failed' else 'failed' end,last_error=left(p_error,200),updated_at=now() where job_id=p_job_id;
  if p_deleted then insert into public.mme_warranty_api_security_evidence_access_events(evidence_id,actor_id,action,reason_code,request_id) values(v.evidence_id,'00000000-0000-0000-0000-000000000000','retention_deleted','retention_policy_expired',gen_random_uuid()); end if;
 end $$;
-do $$ declare f record; begin for f in select p.proname,pg_get_function_identity_arguments(p.oid) args from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname like 'mme_warranty_api_security_evidence_%' loop execute format('revoke all on function public.%I(%s) from public,anon,authenticated',f.proname,f.args); execute format('grant execute on function public.%I(%s) to service_role',f.proname,f.args); end loop; end $$;
+create or replace function public.mme_warranty_api_security_evidence_schedule_retention()
+returns integer language plpgsql security definer set search_path=public,pg_temp as $
+declare v_count integer;
+begin
+ insert into public.mme_warranty_api_security_evidence_retention_jobs(evidence_id,due_at)
+ select e.evidence_id,e.collected_at+make_interval(days=>p.retention_days)
+ from public.mme_warranty_api_security_case_evidence e
+ join public.mme_warranty_api_security_evidence_retention_policies p on p.evidence_type=e.evidence_type and p.enabled
+ where e.ingestion_status in ('clean','quarantined','rejected','scan_error')
+ on conflict(evidence_id) do nothing;
+ get diagnostics v_count=row_count;
+ return v_count;
+end $;
+do $ declare f record; begin for f in select p.proname,pg_get_function_identity_arguments(p.oid) args from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname like 'mme_warranty_api_security_evidence_%' loop execute format('revoke all on function public.%I(%s) from public,anon,authenticated',f.proname,f.args); execute format('grant execute on function public.%I(%s) to service_role',f.proname,f.args); end loop; end $$;
 commit;
