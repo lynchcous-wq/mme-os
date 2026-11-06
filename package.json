@@ -84,7 +84,8 @@
     "test:build009:warranty-evidence-scanner": "node --test tests/build009-warranty-evidence-scanner.test.mjs",
     "test:build009:warranty-retention-access": "node --test tests/build009-warranty-retention-access.test.mjs",
     "test:build009:warranty-retention-worker": "node --test tests/build009-warranty-retention-worker.test.mjs",
-    "test:build009:warranty-retention-alerts": "node --test tests/build009-warranty-retention-alerts.test.mjs"
+    "test:build009:warranty-retention-alerts": "node --test tests/build009-warranty-retention-alerts.test.mjs",
+    "test:build009:warranty-compliance-dashboard": "node --test tests/build009-warranty-compliance-dashboard.test.mjs"
   },
   "dependencies": {
     "next": "^15.2.4",
