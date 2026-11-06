@@ -113,7 +113,8 @@
     "test:build010:security-incident-escalation-automation": "node --test tests/build010-security-incident-escalation-automation.test.mjs",
     "test:build010:security-notification-delivery-acknowledgement": "node --test tests/build010-security-notification-delivery-acknowledgement.test.mjs",
     "test:build010:notification-provider-adapters-retry-orchestration": "node --test tests/build010-notification-provider-adapters-retry-orchestration.test.mjs",
-    "test:build010:notification-provider-failover-health-monitoring": "node --test tests/build010-notification-provider-failover-health-monitoring.test.mjs"
+    "test:build010:notification-provider-failover-health-monitoring": "node --test tests/build010-notification-provider-failover-health-monitoring.test.mjs",
+    "test:build010:notification-outage-alerting-provider-performance-analytics": "node --test tests/build010-notification-outage-alerting-provider-performance-analytics.test.mjs"
   },
   "dependencies": {
     "next": "^15.2.4",
