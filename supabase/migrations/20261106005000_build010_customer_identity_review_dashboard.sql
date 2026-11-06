@@ -81,6 +81,17 @@ begin
   values(p_person_id,'supabase',v_req.auth_user_id::text,v_req.auth_user_id,'verified',now());
  end if;
 
+ -- Never let the legacy upsert silently reassign an existing customer login
+ -- or attach a second login to a person already owned by another customer account.
+ if exists(select 1 from public.mme_customer_account_links l
+   where l.auth_user_id=v_req.auth_user_id and l.person_id<>p_person_id) then
+  raise exception 'Customer login already belongs to a different MME person; escalate for reconciliation' using errcode='23505';
+ end if;
+ if exists(select 1 from public.mme_customer_account_links l
+   where l.person_id=p_person_id and l.auth_user_id<>v_req.auth_user_id) then
+  raise exception 'MME person is already linked to another customer login; escalate for reconciliation' using errcode='23505';
+ end if;
+
  perform public.mme_customer_portal_provision_account_link(v_req.auth_user_id,p_person_id);
 
  update public.mme_customer_identity_link_requests set request_status='approved',
