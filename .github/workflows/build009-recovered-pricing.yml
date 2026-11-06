@@ -1,0 +1,21 @@
+name: Build 009.55 recovered pricing contracts
+on:
+  push:
+    branches:
+      - implementation/build-009-55-recovered-inventory-pricing-profitability
+  pull_request:
+    branches:
+      - implementation/build-009-54-inventory-recovery-reconditioning
+jobs:
+  recovered-pricing:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - run: npm run lint
+      - run: npm run test:build009:recovered-pricing
+      - run: npm run test:build009:inventory-recovery
