@@ -1,0 +1,10 @@
+import test from "node:test"; import assert from "node:assert/strict"; import {readFile} from "node:fs/promises";
+const sql=await readFile(new URL("../supabase/migrations/20261105001450_build009_repair_customer_communications.sql",import.meta.url),"utf8");
+test("communications build adds preferences, appointments, customer timeline and outbox",()=>{for(const n of ["mme_repair_customer_preferences","mme_repair_appointments","mme_repair_customer_timeline","mme_repair_notification_outbox"])assert.ok(sql.includes("create table public."+n));});
+test("all new tables enable RLS and browser access is revoked",()=>{assert.equal((sql.match(/enable row level security/g)||[]).length,4);assert.match(sql,/from public,anon,authenticated/);});
+test("customer updates are limited to approved templates and event codes",()=>{assert.match(sql,/template_code text not null check\(template_code in/);assert.match(sql,/event_code text not null check\(event_code in/);});
+test("notifications respect explicit channel preference and opt-in",()=>{assert.match(sql,/pref\.preferred_channel='sms' and pref\.sms_enabled/);assert.match(sql,/pref\.preferred_channel='email' and pref\.email_enabled/);});
+test("outbox supports idempotency retries and dead letter",()=>{assert.match(sql,/idempotency_key text not null unique/);assert.match(sql,/attempts integer not null default 0/);assert.match(sql,/dead_letter/);});
+test("appointment intake verifies customer ownership and rejects conflicts",()=>{assert.match(sql,/r\.customer_identity_id<>p_customer/);assert.match(sql,/tstzrange\(a\.starts_at,a\.ends_at,'\[\)'\)/);assert.match(sql,/Appointment window conflicts/);});
+test("timeline is append only and RPCs are service role only",()=>{assert.match(sql,/revoke update,delete,truncate on public\.mme_repair_customer_timeline/);assert.equal((sql.match(/grant execute on function public\.mme_repair_/g)||[]).length,2);});
+test("notification payload contains event metadata not raw contact or device identifiers",()=>{assert.match(sql,/jsonb_build_object\('event_code',p_event_code,'timeline_event_id',v\)/);assert.doesNotMatch(sql,/phone_number|email_address|imei|serial_number/);});
