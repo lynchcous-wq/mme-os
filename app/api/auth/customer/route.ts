@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireBrowserUser, supabaseConfig } from "@/lib/auth/supabase-session";
+import { requireBrowserUser, setSessionCookies, supabaseConfig } from "@/lib/auth/supabase-session";
 
 export const dynamic = "force-dynamic";
 
@@ -17,7 +17,16 @@ export async function GET(request: NextRequest) {
     if (!response.ok) return NextResponse.json({ error: "Customer account access could not be verified." }, { status: 503 });
     const links = await response.json() as Array<{ person_id: string }>;
     if (links.length !== 1) return NextResponse.json({ error: "Your login is valid, but your MME customer account has not been linked yet." }, { status: 403 });
-    return NextResponse.json({ customerAccess: true, personId: links[0].person_id }, { headers: { "Cache-Control": "no-store" } });
+    const identityResponse = await fetch(
+      `${url}/rest/v1/mme_person_identities?person_id=eq.${encodeURIComponent(links[0].person_id)}&lifecycle_status=eq.active&select=person_id&limit=1`,
+      { headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` }, cache: "no-store" },
+    );
+    if (!identityResponse.ok) return NextResponse.json({ error: "Customer identity could not be verified." }, { status: 503 });
+    const identities = await identityResponse.json() as Array<{ person_id: string }>;
+    if (identities.length !== 1) return NextResponse.json({ error: "This MME identity is not active." }, { status: 403 });
+    const result = NextResponse.json({ customerAccess: true, personId: links[0].person_id }, { headers: { "Cache-Control": "no-store" } });
+    if (session.refreshed) setSessionCookies(result, session.refreshed);
+    return result;
   } catch {
     return NextResponse.json({ error: "Customer account verification is temporarily unavailable." }, { status: 503 });
   }
