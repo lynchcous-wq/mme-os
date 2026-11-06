@@ -100,12 +100,12 @@ begin
     and q.acknowledgement_due_at is not null
     and q.acknowledgement_due_at<now()
     and q.acknowledgement_escalation_level<5
+    and (q.acknowledgement_escalated_at is null or q.acknowledgement_escalated_at<now()-interval '5 minutes')
   order by q.acknowledgement_due_at
   for update skip locked limit p_batch_size
  loop
   update public.mme_security_incident_notification_queue
-   set acknowledgement_status='escalated',
-       acknowledgement_escalation_level=least(acknowledgement_escalation_level+1,5),
+   set acknowledgement_escalation_level=least(acknowledgement_escalation_level+1,5),
        acknowledgement_escalated_at=now(),updated_at=now()
    where notification_id=n.notification_id;
   insert into public.mme_security_incident_response_events(
