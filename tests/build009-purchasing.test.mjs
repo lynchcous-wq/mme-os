@@ -1,0 +1,13 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+const sql=await readFile(new URL("../supabase/migrations/20261105001370_build009_purchasing_command_center.sql",import.meta.url),"utf8");
+test("purchasing schema includes vendors, quotes, budgets, requests, allocations, PO drafts and performance",()=>{for(const n of ["mme_procurement_vendors","mme_procurement_vendor_quotes","mme_procurement_budgets","mme_procurement_purchase_requests","mme_procurement_location_allocations","mme_procurement_purchase_order_drafts","mme_procurement_vendor_performance","mme_procurement_audit"])assert.ok(sql.includes(n));});
+test("all eight purchasing tables enable RLS",()=>assert.equal((sql.match(/enable row level security/g)||[]).length,8));
+test("requests require approved vendor, matching SKU, valid quote and active budget",()=>{assert.match(sql,/status='approved'/);assert.match(sql,/q\.sku_reference<>f\.sku_reference/);assert.match(sql,/quote_valid_until<=now\(\)/);assert.match(sql,/status='active'/);});
+test("request cost is checked against budget before creation",()=>assert.match(sql,/v_total\+b\.committed_amount>b\.budget_amount/));
+test("approval requires independent approver and locks and rechecks budget",()=>{assert.match(sql,/p_approver=r\.requested_by/);assert.match(sql,/for update/);assert.match(sql,/committed_amount=committed_amount\+r\.estimated_total/);});
+test("approval creates draft PO but does not submit externally",()=>{assert.match(sql,/MME-PO-DRAFT-/);assert.match(sql,/draft_status text not null default 'draft'/);assert.doesNotMatch(sql,/http_post|net\.http_post|purchase_order_submit/i);});
+test("vendor performance scorecard tracks on-time delivery and acceptance",()=>{assert.match(sql,/on_time_delivery_percent/);assert.match(sql,/acceptance_rate_percent/);});
+test("audit history append-only and browser roles denied",()=>{assert.match(sql,/revoke update,delete,truncate on public\.mme_procurement_audit/);assert.match(sql,/from public,anon,authenticated/);});
+test("service grants limited to named RPCs",()=>assert.doesNotMatch(sql,/grant execute on all functions in schema/i));
