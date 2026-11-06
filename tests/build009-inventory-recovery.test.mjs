@@ -1,0 +1,14 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+const sql=await readFile(new URL("../supabase/migrations/20261105001340_build009_inventory_recovery_reconditioning.sql",import.meta.url),"utf8");
+test("recovery schema includes assets, work orders, operations, costs, valuation, outbox and audit",()=>{for(const t of ["mme_inventory_recovery_assets","mme_refurbishment_work_orders","mme_refurbishment_operations","mme_recovered_asset_cost_ledger","mme_recovered_asset_valuations","mme_recovered_inventory_posting_outbox","mme_inventory_recovery_audit"])assert.ok(sql.includes(t));});
+test("all seven tables enable RLS",()=>assert.equal((sql.match(/enable row level security/g)||[]).length,7));
+test("customer roles cannot access recovery tables or RPCs",()=>{assert.match(sql,/from public,anon,authenticated/);assert.match(sql,/grant execute on function public\.mme_inventory_recovery_classify_asset.*to service_role/s);});
+test("serial mismatch blocks recovery intake",()=>assert.match(sql,/Serial mismatch requires loss-prevention review/));
+test("refurbishment requires quarantine and resolves planned operations",()=>{assert.match(sql,/Asset must be quarantined or awaiting repair/);assert.match(sql,/Resolve all planned operations first/);});
+test("classification gates map grade to resale category",()=>{for(const s of ["Open-box requires grade A or B","Refurbished requires grade A, B or C","Parts-only requires grade C or D","Non-resellable classification requires non-resellable grade"])assert.ok(sql.includes(s));});
+test("failed inspection, serial mismatch and activation lock block resale",()=>assert.match(sql,/Inspection failure, serial mismatch or activation lock blocks resale/));
+test("asset-specific recovery costs drive net recovery valuation",()=>{assert.match(sql,/sum\(amount\).*mme_recovered_asset_cost_ledger/s);assert.match(sql,/p_estimated_resale_value-v_cost/);});
+test("inventory updates use an idempotent outbox and authoritative confirmation",()=>{assert.match(sql,/idempotency_key text not null unique/);assert.match(sql,/inventory_transaction_reference/);assert.doesNotMatch(sql,/insert into public\.mme_inventory\(/i);});
+test("audit log is append-only",()=>assert.match(sql,/revoke update,delete,truncate on public\.mme_inventory_recovery_audit/));

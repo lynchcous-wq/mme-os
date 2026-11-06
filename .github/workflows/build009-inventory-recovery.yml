@@ -1,0 +1,21 @@
+name: Build 009.54 inventory recovery contracts
+on:
+  push:
+    branches:
+      - implementation/build-009-54-inventory-recovery-reconditioning
+  pull_request:
+    branches:
+      - implementation/build-009-53-returns-exchanges-refunds
+jobs:
+  inventory-recovery:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - run: npm run lint
+      - run: npm run test:build009:inventory-recovery
+      - run: npm run test:build009:returns-management
