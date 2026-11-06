@@ -1,0 +1,16 @@
+import test from"node:test";import assert from"node:assert/strict";import{readFile}from"node:fs/promises";
+const sql=await readFile(new URL("../supabase/migrations/20261105001850_build010_security_event_reliability_retry_dead_letter.sql",import.meta.url),"utf8");
+const ingest=await readFile(new URL("../app/api/warranty/security-intelligence/ingest/route.ts",import.meta.url),"utf8");
+const worker=await readFile(new URL("../app/api/internal/warranty-security-delivery-worker/route.ts",import.meta.url),"utf8");
+const admin=await readFile(new URL("../app/api/warranty/security-intelligence/delivery/route.ts",import.meta.url),"utf8");
+const page=await readFile(new URL("../app/warranty/security-intelligence/delivery/page.tsx",import.meta.url),"utf8");
+test("queue is durable and idempotent by event and task",()=>{assert.match(sql,/unique\(event_id,task_type\)/);assert.match(sql,/status text not null default 'pending'/);});
+test("attempts and receipts are independently persisted",()=>{for(const t of ["mme_warranty_security_event_delivery_attempts","mme_warranty_security_event_delivery_receipts"])assert.ok(sql.includes("create table public."+t));});
+test("queue claim uses row locks and leases",()=>{assert.match(sql,/for update skip locked/);assert.match(sql,/lease_until=now\(\)\+interval '2 minutes'/);});
+test("retry uses bounded exponential backoff and dead letters",()=>{assert.match(sql,/power\(2/);assert.match(sql,/least\(21600/);assert.match(sql,/status='dead_letter'/);});
+test("queue tables are RLS protected and client access revoked",()=>{assert.match(sql,/enable row level security/);assert.match(sql,/revoke all on public\.mme_warranty_security_event_delivery_queue from public,anon,authenticated/);});
+test("signed ingestion enqueues durable correlation job",()=>{assert.match(ingest,/mme_warranty_security_event_delivery_queue/);assert.match(ingest,/task_type:"correlate"/);});
+test("worker uses secret authentication and leased claim RPC",()=>{assert.match(worker,/MME_SECURITY_WORKER_SECRET/);assert.match(worker,/mme_security_delivery_claim/);assert.match(worker,/mme_security_delivery_finish/);});
+test("worker records attempt and receipt history",()=>{assert.match(worker,/mme_warranty_security_event_delivery_attempts/);assert.match(worker,/mme_warranty_security_event_delivery_receipts/);});
+test("replay is authorized and limited to dead-letter jobs",()=>{assert.match(admin,/delivery_admin_access_denied/);assert.match(admin,/only_dead_letter_jobs_can_be_replayed/);assert.match(admin,/requestedBy/);});
+test("dashboard exposes queue and dead-letter replay controls",()=>{for(const x of ["Refresh delivery queue","Request replay","Attempts:","Dead-letter after configured attempt limit"])assert.ok(page.includes(x));});
