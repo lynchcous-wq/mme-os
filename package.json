@@ -143,7 +143,8 @@
     "test:build010:inventory": "node --test tests/build010-inventory.test.mjs",
     "test:build010:purchasing": "node --test tests/build010-purchasing.test.mjs",
     "test:build010:ap": "node --test tests/build010-ap.test.mjs",
-    "test:build010:gl": "node --test tests/build010-gl.test.mjs"
+    "test:build010:gl": "node --test tests/build010-gl.test.mjs",
+    "test:build010:ar": "node --test tests/build010-ar.test.mjs"
   },
   "dependencies": {
     "next": "^15.2.4",
