@@ -140,6 +140,7 @@ Deno.serve(async (req) => {
       p_fulfillment_cents: priced.fulfillment_cents,
       p_discount_cents: priced.discount_cents,
       p_items: priced.items,
+      p_expected_subtotal_cents: priced.expected_subtotal_cents,
       p_expires_at: reservationExpiresAt,
     },
   );
@@ -147,7 +148,7 @@ Deno.serve(async (req) => {
 
   const { data: order, error: readError } = await admin
     .from("mme_orders")
-    .select("id,total_cents,currency,status,customer_identity_id")
+    .select("id,subtotal_cents,total_cents,currency,status,customer_identity_id")
     .eq("id", orderId)
     .single();
   if (readError || !order || order.status !== "pending_payment" ||
