@@ -142,6 +142,30 @@ begin
   return jsonb_build_object('fulfillment_job_id',p_job,'status','failed','error_code',sqlstate,'error',left(sqlerrm,500),'inventory_changed',false);
  end;
 end $$;
+create or replace function public.mme_inventory_update_device_status(p_device uuid,p_action text,p_note text,p_actor uuid)
+returns jsonb language plpgsql security definer set search_path=public as $
+declare a public.mme_inventory_device_assets%rowtype; next_status text; event_name text;
+begin
+ select * into a from public.mme_inventory_device_assets where device_asset_id=p_device for update;
+ if not found then raise exception 'device_asset_not_found'; end if;
+ case p_action
+  when 'blacklist' then if a.asset_status in('sold','retired') then raise exception 'device_status_transition_denied'; end if; next_status:='blacklisted'; event_name:='blacklisted';
+  when 'unblacklist' then if a.asset_status<>'blacklisted' then raise exception 'device_not_blacklisted'; end if; next_status:='available'; event_name:='unblacklisted';
+  when 'mark_missing' then if a.asset_status in('sold','retired','blacklisted') then raise exception 'device_status_transition_denied'; end if; next_status:='missing'; event_name:='marked_missing';
+  when 'recover' then if a.asset_status<>'missing' then raise exception 'device_not_missing'; end if; next_status:='available'; event_name:='recovered';
+  when 'repair_start' then if a.asset_status not in('available','returned') then raise exception 'device_status_transition_denied'; end if; next_status:='repair'; event_name:='repair_started';
+  when 'repair_complete' then if a.asset_status<>'repair' then raise exception 'device_not_in_repair'; end if; next_status:='available'; event_name:='repair_completed';
+  when 'return' then if a.asset_status<>'sold' then raise exception 'device_not_sold'; end if; next_status:='returned'; event_name:='returned';
+  when 'retire' then if a.asset_status in('sold','retired') then raise exception 'device_status_transition_denied'; end if; next_status:='retired'; event_name:='retired';
+  else raise exception 'unsupported_device_action';
+ end case;
+ update public.mme_inventory_device_assets set asset_status=next_status,updated_at=now() where device_asset_id=p_device;
+ insert into public.mme_inventory_device_events(device_asset_id,event_type,from_status,to_status,event_detail,actor_auth_user_id)
+ values(p_device,event_name,a.asset_status,next_status,left(coalesce(p_note,''),500),p_actor);
+ return jsonb_build_object('device_asset_id',p_device,'previous_status',a.asset_status,'asset_status',next_status,'event_type',event_name);
+end $;
+revoke all on function public.mme_inventory_update_device_status(uuid,text,text,uuid) from public,anon,authenticated;
+grant execute on function public.mme_inventory_update_device_status(uuid,text,text,uuid) to service_role;
 revoke all on function public.mme_inventory_register_device(uuid,uuid,text,text,text,text,text,numeric,uuid) from public,anon,authenticated;
 revoke all on function public.mme_inventory_attach_fulfillment_device(uuid,uuid,uuid) from public,anon,authenticated;
 revoke all on function public.mme_inventory_post_fulfillment_serialized(uuid,uuid) from public,anon,authenticated;
