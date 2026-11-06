@@ -1,0 +1,11 @@
+import test from "node:test";import assert from "node:assert/strict";import{readFile}from"node:fs/promises";
+const page=await readFile(new URL("../app/warranty/security-compliance/page.tsx",import.meta.url),"utf8");
+const api=await readFile(new URL("../app/api/warranty/security-compliance/reports/route.ts",import.meta.url),"utf8");
+test("executive dashboard exposes six security reporting sections",()=>{for(const x of ["summary","evidence","access","holds","retention","custody"])assert.ok(page.includes('"'+x+'"')||page.includes(x));});
+test("dashboard requires an access token and calls authenticated reporting API",()=>{assert.match(page,/Supabase access token/);assert.match(page,/Authorization:\s*"Bearer "\+accessToken/);assert.match(page,/security-compliance\/reports/);});
+test("dashboard presents executive KPI tiles and record tables",()=>{for(const x of ["total_evidence_count","clean_evidence_count","pending_scan_count","flagged_evidence_count","active_legal_hold_count","retention_work_backlog","denied_downloads_30d"])assert.ok(page.includes(x));assert.match(page,/<table/);});
+test("dashboard exports loaded report records as CSV",()=>{assert.match(page,/Export CSV/);assert.match(page,/text\/csv/);});
+test("dashboard avoids persistent token storage and disables cache",()=>{assert.doesNotMatch(page,/localStorage/);assert.match(page,/sessionStorage/);assert.match(page,/cache:"no-store"/);});
+test("server retains role-specific access and fixed report allowlist",()=>{assert.match(api,/const VIEWS=/);assert.match(api,/const ACCESS:/);assert.match(api,/auth\/v1\/user/);});
+test("access event reporting is restricted to CEO and privacy officer",()=>{assert.match(api,/access:\["ceo","privacy_officer"\]/);});
+test("report access outcomes are audited",()=>{assert.match(api,/mme_warranty_security_compliance_report_events/);for(const x of ['"granted"','"denied"','"failed"'])assert.ok(api.includes(x));});
