@@ -1,0 +1,17 @@
+name: Build 009.80 warranty retention and access contracts
+on:
+  push:
+    branches: [implementation/build-009-80-warranty-retention-and-access]
+  pull_request:
+    branches: [implementation/build-009-79-warranty-evidence-scanner]
+jobs:
+  warranty-retention-access:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - run: npm run lint
+      - run: npm run test:build009:warranty-retention-access
