@@ -159,7 +159,8 @@
     "test:build010:treasury-cash-operations": "node --test tests/build010-treasury-cash-operations.test.mjs",
     "test:build010:financial-controls-audit": "node --test tests/build010-financial-controls-audit.test.mjs",
     "test:build010:enterprise-risk-continuity": "node --test tests/build010-enterprise-risk-continuity.test.mjs",
-    "test:build010:workforce-organizational-intelligence": "node --test tests/build010-workforce-organizational-intelligence.test.mjs"
+    "test:build010:workforce-organizational-intelligence": "node --test tests/build010-workforce-organizational-intelligence.test.mjs",
+    "test:build010:employee-lifecycle-hr": "node --test tests/build010-employee-lifecycle-hr.test.mjs"
   },
   "dependencies": {
     "next": "^15.2.4",
