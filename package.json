@@ -95,7 +95,8 @@
     "test:build009:warranty-security-investigation-case-management": "node --test tests/build009-warranty-security-investigation-case-management.test.mjs",
     "test:build009:warranty-security-evidence-ingestion-integrity": "node --test tests/build009-warranty-security-evidence-ingestion-integrity.test.mjs",
     "test:build009:warranty-security-evidence-access-retention": "node --test tests/build009-warranty-security-evidence-access-retention.test.mjs",
-    "test:build009:warranty-security-compliance-reporting": "node --test tests/build009-warranty-security-compliance-reporting.test.mjs"
+    "test:build009:warranty-security-compliance-reporting": "node --test tests/build009-warranty-security-compliance-reporting.test.mjs",
+    "test:build009:warranty-security-anomaly-detection": "node --test tests/build009-warranty-security-anomaly-detection.test.mjs"
   },
   "dependencies": {
     "next": "^15.2.4",

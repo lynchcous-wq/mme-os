@@ -1,0 +1,13 @@
+import test from "node:test";import assert from "node:assert/strict";import{readFile}from"node:fs/promises";
+const sql=await readFile(new URL("../supabase/migrations/20261105001720_build009_warranty_security_anomaly_detection.sql",import.meta.url),"utf8");
+const trigger=await readFile(new URL("../app/api/warranty/security-anomalies/detect/route.ts",import.meta.url),"utf8");
+const feed=await readFile(new URL("../app/api/warranty/security-anomalies/route.ts",import.meta.url),"utf8");
+test("detector identifies repeated denied downloads with explicit thresholds",()=>{assert.match(sql,/download_denied/);assert.match(sql,/having count\(\*\)>=5/);assert.match(sql,/repeated_denied_downloads/);});
+test("detector flags high successful download volume with configurable window",()=>{assert.match(sql,/download_granted/);assert.match(sql,/having count\(\*\)>=20/);assert.match(sql,/make_interval\(mins=>v_window\)/);});
+test("detector generates evidence integrity signals from unsafe scan states",()=>{for(const x of ["quarantined","rejected","scan_error","evidence_integrity_exception"])assert.ok(sql.includes(x));});
+test("detector surfaces overdue retention work but never deletes evidence",()=>{assert.match(sql,/retention_overdue/);assert.match(sql,/not exists\([\s\S]*released_at is null/);assert.doesNotMatch(sql,/storage\.delete|delete from public\.mme_warranty_api_security_case_evidence/i);});
+test("signal generation is idempotent per case and detection fingerprint",()=>{assert.match(sql,/detection_fingerprint/);assert.match(sql,/on conflict do nothing/);assert.match(sql,/create unique index/);});
+test("detection function bounds the lookback and is service-role only",()=>{assert.match(sql,/greatest\(5,least\(coalesce\(p_window_minutes,60\),10080\)\)/);assert.match(sql,/revoke all on function[\s\S]*from public,anon,authenticated/);assert.match(sql,/to service_role/);});
+test("detection endpoint authenticates and restricts execution to privileged roles",()=>{assert.match(trigger,/auth\/v1\/user/);assert.match(trigger,/ceo.*privacy_officer/);assert.match(trigger,/invalid_detection_window/);});
+test("signal feed is authenticated, bounded and no-store",()=>{assert.match(feed,/auth\/v1\/user/);assert.match(feed,/Math\.min\(200/);assert.match(feed,/Cache-Control/);});
+test("signal explanations explicitly avoid asserting intent",()=>{assert.match(sql,/does not establish intent/);assert.match(sql,/before drawing conclusions/);});

@@ -1,0 +1,19 @@
+name: warranty anomaly detection tests
+on:
+  push:
+    branches:
+      - implementation/build-009-96-warranty-security-anomaly-detection
+  pull_request:
+    branches:
+      - implementation/build-009-95-warranty-security-ai-risk-intelligence
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - run: npm run lint
+      - run: node --test tests/build009-warranty-security-anomaly-detection.test.mjs
