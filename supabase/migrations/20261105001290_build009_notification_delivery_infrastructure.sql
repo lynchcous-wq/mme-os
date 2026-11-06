@@ -97,7 +97,10 @@ grant select,insert,update on public.mme_notification_provider_routes,
  public.mme_notification_templates to service_role;
 grant select,insert,update on public.mme_notification_delivery_jobs to service_role;
 grant select,insert on public.mme_notification_delivery_attempts to service_role;
-revoke delete,truncate on all tables in schema public from public,anon,authenticated;
+revoke delete,truncate on public.mme_notification_channel_preferences,
+ public.mme_notification_provider_routes,public.mme_notification_templates,
+ public.mme_notification_delivery_jobs,public.mme_notification_delivery_attempts
+ from public,anon,authenticated;
 
 create or replace function public.mme_notification_enqueue_delivery(
  p_alert_notification_id uuid,p_recipient_person_id uuid,p_channel text,
@@ -106,7 +109,7 @@ create or replace function public.mme_notification_enqueue_delivery(
 as $$
 declare v_template public.mme_notification_templates%rowtype; v_id uuid;
 begin
- if p_recipient_person_id is null or p_channel not in ('email','sms','push','in_app')
+ if p_recipient_person_id is null or p_channel is null or p_channel not in ('email','sms','push','in_app')
   or p_template_key is null or p_locale is null or p_idempotency_key is null
   or length(p_idempotency_key) not between 8 and 200
   or p_payload is null or jsonb_typeof(p_payload)<>'object' then
@@ -140,11 +143,9 @@ begin
   or ((p_quiet_start is null)<>(p_quiet_end is null)) then
   raise exception 'Invalid notification preference' using errcode='22023';
  end if;
- if p_actor_person_id<>p_person_id and not exists(
-  select 1 from public.mme_pos_financial_alert_subscriptions s
-  where s.recipient_person_id=p_actor_person_id and s.enabled
-   and public.mme_pos_authorize_settlement_action(p_actor_person_id,s.location_id,'pos.settlement.exception.manage')
- ) then raise exception 'Notification preference management denied' using errcode='42501'; end if;
+ if p_actor_person_id<>p_person_id then
+  raise exception 'Only the account holder may change personal notification preferences' using errcode='42501';
+ end if;
  insert into public.mme_notification_channel_preferences(person_id,channel,enabled,quiet_hours_start,quiet_hours_end,timezone_name)
  values(p_person_id,p_channel,p_enabled,p_quiet_start,p_quiet_end,p_timezone)
  on conflict(person_id,channel) do update set enabled=excluded.enabled,
@@ -159,7 +160,7 @@ create or replace function public.mme_notification_claim_delivery_jobs(
 language plpgsql security definer set search_path=pg_catalog,public
 as $$
 begin
- if p_channel not in ('email','sms','push','in_app') or p_batch_size not between 1 and 200 then
+ if p_channel is null or p_channel not in ('email','sms','push','in_app') or p_batch_size is null or p_batch_size not between 1 and 200 then
   raise exception 'Valid channel and batch size (1-200) required' using errcode='22023';
  end if;
  return query
@@ -188,7 +189,7 @@ begin
  select * into v_job from public.mme_notification_delivery_jobs where id=p_job_id for update;
  if not found then raise exception 'Delivery job not found' using errcode='P0002'; end if;
  if v_job.status<>'processing' then raise exception 'Delivery job is not claimed' using errcode='55000'; end if;
- if p_provider_code is null or p_outcome not in ('sent','retryable_failure','permanent_failure','suppressed')
+ if p_provider_code is null or p_outcome is null or p_outcome not in ('sent','retryable_failure','permanent_failure','suppressed')
   or (p_latency_ms is not null and p_latency_ms<0) then
   raise exception 'Invalid provider result' using errcode='22023';
  end if;
