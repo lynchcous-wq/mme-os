@@ -138,7 +138,8 @@
     "test:build010:workforce-lifecycle": "node --test tests/build010-workforce-lifecycle.test.mjs",
     "test:build010:hr-payroll": "node --test tests/build010-hr-payroll.test.mjs",
     "test:build010:finance": "node --test tests/build010-finance.test.mjs",
-    "test:build010:executive-command-center": "node --test tests/build010-executive-command-center.test.mjs"
+    "test:build010:executive-command-center": "node --test tests/build010-executive-command-center.test.mjs",
+    "test:build010:bi": "node --test tests/build010-business-intelligence.test.mjs"
   },
   "dependencies": {
     "next": "^15.2.4",
