@@ -1,0 +1,17 @@
+name: Build 009.74 warranty renewal contracts
+on:
+  push:
+    branches: [implementation/build-009-74-warranty-renewal]
+  pull_request:
+    branches: [implementation/build-009-73-warranty-notifications]
+jobs:
+  warranty-renewal:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - run: npm run lint
+      - run: npm run test:build009:warranty-renewal
