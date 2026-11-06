@@ -42,7 +42,7 @@ Deno.serve(async (request) => {
   for (const reservation of reservations ?? []) {
     const orderId = reservation.order_id as string;
     const { data: order, error: orderError } = await admin.from("mme_orders")
-      .select("id,status,total_cents,currency").eq("id", orderId).maybeSingle();
+      .select("id,status,total_cents,currency,customer_identity_id").eq("id", orderId).maybeSingle();
     if (orderError || !order || order.status !== "pending_payment") { result.skipped++; continue; }
 
     const { data: binding, error: bindingError } = await admin.from("mme_order_payment_intents")
@@ -60,15 +60,57 @@ Deno.serve(async (request) => {
       return !caseError;
     };
 
-    if (bindingError || !binding) {
+    if (bindingError) { result.skipped++; continue; }
+    let resolvedBinding = binding;
+    if (!resolvedBinding) {
+      // Stripe search is a recovery path for a PaymentIntent created successfully
+      // when the subsequent database binding RPC timed out or failed.
+      try {
+        const found = await stripe.paymentIntents.search({
+          query: "metadata['mme_order_id']:'" + orderId + "'",
+          limit: 10,
+        });
+        const matching = found.data.filter((candidate) =>
+          candidate.metadata.mme_order_id === orderId &&
+          candidate.amount === order.total_cents && candidate.currency === "usd" &&
+          candidate.livemode === (liveMode === "true")
+        );
+        if (matching.length === 1 && order.customer_identity_id) {
+          const { error: bindError } = await admin.rpc("mme_bind_order_payment_intent", {
+            p_order_id: orderId,
+            p_provider_object_id: matching[0].id,
+            p_expected_amount_cents: order.total_cents,
+            p_currency: "USD",
+            p_customer_identity_id: order.customer_identity_id,
+          });
+          if (!bindError) {
+            resolvedBinding = {
+              provider_object_id: matching[0].id,
+              expected_amount_cents: order.total_cents,
+              currency: "USD",
+            };
+          }
+        } else if (matching.length > 1) {
+          await recordCase("payment_intent_status_unresolved", null, null, {
+            message: "Multiple Stripe PaymentIntents match this order; automatic selection is unsafe.",
+            matching_intent_ids: matching.map((candidate) => candidate.id),
+          });
+          result.quarantined++;
+          continue;
+        }
+      } catch {
+        // Search is eventually consistent and may be unavailable. Keep stock reserved.
+      }
+    }
+    if (!resolvedBinding) {
       await recordCase("payment_intent_binding_missing", null, null, {
-        message: "No bound PaymentIntent exists. Reservation is retained pending provider reconciliation.",
+        message: "No bound PaymentIntent was found in the database or Stripe search. Inventory remains reserved pending reconciliation.",
       });
       result.quarantined++;
       continue;
     }
-    if (binding.currency !== "USD" || binding.expected_amount_cents !== order.total_cents) {
-      await recordCase("payment_intent_status_unresolved", binding.provider_object_id, null, {
+    if (resolvedBinding.currency !== "USD" || resolvedBinding.expected_amount_cents !== order.total_cents) {
+      await recordCase("payment_intent_status_unresolved", resolvedBinding.provider_object_id, null, {
         message: "PaymentIntent binding does not match the order total/currency.",
       });
       result.quarantined++;
