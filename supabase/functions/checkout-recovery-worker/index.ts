@@ -179,6 +179,9 @@ Deno.serve(async (request) => {
       result.quarantined++;
       continue;
     }
+    await admin.from("mme_checkout_recovery_cases").update({
+      status: "resolved", resolved_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+    }).eq("order_id", orderId).eq("status", "open");
     result.expired++;
   }
   return response({ success: true, ...result });
