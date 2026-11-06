@@ -34,3 +34,7 @@ enable_signup = true
 [functions.checkout-pricing]
 # Internal server-to-server endpoint; authenticates using the dedicated MME pricing secret.
 verify_jwt = false
+
+[functions.checkout-recovery-worker]
+# Internal scheduled worker authenticates with its dedicated secret.
+verify_jwt = false
