@@ -1,0 +1,14 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+const sql=await readFile(new URL("../supabase/migrations/20261105001350_build009_recovered_inventory_pricing.sql",import.meta.url),"utf8");
+test("pricing schema has comparables, policies, recommendations, overrides, markdown and publication outbox",()=>{for(const n of ["mme_recovered_market_comparables","mme_recovered_pricing_policies","mme_recovered_price_recommendations","mme_recovered_price_overrides","mme_recovered_markdown_plans","mme_recovered_price_publication_outbox","mme_recovered_pricing_audit"])assert.ok(sql.includes(n));});
+test("all pricing tables enable RLS",()=>assert.equal((sql.match(/enable row level security/g)||[]).length,7));
+test("pricing policies constrain margins and markdowns",()=>{assert.match(sql,/target_margin_percent>=minimum_margin_percent/);assert.match(sql,/maximum_markdown_percent between 0 and 90/);});
+test("price recommendation uses asset cost and recent comparable median",()=>{assert.match(sql,/percentile_cont\(0\.5\)/);assert.match(sql,/interval '30 days'/);assert.match(sql,/estimated_gross_profit/);});
+test("override approval requires a different approver",()=>assert.match(sql,/p_approver=v\.requested_by/));
+test("markdown cannot undercut minimum-margin price floor",()=>{assert.match(sql,/greatest\(round\(v\.current_price/);assert.match(sql,/v_new<v_floor/);});
+test("website publication requires approved price and disclosure",()=>{assert.match(sql,/approved recommendation or override/);assert.match(sql,/condition_disclosure/);});
+test("publication uses idempotency and catalog confirmation",()=>{assert.match(sql,/idempotency_key text not null unique/);assert.match(sql,/catalog_transaction_reference/);});
+test("profitability view exposes asset-level recovery cost and margin",()=>{assert.match(sql,/mme_recovered_inventory_profitability/);assert.match(sql,/estimated_margin_percent/);});
+test("public and authenticated roles are denied direct pricing table access",()=>assert.match(sql,/from public,anon,authenticated/));
