@@ -14,7 +14,7 @@ test("notification acknowledgement deadlines vary by incident severity",()=>{
 });
 test("acknowledgement is authenticated, idempotent and role bounded",()=>{
  assert.match(sql,/mme_security_notification_acknowledge/);
- assert.match(sql,/notification_acknowledged/);
+ assert.match(sql,/acknowledged',true/);
  assert.match(sql,/notification_ack_forbidden/);
  assert.match(sql,/notification_recipient_role_required/);
  assert.match(api,/auth\/v1\/user/);
