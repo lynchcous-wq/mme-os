@@ -1,0 +1,13 @@
+import test from "node:test";import assert from "node:assert/strict";import{readFile}from"node:fs/promises";
+const sql=await readFile(new URL("../supabase/migrations/20261105001710_build009_warranty_security_ai_risk_intelligence.sql",import.meta.url),"utf8");
+const api=await readFile(new URL("../app/api/warranty/security-risk-intelligence/route.ts",import.meta.url),"utf8");
+test("risk signal ledger constrains types, severity, confidence and weights",()=>{for(const x of ["repeated_denied_downloads","unusual_download_volume","evidence_integrity_exception","scan_failure","retention_overdue","custody_gap","incident_severity","manual_review","confidence between 0 and 1","weight between 1 and 40"])assert.ok(sql.includes(x));});
+test("risk signals retain human-readable explanations and source references",()=>{assert.match(sql,/explanation text not null/);assert.match(sql,/source_reference text/);});
+test("risk view is explainable and excludes dismissed signals",()=>{assert.match(sql,/raw_risk_score/);assert.match(sql,/contributing_signals/);assert.match(sql,/review_status<>'dismissed'/);assert.match(sql,/security_invoker=true/);});
+test("risk signal ledger and review events enable RLS",()=>{assert.match(sql,/risk_signals enable row level security/);assert.match(sql,/risk_review_events enable row level security/);});
+test("review RPC requires a valid outcome and written rationale",()=>{assert.match(sql,/invalid_risk_review/);assert.match(sql,/length\(trim\(coalesce\(p_note,''\)\)\)<5/);assert.match(sql,/for update/);});
+test("review history records prior and new state with request correlation",()=>{for(const x of ["prior_status","new_status","review_note","request_id","occurred_at"])assert.ok(sql.includes(x));});
+test("API validates Supabase bearer session and app metadata roles",()=>{assert.match(api,/auth\/v1\/user/);assert.match(api,/app_metadata/);assert.match(api,/authentication_required/);});
+test("API exposes bounded risk view reads and authenticated review endpoint",()=>{assert.match(api,/risk_intelligence/);assert.match(api,/Math\.min\(200/);assert.match(api,/mme_warranty_api_security_risk_review/);});
+test("review API validates signal ID, state and rationale",()=>{assert.match(api,/invalid_review/);assert.match(api,/needs_context/);assert.match(api,/risk_review_permission_required/);});
+test("responses disable caching and include request IDs",()=>{assert.match(api,/Cache-Control.*no-store/);assert.match(api,/X-Request-ID/);});
