@@ -1,0 +1,19 @@
+name: warranty security operations dashboard tests
+on:
+  push:
+    branches:
+      - implementation/build-010-00-warranty-security-operations-dashboard
+  pull_request:
+    branches:
+      - implementation/build-009-99-warranty-security-delivery-receipts-provider-failover
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - run: npm run lint
+      - run: npm run test:build010:warranty-security-operations-dashboard
