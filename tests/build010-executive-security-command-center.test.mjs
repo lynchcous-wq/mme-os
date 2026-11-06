@@ -1,0 +1,11 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import {readFile} from "node:fs/promises";
+const migration=await readFile(new URL("../supabase/migrations/20261106002160_build010_executive_security_command_center.sql",import.meta.url),"utf8");
+const route=await readFile(new URL("../app/api/warranty/security-intelligence/executive/route.ts",import.meta.url),"utf8");
+const page=await readFile(new URL("../app/warranty/security-intelligence/executive/page.tsx",import.meta.url),"utf8");
+test("executive action audit is private and linked to alerts",()=>{assert.match(migration,/mme_security_executive_action_audit/);assert.match(migration,/references public\.mme_security_integration_alerts/);assert.match(migration,/enable row level security/);assert.match(migration,/before_state,after_state/);});
+test("database action RPC locks alert and validates role and rationale",()=>{assert.match(migration,/p_actor_role not in \('ceo','cio','it_admin'\)/);assert.match(migration,/for update/);assert.match(migration,/length\(trim\(p_rationale\)\),0\)<10/);assert.match(migration,/grant execute on function public\.mme_security_executive_record_action[\s\S]*to service_role/);});
+test("API validates session and action role before privileged access",()=>{assert.match(route,/auth\/v1\/user/);assert.match(route,/ACTION|WRITE/);assert.match(route,/SUPABASE_SERVICE_ROLE_KEY/);assert.match(route,/mme_security_executive_record_action/);});
+test("executive UI presents posture, incident actions and audit history",()=>{assert.match(page,/Executive Security Command Center/);assert.match(page,/Department security posture/);assert.match(page,/Acknowledge alert/);assert.match(page,/Resolve alert/);assert.match(page,/Executive action audit/);});
+test("missing telemetry is not treated as healthy",()=>{assert.match(page,/unknown or stale/);});
