@@ -1,0 +1,11 @@
+import test from "node:test"; import assert from "node:assert/strict"; import {readFile} from "node:fs/promises";
+const sql=await readFile(new URL("../supabase/migrations/20261105001480_build009_warranty_provider_integration_hub.sql",import.meta.url),"utf8");
+test("provider registry, connections, programs and claim submission outbox exist",()=>{for(const n of ["mme_warranty_providers","mme_warranty_provider_connections","mme_warranty_provider_programs","mme_warranty_provider_claim_submissions"])assert.ok(sql.includes("create table public."+n));});
+test("webhook inbox, SLA events and reconciliation ledger exist",()=>{for(const n of ["mme_warranty_provider_webhook_events","mme_warranty_provider_sla_events","mme_warranty_provider_reconciliations"])assert.ok(sql.includes("create table public."+n));});
+test("all seven tables use RLS and browser grants are revoked",()=>{assert.equal((sql.match(/enable row level security/g)||[]).length,7);assert.match(sql,/from public,anon,authenticated/);});
+test("provider credentials are referenced, never stored as secret values",()=>{assert.match(sql,/secret_reference text not null/);assert.doesNotMatch(sql,/api_secret text|access_token text|client_secret text/);});
+test("provider submission is gated by active provider and production connection",()=>{assert.match(sql,/environment='production'/);assert.match(sql,/status='active'/);});
+test("submission outbox is retryable and idempotent",()=>{assert.match(sql,/attempts integer not null default 0/);assert.match(sql,/idempotency_key text not null unique/);assert.match(sql,/Idempotency key reused with different provider request/);});
+test("webhook event IDs are unique per provider and signature state is explicit",()=>{assert.match(sql,/unique\\(provider_id,external_event_id\\)/);assert.match(sql,/signature_verified boolean not null default false/);});
+test("settlement reconciliation records variances without assuming payment",()=>{assert.match(sql,/variance_amount numeric\\(14,2\\) generated always as/);assert.match(sql,/status text not null default 'pending' check\\(status in \\('pending','matched','variance','disputed','approved'\\)\\)/);});
+test("provider RPCs are service-role only",()=>{assert.equal((sql.match(/grant execute on function public\\.mme_warranty_provider_/g)||[]).length,2);});
