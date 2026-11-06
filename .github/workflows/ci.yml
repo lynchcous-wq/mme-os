@@ -37,6 +37,7 @@ jobs:
           npm run test:workflow-reconciliation-history
           npm run test:checkout-ui
           npm run test:checkout-pricing
+          npm run test:checkout-atomic-pricing
 
       - name: Type-check
         run: npm run lint
