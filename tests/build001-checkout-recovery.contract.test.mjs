@@ -43,8 +43,10 @@ test("recovery case ledger is private, durable, and uniquely tracked per order a
 test("single-order expiry requires an active due reservation and pending order", () => {
   assert.match(migration, /v_order\.status<>'pending_payment'/);
   assert.match(migration, /v_res\.status<>'active' or v_res\.expires_at>now\(\)/);
-  assert.match(migration, /mme_release_serialized_order_reservation/);
-  assert.match(migration, /mme_release_order_reservation/);
+  assert.match(migration, /mme_inventory_reservation_lines/);
+  assert.match(migration, /mme_serialized_unit_reservations/);
+  assert.match(migration, /mme_serialized_units set unit_status='in_stock'/);
+  assert.match(migration, /mme_inventory_reservations set status='expired'/);
 });
 
 test("Stripe webhook remains signature-verified and delegates event idempotency to database processor", () => {
