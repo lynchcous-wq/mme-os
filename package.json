@@ -60,7 +60,8 @@
     "test:build009:returns-management": "node --test tests/build009-returns-management.test.mjs",
     "test:build009:inventory-recovery": "node --test tests/build009-inventory-recovery.test.mjs",
     "test:build009:recovered-pricing": "node --test tests/build009-recovered-pricing.test.mjs",
-    "test:build009:inventory-intelligence": "node --test tests/build009-inventory-intelligence.test.mjs"
+    "test:build009:inventory-intelligence": "node --test tests/build009-inventory-intelligence.test.mjs",
+    "test:build009:purchasing": "node --test tests/build009-purchasing.test.mjs"
   },
   "dependencies": {
     "next": "^15.2.4",
