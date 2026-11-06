@@ -35,7 +35,7 @@ test("fulfillment transitions automatically enqueue idempotent customer email", 
 
 test("notification worker authenticates, uses leased queue, Resend idempotency and bounded retry", () => {
   assert.match(worker, /MME_CUSTOMER_NOTIFICATION_SECRET/);
-  assert.match(worker, /safeEqual\(supplied, secret\)/);
+  assert.match(worker, /safeEqual\(secret, supplied\)/);
   assert.match(worker, /mme_claim_customer_notifications/);
   assert.match(worker, /https:\/\/api\.resend\.com\/emails/);
   assert.match(worker, /Idempotency-Key/);
