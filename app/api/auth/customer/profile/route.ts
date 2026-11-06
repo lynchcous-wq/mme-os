@@ -8,6 +8,13 @@ export async function GET(request:NextRequest){
   if(!session.user)return NextResponse.json({error:"Sign in to manage your profile."},{status:401,headers});
   const {url}=supabaseConfig(),key=process.env.SUPABASE_SERVICE_ROLE_KEY;
   if(!key)return NextResponse.json({error:"Profile service is not configured."},{status:503,headers});
+  const link=await fetch(url+"/rest/v1/mme_customer_account_links?auth_user_id=eq."+encodeURIComponent(session.user.id)+"&link_status=eq.active&select=person_id&limit=2",{headers:{apikey:key,Authorization:"Bearer "+key},cache:"no-store"});
+  if(!link.ok)return NextResponse.json({error:"Customer identity could not be verified."},{status:503,headers});
+  const links=await link.json();
+  if(links.length!==1)return NextResponse.json({error:"An active MME customer identity is required to manage this profile."},{status:403,headers});
+  const identity=await fetch(url+"/rest/v1/mme_person_identities?person_id=eq."+encodeURIComponent(links[0].person_id)+"&lifecycle_status=eq.active&select=person_id&limit=1",{headers:{apikey:key,Authorization:"Bearer "+key},cache:"no-store"});
+  if(!identity.ok)return NextResponse.json({error:"Customer identity could not be verified."},{status:503,headers});
+  if((await identity.json()).length!==1)return NextResponse.json({error:"An active MME customer identity is required to manage this profile."},{status:403,headers});
   const r=await fetch(url+"/rest/v1/mme_customer_profiles?auth_user_id=eq."+encodeURIComponent(session.user.id)+"&select=preferred_name,email_notifications_enabled,sms_notifications_enabled&limit=1",{headers:{apikey:key,Authorization:"Bearer "+key},cache:"no-store"});
   if(!r.ok)return NextResponse.json({error:"Profile could not be loaded."},{status:503,headers});
   const rows=await r.json();
