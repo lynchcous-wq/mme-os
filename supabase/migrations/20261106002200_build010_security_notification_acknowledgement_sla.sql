@@ -73,7 +73,7 @@ begin
  select * into n from public.mme_security_incident_notification_queue
  where notification_id=p_notification_id for update;
  if not found then raise exception 'notification_not_found'; end if;
- if n.recipient_person_id<>p_actor_id then raise exception 'notification_recipient_only'; end if;
+ if p_actor_role<>n.audience_role and p_actor_role not in ('ceo','cio','it_admin') then raise exception 'notification_recipient_role_required'; end if;
  if n.acknowledgement_status='acknowledged' then
   return jsonb_build_object('notificationId',n.notification_id,'acknowledged',true,'alreadyAcknowledged',true,'acknowledgedAt',n.acknowledged_at);
  end if;
