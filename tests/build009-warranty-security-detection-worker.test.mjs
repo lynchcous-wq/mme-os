@@ -1,0 +1,10 @@
+import test from "node:test";import assert from "node:assert/strict";import{readFile}from"node:fs/promises";
+const sql=await readFile(new URL("../supabase/migrations/20261105001640_build009_warranty_security_detection_worker.sql",import.meta.url),"utf8");
+const route=await readFile(new URL("../app/api/internal/warranty-security-detection/route.ts",import.meta.url),"utf8");
+test("detection ledger prevents duplicate event-rule incidents",()=>{assert.match(sql,/unique\(event_id,rule_id\)/);assert.match(sql,/on conflict\(event_id,rule_id\) do nothing/);});
+test("worker evaluates enabled rules and event thresholds within configured windows",()=>{assert.match(sql,/where enabled and event_type=v_event\.event_type/);assert.match(sql,/occurrence_count>=threshold_count/);assert.match(sql,/make_interval\(mins=>window_minutes\)/);});
+test("worker creates incidents and appends timeline events",()=>{assert.match(sql,/insert into public\.mme_warranty_api_security_incidents/);assert.match(sql,/automated_threshold_detection/);});
+test("worker records run health and bounded batch size",()=>{assert.match(sql,/security_worker_runs/);assert.match(sql,/p_batch_size>1000/);assert.match(sql,/status='failed'/);});
+test("worker function is service-role only",()=>{assert.match(sql,/revoke all on function public\.mme_warranty_api_run_security_detection/);assert.match(sql,/to service_role/);});
+test("HTTP worker endpoint requires timing-safe shared-secret authorization",()=>{assert.match(route,/MME_SECURITY_WORKER_SECRET/);assert.match(route,/timingSafeEqual/);assert.match(route,/if\(!authorized\(req\)\)/);});
+test("worker endpoint calls only the fixed detection RPC",()=>{assert.match(route,/mme_warranty_api_run_security_detection/);assert.doesNotMatch(route,/searchParams\.get/);});
