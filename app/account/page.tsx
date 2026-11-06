@@ -55,6 +55,7 @@ export default function AccountPage() {
 
   useEffect(() => {
     void loadOrders();
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) return;
     const supabase = getSupabaseBrowserClient();
     const { data: listener } = supabase.auth.onAuthStateChange(() => { queueMicrotask(() => { void loadOrders(); }); });
     return () => listener.subscription.unsubscribe();
