@@ -1,0 +1,15 @@
+import test from"node:test";import assert from"node:assert/strict";import{readFile}from"node:fs/promises";
+const sql=await readFile(new URL("../supabase/migrations/20261105002040_build010_notification_policy_configuration_outage_automation.sql",import.meta.url),"utf8");
+const api=await readFile(new URL("../app/api/warranty/security-intelligence/policies/route.ts",import.meta.url),"utf8");
+const page=await readFile(new URL("../app/warranty/security-intelligence/policies/page.tsx",import.meta.url),"utf8");
+test("policy configuration supports department, channel and escalation cadence",()=>{for(const x of ["department text","notification_channels text[]","escalation_intervals_minutes integer[]","acknowledge_within_minutes","max_escalation_level"])assert.ok(sql.includes(x));});
+test("policy updates use optimistic version checks",()=>{assert.match(sql,/p_expected_version is null or p\.policy_version<>p_expected_version/);assert.match(sql,/policy_version=policy_version\+1/);});
+test("policy upsert validates recipient roles and delivery channels",()=>{assert.match(sql,/invalid_policy_roles/);assert.match(sql,/invalid_policy_channels/);assert.match(sql,/invalid_escalation_intervals/);});
+test("policy audit preserves versioned snapshots",()=>{assert.match(sql,/mme_security_notification_policy_audit/);assert.match(sql,/snapshot jsonb not null/);assert.match(sql,/to_jsonb\(p\)/);});
+test("policy simulation resolves most-specific enabled department rule",()=>{assert.match(sql,/mme_security_notification_simulate_policy/);assert.match(sql,/department is null or department=nullif\(p_department,''\)/);});
+test("provider outage insert automatically bridges to executive alert",()=>{assert.match(sql,/after insert or update of recovered_at/);assert.match(sql,/mme_security_notification_bridge_provider_outage/);assert.match(sql,/provider-outage:/);});
+test("bridge records missing policy and recovery outcomes idempotently",()=>{assert.match(sql,/policy_missing/);assert.match(sql,/alert_recovered/);assert.match(sql,/unique\(outage_id,action\)/);});
+test("alert records retain policy provenance and resolution metadata",()=>{for(const x of ["policy_id uuid","policy_version integer","resolution_summary text","resolved_by uuid"])assert.ok(sql.includes(x));});
+test("policy admin API limits updates and requires CEO to enable policies",()=>{assert.match(api,/policy_admin_access_denied/);assert.match(api,/ceo_approval_required_to_enable_policy/);assert.match(api,/expectedVersion/);});
+test("policy API supports list, update, simulate and resolve",()=>{for(const x of ["upsert","simulate","resolve_alert","mme_security_notification_upsert_policy","mme_security_notification_simulate_policy"])assert.ok(api.includes(x));});
+test("dashboard supports policy editing, simulation and audit review",()=>{for(const x of ["Notification Policy Governance","Save policy version","Simulate current selection","Policy audit history","Outage-to-alert bridge history"])assert.ok(page.includes(x));});
