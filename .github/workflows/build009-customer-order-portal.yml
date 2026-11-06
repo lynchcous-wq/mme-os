@@ -1,0 +1,21 @@
+name: Build 009.52 customer order portal contracts
+on:
+  push:
+    branches:
+      - implementation/build-009-52-customer-order-self-service
+  pull_request:
+    branches:
+      - implementation/build-009-51-order-event-automation
+jobs:
+  customer-order-portal:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - run: npm run lint
+      - run: npm run test:build009:customer-order-portal
+      - run: npm run test:build009:order-event-automation
