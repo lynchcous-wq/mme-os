@@ -8,7 +8,11 @@ alter table public.mme_security_notification_escalation_policies
 alter table public.mme_security_notification_escalation_alerts
  add column if not exists source_type text not null default 'manual',
  add column if not exists source_provider text,
- add column if not exists source_channel text;
+ add column if not exists source_channel text,
+ add column if not exists policy_id uuid references public.mme_security_notification_escalation_policies(policy_id) on delete restrict,
+ add column if not exists policy_version integer,
+ add column if not exists resolution_summary text,
+ add column if not exists resolved_by uuid;
 create table public.mme_security_notification_policy_audit(
  audit_id uuid primary key default gen_random_uuid(),
  policy_id uuid not null references public.mme_security_notification_escalation_policies(policy_id) on delete restrict,
