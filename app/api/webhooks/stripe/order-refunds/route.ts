@@ -24,7 +24,7 @@ function verifySignature(raw: Buffer, header: string, secret: string): boolean {
 }
 
 export async function POST(request: Request) {
-  const secret = process.env.STRIPE_CHECKOUT_WEBHOOK_SECRET;
+  const secret = process.env.STRIPE_ORDER_REFUND_WEBHOOK_SECRET;
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!secret?.startsWith("whsec_") || !serviceKey) {
     return NextResponse.json({ error: "Order refund webhook is not configured." }, { status: 503, headers });
