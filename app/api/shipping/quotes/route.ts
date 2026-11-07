@@ -1,4 +1,4 @@
-import { createHmac, timingSafeEqual } from "node:crypto";
+import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { hasSameOrigin, requireBrowserUser, setSessionCookies, supabaseConfig } from "@/lib/auth/supabase-session";
 
@@ -131,10 +131,13 @@ export async function POST(request: NextRequest) {
           (rate.estimated_days !== null && (!Number.isInteger(rate.estimated_days) || rate.estimated_days < 1 || rate.estimated_days > 60))) {
         throw new Error("Carrier returned an invalid rate.");
       }
+      const cartFingerprint = createHash("sha256").update(JSON.stringify(
+        items.map(item => ({ product_id: item.product_id, quantity: item.quantity })).sort((a, b) => String(a.product_id).localeCompare(String(b.product_id)))
+      )).digest("hex");
       const payload = Buffer.from(JSON.stringify({
         customer_id: identities[0].person_id, quote_id: rateBody.quote_id, rate_id: rate.rate_id,
         amount_cents: rate.amount_cents, currency: "USD", validation_id: validation.validation_id,
-        expires_at: expiresAt,
+        normalized_address: normalized, cart_fingerprint: cartFingerprint, expires_at: expiresAt,
       })).toString("base64url");
       return { service_name: rate.service_name, amount_cents: rate.amount_cents, currency: "USD", estimated_days: rate.estimated_days, quote_token: payload + "." + signQuote(payload, signingSecret) };
     });
