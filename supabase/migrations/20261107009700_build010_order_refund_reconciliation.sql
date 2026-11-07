@@ -243,3 +243,161 @@ grant execute on function public.mme_request_order_refund(uuid,bigint,text,uuid,
 grant execute on function public.mme_decide_order_refund(uuid,uuid,boolean,text) to service_role;
 grant execute on function public.mme_bind_order_stripe_refund(uuid,text) to service_role;
 grant execute on function public.mme_reconcile_order_stripe_refund(text,text,text,uuid,uuid,text,text,bigint,text,text) to service_role;
+
+
+-- Dispatch leases make retries safe across overlapping worker invocations.
+alter table public.mme_order_refund_requests
+  add column if not exists dispatch_attempts integer not null default 0,
+  add column if not exists next_attempt_at timestamptz not null default now(),
+  add column if not exists dispatch_lease_token uuid,
+  add column if not exists dispatch_lease_expires_at timestamptz;
+
+create or replace function public.mme_claim_order_refund_dispatch(
+  p_limit integer default 10,
+  p_lease_seconds integer default 120
+) returns table (
+  refund_request_id uuid,
+  order_id uuid,
+  amount_cents bigint,
+  reason_code text,
+  idempotency_key text,
+  payment_intent_id text,
+  dispatch_attempt integer,
+  lease_token uuid
+)
+language plpgsql security definer set search_path=''
+as $$
+begin
+  if p_limit is null or p_limit<1 or p_limit>50 or p_lease_seconds is null or p_lease_seconds<30 or p_lease_seconds>600 then
+    raise exception 'Invalid refund dispatch claim parameters' using errcode='22023';
+  end if;
+  return query
+  with candidates as (
+    select r.id
+    from public.mme_order_refund_requests r
+    where (r.status='approved' and r.next_attempt_at<=now())
+       or (r.status='processing' and r.dispatch_lease_expires_at<=now())
+    order by r.requested_at
+    for update skip locked
+    limit p_limit
+  ), claimed as (
+    update public.mme_order_refund_requests r
+    set status='processing',
+        dispatch_attempts=r.dispatch_attempts+1,
+        dispatch_lease_token=gen_random_uuid(),
+        dispatch_lease_expires_at=now()+make_interval(secs=>p_lease_seconds),
+        updated_at=now()
+    from candidates c
+    where r.id=c.id
+    returning r.*
+  )
+  select c.id,c.order_id,c.amount_cents,c.reason_code,c.idempotency_key,
+         o.stripe_payment_intent_id,c.dispatch_attempts,c.dispatch_lease_token
+  from claimed c
+  join public.mme_orders o on o.id=c.order_id
+  where o.stripe_payment_intent_id is not null
+  order by c.requested_at;
+end;
+$$;
+
+create or replace function public.mme_finish_order_refund_dispatch(
+  p_refund_request_id uuid,
+  p_lease_token uuid,
+  p_outcome text,
+  p_stripe_refund_id text default null,
+  p_safe_error_code text default null
+) returns text
+language plpgsql security definer set search_path=''
+as $$
+declare v_request public.mme_order_refund_requests%rowtype;
+begin
+  select * into v_request from public.mme_order_refund_requests
+  where id=p_refund_request_id for update;
+  if not found or v_request.status<>'processing' or v_request.dispatch_lease_token is distinct from p_lease_token then
+    return 'lease_lost';
+  end if;
+
+  if p_outcome='submitted' and p_stripe_refund_id like 're\_%' then
+    update public.mme_order_refund_requests set
+      stripe_refund_id=p_stripe_refund_id,status='pending_provider',provider_status='pending',
+      dispatch_lease_token=null,dispatch_lease_expires_at=null,
+      failure_code=null,updated_at=now()
+    where id=p_refund_request_id;
+    return 'pending_provider';
+  elsif p_outcome='retry' and v_request.dispatch_attempts<8 then
+    update public.mme_order_refund_requests set
+      status='approved',
+      next_attempt_at=now()+make_interval(secs=>least(3600,30*power(2,least(dispatch_attempts,6))::integer)),
+      dispatch_lease_token=null,dispatch_lease_expires_at=null,
+      failure_code=left(coalesce(p_safe_error_code,'PROVIDER_TEMPORARY_FAILURE'),120),
+      updated_at=now()
+    where id=p_refund_request_id;
+    return 'retry_scheduled';
+  else
+    update public.mme_order_refund_requests set
+      status='manual_review',
+      dispatch_lease_token=null,dispatch_lease_expires_at=null,
+      failure_code=left(coalesce(p_safe_error_code,'PROVIDER_REQUIRES_REVIEW'),120),
+      updated_at=now()
+    where id=p_refund_request_id;
+    return 'manual_review';
+  end if;
+end;
+$$;
+
+revoke all on function public.mme_claim_order_refund_dispatch(integer,integer) from public,anon,authenticated;
+revoke all on function public.mme_finish_order_refund_dispatch(uuid,uuid,text,text,text) from public,anon,authenticated;
+grant execute on function public.mme_claim_order_refund_dispatch(integer,integer) to service_role;
+grant execute on function public.mme_finish_order_refund_dispatch(uuid,uuid,text,text,text) to service_role;
+
+
+-- Refund approval uses the existing employee security settings and permission grants.
+create or replace function public.mme_employee_authorize_order_refund_action(
+  p_actor_user_id uuid,
+  p_permission_key text,
+  p_submitter_user_id uuid default null
+) returns boolean
+language plpgsql security definer set search_path=pg_catalog,public
+as $$
+declare v_ceo uuid; v_frozen boolean; v_status text;
+begin
+  if p_actor_user_id is null or p_permission_key not in ('orders.refunds.view','orders.refunds.approve') then return false; end if;
+  select ceo_user_id,employee_access_frozen into v_ceo,v_frozen
+  from public.employee_security_settings where singleton=true;
+  if not found or v_frozen is distinct from false or v_ceo is null then return false; end if;
+  select employment_status into v_status from public.employee_relationships where user_id=p_actor_user_id;
+  if v_status is distinct from 'active' then return false; end if;
+  if p_permission_key='orders.refunds.approve' and p_submitter_user_id=p_actor_user_id then return false; end if;
+  if p_actor_user_id=v_ceo then return true; end if;
+  return exists (
+    select 1 from public.employee_permission_grants g
+    where g.employee_user_id=p_actor_user_id and g.permission_key=p_permission_key
+      and g.revoked_at is null and (g.expires_at is null or g.expires_at>now())
+      and g.scope='{}'::jsonb
+  );
+end;
+$$;
+
+create or replace function public.mme_decide_order_refund_authorized(
+  p_refund_request_id uuid,
+  p_approver_user_id uuid,
+  p_approve boolean,
+  p_reason text
+) returns text
+language plpgsql security definer set search_path=''
+as $$
+declare v_request public.mme_order_refund_requests%rowtype;
+begin
+  select * into v_request from public.mme_order_refund_requests where id=p_refund_request_id for update;
+  if not found then raise exception 'Refund request not found' using errcode='P0002'; end if;
+  if not public.mme_employee_authorize_order_refund_action(p_approver_user_id,'orders.refunds.approve',v_request.requested_by) then
+    raise exception 'Employee is not authorized to approve this refund' using errcode='42501';
+  end if;
+  return public.mme_decide_order_refund(p_refund_request_id,p_approver_user_id,p_approve,p_reason);
+end;
+$$;
+
+revoke all on function public.mme_employee_authorize_order_refund_action(uuid,text,uuid) from public,anon,authenticated;
+revoke all on function public.mme_decide_order_refund_authorized(uuid,uuid,boolean,text) from public,anon,authenticated;
+grant execute on function public.mme_employee_authorize_order_refund_action(uuid,text,uuid) to service_role;
+grant execute on function public.mme_decide_order_refund_authorized(uuid,uuid,boolean,text) to service_role;
