@@ -6,6 +6,7 @@ const route = await readFile(new URL("../app/api/checkout/session/route.ts", imp
 
 test("checkout requires same-origin request and authenticated customer session", () => {
   assert.match(route, /hasSameOrigin\(request\)/);
+  assert.match(route, /stripeKey\.startsWith\("sk_test_"\)/);
   assert.match(route, /requireBrowserUser\(request\)/);
   assert.match(route, /if \(!session\.user\)/);
 });
