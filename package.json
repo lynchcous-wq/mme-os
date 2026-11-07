@@ -188,7 +188,8 @@
     "test:build010:contact-verification-account-recovery": "node --test tests/build010-contact-verification-account-recovery.contract.test.mjs",
     "test:build010:customer-security-session-center": "node --test tests/build010-customer-security-session-center.contract.test.mjs",
     "test:build010:order-payment-finalization": "node --test tests/build010-90-order-payment-finalization.test.mjs",
-    "test:build010:stripe-checkout-webhook": "node --test tests/build010-91-stripe-checkout-webhook.test.mjs"
+    "test:build010:stripe-checkout-webhook": "node --test tests/build010-91-stripe-checkout-webhook.test.mjs",
+    "test:build010:customer-checkout-session": "node --test tests/build010-92-customer-checkout-session.test.mjs"
   },
   "dependencies": {
     "next": "^15.2.4",
