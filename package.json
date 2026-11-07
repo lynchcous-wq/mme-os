@@ -195,7 +195,8 @@
     "test:build010:shipping-order-finalization": "node --test tests/build010-95-shipping-order-finalization.test.mjs",
     "test:build010:stripe-payment-confirmation": "node --test tests/build010-96-stripe-payment-confirmation.test.mjs",
     "test:build010:order-refund-reconciliation": "node --test tests/build010-97-order-refund-reconciliation.test.mjs",
-    "test:build010:stripe-refund-dispatch": "node --test tests/build010-98-stripe-refund-dispatch.test.mjs"
+    "test:build010:stripe-refund-dispatch": "node --test tests/build010-98-stripe-refund-dispatch.test.mjs",
+    "test:build010:customer-refund-portal": "node --test tests/build010-99-customer-refund-portal.test.mjs"
   },
   "dependencies": {
     "next": "^15.2.4",
