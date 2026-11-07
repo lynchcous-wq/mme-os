@@ -14,7 +14,8 @@ type StoreProduct = {
   price_cents: number;
   currency: string;
   available_quantity: number;
-  availability: Array<{ location_name: string; available_quantity: number }>;
+  serialized?: boolean;
+  availability: Array<{ location_id: string; location_name: string; available_quantity: number }>;
   specifications?: Record<string, unknown>;
   warranty_summary?: string | null;
 };
@@ -30,6 +31,7 @@ export default function ProductsPage() {
   const [condition, setCondition] = useState("all");
   const [status, setStatus] = useState<"loading" | "ready" | "empty" | "error">("loading");
   const [message, setMessage] = useState("");
+  const [cartMessage, setCartMessage] = useState("");
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -55,6 +57,31 @@ export default function ProductsPage() {
 
     return () => controller.abort();
   }, []);
+
+  function addToCart(product: StoreProduct, locationId: string) {
+    if (product.serialized) {
+      setCartMessage("Individually tracked devices require unit selection and IMEI verification before they can be added online.");
+      return;
+    }
+    try {
+      const key = "mme-shopping-cart-v1";
+      const raw = window.localStorage.getItem(key);
+      const existing = raw ? JSON.parse(raw) as Array<Record<string, unknown>> : [];
+      const lines = Array.isArray(existing) ? existing : [];
+      const found = lines.findIndex(line => line.product_id === product.id && line.location_id === locationId);
+      if (found >= 0) {
+        const current = Number(lines[found].quantity);
+        if (!Number.isInteger(current) || current >= 100) throw new Error("Maximum cart quantity reached.");
+        lines[found] = { ...lines[found], quantity: current + 1 };
+      } else {
+        lines.push({ product_id: product.id, location_id: locationId, quantity: 1, title: product.title, sku: product.sku, unit_price_cents: product.price_cents, currency: product.currency });
+      }
+      window.localStorage.setItem(key, JSON.stringify(lines));
+      setCartMessage(product.title + " added to your cart.");
+    } catch (error) {
+      setCartMessage(error instanceof Error ? error.message : "Could not save your cart. Check browser storage.");
+    }
+  }
 
   const visibleProducts = useMemo(() => {
     const normalized = query.trim().toLowerCase();
@@ -99,6 +126,7 @@ export default function ProductsPage() {
           </label>
         </div>
 
+        {cartMessage && <p role="status" aria-live="polite" style={{ padding: 12, background: "#fff", border: "1px solid #dfe6eb", borderRadius: 8 }}>{cartMessage} <Link href="/cart" style={{ color: "#1b7181" }}>View cart</Link></p>}
         {status === "loading" && <p role="status" style={{ padding: 24, background: "#fff", borderRadius: 10 }}>Loading the live MME catalog…</p>}
         {status === "error" && <section role="alert" style={{ padding: 24, background: "#fff", border: "1px solid #e5b6b6", borderRadius: 10 }}><h2>Catalog unavailable</h2><p>{message}</p><p style={{ color: "#647789" }}>No sample products are shown as a substitute for live inventory.</p><button onClick={() => window.location.reload()} style={{ padding: "10px 16px", background: "#173f58", color: "#fff", border: 0, borderRadius: 7, cursor: "pointer" }}>Try again</button></section>}
         {status === "empty" && <p style={{ padding: 24, background: "#fff", borderRadius: 10 }}>No published products are currently available. Please check back soon.</p>}
@@ -122,6 +150,14 @@ export default function ProductsPage() {
                       {product.available_quantity > 0 ? `${product.available_quantity} available` : "Currently unavailable"}
                     </div>
                     <div style={{ color: "#647789", fontSize: 11 }}>SKU: {product.sku}</div>
+                    {product.available_quantity > 0 && !product.serialized && product.availability.filter(item => item.available_quantity > 0).length > 0 && (
+                      <label style={{ display: "grid", gap: 5, fontSize: 12, color: "#475765" }}>Pickup location
+                        <select id={"mme-location-" + product.id} defaultValue={product.availability.find(item => item.available_quantity > 0)?.location_id} style={{ padding: 9, border: "1px solid #cbd4dc", borderRadius: 7, background: "#fff" }}>
+                          {product.availability.filter(item => item.available_quantity > 0).map(item => <option key={item.location_id} value={item.location_id}>{item.location_name} ({item.available_quantity})</option>)}
+                        </select>
+                      </label>
+                    )}
+                    {product.serialized ? <p style={{ color: "#8b4b36", fontSize: 12 }}>In-store unit selection required</p> : product.available_quantity > 0 && <button type="button" onClick={() => { const select = document.getElementById("mme-location-" + product.id) as HTMLSelectElement | null; if (select?.value) addToCart(product, select.value); }} style={{ marginTop: 8, padding: 11, background: "#173f58", color: "#fff", border: 0, borderRadius: 8, fontWeight: 700, cursor: "pointer" }}>Add to cart</button>}
                   </div>
                 </article>
               ))}
