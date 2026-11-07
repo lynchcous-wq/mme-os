@@ -113,6 +113,20 @@ export async function POST(request: NextRequest) {
       return jsonError("Secure checkout could not be started. Your order and inventory reservation remain unchanged.", 502);
     }
 
+    const bindingResponse = await fetch(`${url}/rest/v1/rpc/mme_bind_stripe_checkout_session`, {
+      method: "POST",
+      headers: { ...restHeaders, "Content-Type": "application/json" },
+      body: JSON.stringify({ p_order_id: order.id, p_checkout_session_id: stripeBody.id }),
+      cache: "no-store",
+    });
+    const bound = bindingResponse.ok ? await bindingResponse.json().catch(() => false) : false;
+    if (bound !== true) {
+      await fetch(`https://api.stripe.com/v1/checkout/sessions/${encodeURIComponent(stripeBody.id)}/expire`, {
+        method: "POST", headers: { Authorization: "Bearer " + stripeKey }, cache: "no-store",
+      }).catch(() => undefined);
+      return jsonError("Secure checkout could not be linked to your order. No payment should be submitted; contact MME support if Stripe displays a checkout page.", 503);
+    }
+
     const response = NextResponse.json({ checkoutUrl: stripeBody.url, sessionId: stripeBody.id }, { headers });
     if (session.refreshed) setSessionCookies(response, session.refreshed);
     return response;
