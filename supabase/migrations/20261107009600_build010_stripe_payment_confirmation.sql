@@ -151,3 +151,40 @@ revoke all on function public.mme_confirm_stripe_order_payment(text,text,text,uu
 revoke all on function public.mme_confirm_stripe_order_payment(text,text,text,uuid,text,text,bigint,text) from anon;
 revoke all on function public.mme_confirm_stripe_order_payment(text,text,text,uuid,text,text,bigint,text) from authenticated;
 grant execute on function public.mme_confirm_stripe_order_payment(text,text,text,uuid,text,text,bigint,text) to service_role;
+
+
+create or replace function public.mme_bind_stripe_checkout_session(
+  p_order_id uuid,
+  p_checkout_session_id text
+)
+returns boolean
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_order public.mme_orders%rowtype;
+begin
+  if p_order_id is null or p_checkout_session_id is null or p_checkout_session_id not like 'cs\_%' then
+    raise exception 'Invalid Stripe Checkout session binding' using errcode = '22023';
+  end if;
+  select * into v_order from public.mme_orders where id = p_order_id for update;
+  if not found or v_order.status <> 'pending_payment' then return false; end if;
+  if not exists (
+    select 1 from public.mme_inventory_reservations r
+    where r.order_id = p_order_id and r.status = 'active' and r.expires_at > now()
+  ) then return false; end if;
+  if v_order.stripe_checkout_session_id is not null
+     and v_order.stripe_checkout_session_id <> p_checkout_session_id then
+    raise exception 'Order already bound to another Stripe session' using errcode = '23505';
+  end if;
+  update public.mme_orders set stripe_checkout_session_id = p_checkout_session_id, updated_at = now()
+  where id = p_order_id;
+  return true;
+end;
+$$;
+
+revoke all on function public.mme_bind_stripe_checkout_session(uuid,text) from public;
+revoke all on function public.mme_bind_stripe_checkout_session(uuid,text) from anon;
+revoke all on function public.mme_bind_stripe_checkout_session(uuid,text) from authenticated;
+grant execute on function public.mme_bind_stripe_checkout_session(uuid,text) to service_role;
