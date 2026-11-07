@@ -170,6 +170,7 @@ declare
   v_new_total bigint;
   v_result text;
   v_detail text;
+  v_request_found boolean;
 begin
   if p_provider_event_id is null or length(p_provider_event_id) not between 8 and 255
      or p_event_type not in ('refund.created','refund.updated','charge.refunded')
@@ -193,9 +194,10 @@ begin
 
   select * into v_request from public.mme_order_refund_requests
   where id=p_refund_request_id for update;
+  v_request_found := found;
   select * into v_order from public.mme_orders where id=p_order_id for update;
 
-  if not found or v_request.order_id is distinct from p_order_id or
+  if not found or not coalesce(v_request_found,false) or v_request.order_id is distinct from p_order_id or
      v_order.stripe_payment_intent_id is distinct from p_payment_intent_id or
      v_request.amount_cents<>p_amount_cents or v_request.currency<>'USD' or
      v_request.stripe_refund_id is distinct from p_provider_refund_id then
