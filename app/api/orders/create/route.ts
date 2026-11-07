@@ -151,7 +151,7 @@ export async function POST(request: NextRequest) {
         p_fulfillment_method: method, p_fulfillment_snapshot: fulfillmentSnapshot,
         p_tax_cents: tax.tax_cents, p_fulfillment_cents: fulfillmentCents, p_discount_cents: 0,
         p_items: orderLines.map(({ product_id, location_id, quantity }) => ({ product_id, location_id, quantity })),
-        p_expires_at: new Date(Date.now() + 20 * 60 * 1000).toISOString(),
+        p_expires_at: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
       }), cache: "no-store",
     });
     if (!rpc.ok) return error("Inventory could not be reserved or order could not be created. Refresh your cart and try again.", 409);
