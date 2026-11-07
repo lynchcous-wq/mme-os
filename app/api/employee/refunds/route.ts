@@ -13,7 +13,7 @@ async function authorize(base: string, key: string, actor: string, permission: s
     cache: "no-store",
   });
   if (!response.ok) return false;
-  return response.json() === true;
+  return (await response.json()) === true;
 }
 
 export async function GET(request: NextRequest) {
@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Refund review permission is not assigned to this employee." }, { status: 403, headers });
     }
     const response = await fetch(
-      url + "/rest/v1/mme_order_refund_requests?select=id,order_id,amount_cents,currency,reason_code,status,requested_by,requested_at,updated_at,provider_status,failure_code&order= requested_at.desc&limit=100".replace("order= requested_at", "order=requested_at"),
+      url + "/rest/v1/mme_order_refund_requests?select=id,order_id,amount_cents,currency,reason_code,status,requested_by,requested_at,updated_at,provider_status,failure_code&order=requested_at.desc&limit=100",
       { headers: { apikey: key, Authorization: "Bearer " + key }, cache: "no-store" },
     );
     if (!response.ok) return NextResponse.json({ error: "Refund queue could not be loaded." }, { status: 503, headers });
