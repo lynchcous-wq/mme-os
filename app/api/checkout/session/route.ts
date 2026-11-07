@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
 
   const stripeKey = process.env.STRIPE_SECRET_KEY;
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!stripeKey || !serviceKey) return jsonError("Checkout is not configured.", 503);
+  if (!stripeKey || !stripeKey.startsWith("sk_test_") || !serviceKey) return jsonError("Test-mode Stripe Checkout is not configured.", 503);
 
   let body: { order_id?: unknown };
   try {
@@ -95,6 +95,8 @@ export async function POST(request: NextRequest) {
     form.set("line_items[0][quantity]", "1");
     form.set("metadata[mme_order_id]", order.id);
     form.set("metadata[mme_customer_identity_id]", links[0].person_id);
+    form.set("payment_intent_data[metadata][mme_order_id]", order.id);
+    form.set("payment_intent_data[metadata][mme_customer_identity_id]", links[0].person_id);
 
     const stripeResponse = await fetch("https://api.stripe.com/v1/checkout/sessions", {
       method: "POST",
