@@ -193,7 +193,8 @@
     "test:build010:server-order-pricing": "node --test tests/build010-93-server-order-pricing.test.mjs",
     "test:build010:shipping-rates": "node --test tests/build010-94-shipping-rates.test.mjs",
     "test:build010:shipping-order-finalization": "node --test tests/build010-95-shipping-order-finalization.test.mjs",
-    "test:build010:stripe-payment-confirmation": "node --test tests/build010-96-stripe-payment-confirmation.test.mjs"
+    "test:build010:stripe-payment-confirmation": "node --test tests/build010-96-stripe-payment-confirmation.test.mjs",
+    "test:build010:order-refund-reconciliation": "node --test tests/build010-97-order-refund-reconciliation.test.mjs"
   },
   "dependencies": {
     "next": "^15.2.4",
