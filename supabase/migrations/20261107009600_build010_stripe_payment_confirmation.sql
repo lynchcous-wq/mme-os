@@ -22,6 +22,7 @@ create or replace function public.mme_confirm_stripe_order_payment(
   p_event_type text,
   p_payload_sha256 text,
   p_order_id uuid,
+  p_customer_identity_id uuid,
   p_checkout_session_id text,
   p_payment_intent_id text,
   p_amount_cents bigint,
@@ -42,7 +43,7 @@ begin
   if p_provider_event_id is null or length(p_provider_event_id) not between 8 and 255
      or p_event_type not in ('checkout.session.completed','checkout.session.async_payment_succeeded')
      or p_payload_sha256 !~ '^[0-9a-f]{64}$'
-     or p_order_id is null or p_checkout_session_id is null or p_checkout_session_id not like 'cs\_%'
+     or p_order_id is null or p_customer_identity_id is null or p_checkout_session_id is null or p_checkout_session_id not like 'cs\_%'
      or p_payment_intent_id is null or p_payment_intent_id not like 'pi\_%'
      or p_amount_cents is null or p_amount_cents <= 0 or p_currency <> 'usd' then
     raise exception 'Invalid Stripe payment confirmation' using errcode = '22023';
@@ -74,6 +75,16 @@ begin
   if not found then
     update public.mme_payment_events set processing_status = 'failed', processed_at = now() where id = v_event_id;
     raise exception 'Order not found for Stripe payment' using errcode = 'P0002';
+  end if;
+
+  if v_order.customer_identity_id is distinct from p_customer_identity_id then
+    update public.mme_payment_events set processing_status = 'failed', processed_at = now() where id = v_event_id;
+    raise exception 'Stripe customer identity does not match order' using errcode = '23514';
+  end if;
+
+  if v_order.stripe_checkout_session_id is distinct from p_checkout_session_id then
+    update public.mme_payment_events set processing_status = 'failed', processed_at = now() where id = v_event_id;
+    raise exception 'Stripe Checkout Session does not match order' using errcode = '23514';
   end if;
 
   if v_order.total_cents <> p_amount_cents or lower(v_order.currency) <> p_currency then
@@ -147,10 +158,10 @@ begin
 end;
 $$;
 
-revoke all on function public.mme_confirm_stripe_order_payment(text,text,text,uuid,text,text,bigint,text) from public;
-revoke all on function public.mme_confirm_stripe_order_payment(text,text,text,uuid,text,text,bigint,text) from anon;
-revoke all on function public.mme_confirm_stripe_order_payment(text,text,text,uuid,text,text,bigint,text) from authenticated;
-grant execute on function public.mme_confirm_stripe_order_payment(text,text,text,uuid,text,text,bigint,text) to service_role;
+revoke all on function public.mme_confirm_stripe_order_payment(text,text,text,uuid,uuid,text,text,bigint,text) from public;
+revoke all on function public.mme_confirm_stripe_order_payment(text,text,text,uuid,uuid,text,text,bigint,text) from anon;
+revoke all on function public.mme_confirm_stripe_order_payment(text,text,text,uuid,uuid,text,text,bigint,text) from authenticated;
+grant execute on function public.mme_confirm_stripe_order_payment(text,text,text,uuid,uuid,text,text,bigint,text) to service_role;
 
 
 create or replace function public.mme_bind_stripe_checkout_session(
