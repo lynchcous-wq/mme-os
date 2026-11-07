@@ -88,7 +88,7 @@ export async function POST(request: NextRequest) {
     form.set("success_url", `${origin}/account/orders?checkout=success&session_id={CHECKOUT_SESSION_ID}`);
     form.set("cancel_url", `${origin}/cart?checkout=cancelled`);
     form.set("client_reference_id", order.id);
-    form.set("expires_at", String(Math.floor(Date.now() / 1000) + 20 * 60));
+    form.set("expires_at", String(Math.floor(Date.now() / 1000) + 30 * 60));
     form.set("line_items[0][price_data][currency]", "usd");
     form.set("line_items[0][price_data][unit_amount]", String(order.total_cents));
     form.set("line_items[0][price_data][product_data][name]", "Much More Electronics order " + order.id.slice(0, 8));
@@ -111,6 +111,20 @@ export async function POST(request: NextRequest) {
     const stripeBody = await stripeResponse.json().catch(() => ({})) as { id?: unknown; url?: unknown };
     if (!stripeResponse.ok || typeof stripeBody.id !== "string" || typeof stripeBody.url !== "string") {
       return jsonError("Secure checkout could not be started. Your order and inventory reservation remain unchanged.", 502);
+    }
+
+    const bindingResponse = await fetch(`${url}/rest/v1/rpc/mme_bind_stripe_checkout_session`, {
+      method: "POST",
+      headers: { ...restHeaders, "Content-Type": "application/json" },
+      body: JSON.stringify({ p_order_id: order.id, p_checkout_session_id: stripeBody.id }),
+      cache: "no-store",
+    });
+    const bound = bindingResponse.ok ? await bindingResponse.json().catch(() => false) : false;
+    if (bound !== true) {
+      await fetch(`https://api.stripe.com/v1/checkout/sessions/${encodeURIComponent(stripeBody.id)}/expire`, {
+        method: "POST", headers: { Authorization: "Bearer " + stripeKey }, cache: "no-store",
+      }).catch(() => undefined);
+      return jsonError("Secure checkout could not be linked to your order. No payment should be submitted; contact MME support if Stripe displays a checkout page.", 503);
     }
 
     const response = NextResponse.json({ checkoutUrl: stripeBody.url, sessionId: stripeBody.id }, { headers });
