@@ -64,7 +64,8 @@ begin
     return 'order_not_found';
   end if;
 
-  if v_order.currency <> 'USD' or v_order.total_cents <> p_amount_received_cents then
+  if p_event_type in ('checkout.session.completed', 'checkout.session.async_payment_succeeded')
+     and (v_order.currency <> 'USD' or v_order.total_cents <> p_amount_received_cents) then
     update public.mme_payment_events
        set processing_status = 'failed', processed_at = now()
      where id = v_event_id;
