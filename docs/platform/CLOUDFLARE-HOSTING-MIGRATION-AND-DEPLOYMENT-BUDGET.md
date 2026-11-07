@@ -12,7 +12,7 @@
 - **Domain:** Preserve `muchmoreelectronics.com` and its existing DNS until Cloudflare staging and production checks pass.
 - **Vercel:** Do not create new Vercel deployments. Keep the existing production target available only as a rollback path until Cloudflare is verified, then retire it deliberately.
 
-Cloudflare identifies Workers as its primary application platform and recommends Workers for new full-stack applications. Pages remains appropriate for static sites and selected edge-function use cases; it is not the preferred target for this full-stack Next.js application.
+Cloudflare identifies Workers as its primary application platform and recommends Workers for full-stack applications. Pages is appropriate for static sites; it is not the preferred target for this full-stack Next.js application. Cloudflare's current Next.js guide recommends vinext as its default path, while its OpenNext guide positions OpenNext as the maintenance path for existing OpenNext applications.
 
 ## 2. Repository audit snapshot
 
@@ -27,12 +27,12 @@ This audit snapshot is not a complete runtime or Cloudflare compatibility audit.
 
 ## 3. Next.js compatibility strategy
 
-The current project uses Next.js 15.2.4. Do not force a framework major-version upgrade as part of the hosting cutover.
+The inspected repository uses Next.js `^15.2.4`. Do not force a framework major-version upgrade as part of the hosting cutover.
 
-- Evaluate the Cloudflare OpenNext adapter against the exact installed Next.js 15 minor/patch and application features.
-- Run adapter compatibility checks and local `workerd` preview tests before choosing the production build path.
-- Cloudflare's current guidance recommends vinext for new Next.js applications and describes it as a beta path; its documented Next.js migration path is focused on Next.js 16+. Do not migrate this Next.js 15 project to vinext without an explicit compatibility review and passing tests.
-- OpenNext supports most Next.js application features, but Node.js middleware introduced in Next.js 15.2 is not supported by the Cloudflare adapter according to its current feature matrix. Audit whether the project uses that feature before selecting OpenNext.
+- First run Cloudflare's current compatibility check for vinext on the exact application. Cloudflare currently recommends vinext as the default Next.js-on-Workers path; its initializer is described as non-destructive and keeps the existing Next.js development setup available while testing.
+- Do not assume compatibility merely because the initializer succeeds. Run the compatibility check, build, route-level tests, and local `workerd` preview. Compare server rendering, route handlers, authentication, caching, images, middleware, and all used Next.js APIs.
+- If vinext does not safely support the app's actual Next.js 15 feature set, evaluate `@opennextjs/cloudflare` as the conservative compatibility route. Cloudflare documents OpenNext for maintaining existing OpenNext applications and supports most Next.js features, but Node.js middleware introduced in Next.js 15.2 is not supported by its current feature matrix.
+- Choose one adapter only after the compatibility matrix is documented and all required routes pass. Do not simultaneously introduce a framework upgrade and a hosting cutover unless separately approved.
 - Do not use static export as a shortcut if authenticated routes, server actions, route handlers, dynamic rendering, or server-side integrations are required.
 
 ## 4. Deployment policy — deploy only when needed
@@ -111,7 +111,9 @@ Never paste API tokens, passwords, service-role keys, Stripe secrets, or custome
 - Confirm the Cloudflare account, plan, zone, and required access.
 
 ### Phase B — Compatibility branch
-- Add the selected Cloudflare adapter and Wrangler configuration additively.
+- Run `npx vinext check` first and record its output; then evaluate the non-destructive `npx vinext init` path in an isolated branch.
+- If vinext compatibility fails for required Next.js 15 features, evaluate the documented OpenNext adapter path and its Next.js 15.2 Node.js middleware limitation.
+- Add only the selected Cloudflare adapter and Wrangler configuration additively.
 - Preserve the existing Next.js app and scripts where possible.
 - Add local/workerd preview and type-generation scripts.
 - Add GitHub CI checks with no Cloudflare deployment step.
