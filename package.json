@@ -191,7 +191,8 @@
     "test:build010:stripe-checkout-webhook": "node --test tests/build010-91-stripe-checkout-webhook.test.mjs",
     "test:build010:customer-checkout-session": "node --test tests/build010-92-customer-checkout-session.test.mjs",
     "test:build010:server-order-pricing": "node --test tests/build010-93-server-order-pricing.test.mjs",
-    "test:build010:shipping-rates": "node --test tests/build010-94-shipping-rates.test.mjs"
+    "test:build010:shipping-rates": "node --test tests/build010-94-shipping-rates.test.mjs",
+    "test:build010:shipping-order-finalization": "node --test tests/build010-95-shipping-order-finalization.test.mjs"
   },
   "dependencies": {
     "next": "^15.2.4",
