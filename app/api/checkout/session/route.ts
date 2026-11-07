@@ -88,7 +88,7 @@ export async function POST(request: NextRequest) {
     form.set("success_url", `${origin}/account/orders?checkout=success&session_id={CHECKOUT_SESSION_ID}`);
     form.set("cancel_url", `${origin}/cart?checkout=cancelled`);
     form.set("client_reference_id", order.id);
-    form.set("expires_at", String(Math.floor(Date.now() / 1000) + 30 * 60));
+    form.set("expires_at", String(Math.floor(Date.now() / 1000) + 20 * 60));
     form.set("line_items[0][price_data][currency]", "usd");
     form.set("line_items[0][price_data][unit_amount]", String(order.total_cents));
     form.set("line_items[0][price_data][product_data][name]", "Much More Electronics order " + order.id.slice(0, 8));
