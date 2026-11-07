@@ -349,3 +349,55 @@ revoke all on function public.mme_claim_order_refund_dispatch(integer,integer) f
 revoke all on function public.mme_finish_order_refund_dispatch(uuid,uuid,text,text,text) from public,anon,authenticated;
 grant execute on function public.mme_claim_order_refund_dispatch(integer,integer) to service_role;
 grant execute on function public.mme_finish_order_refund_dispatch(uuid,uuid,text,text,text) to service_role;
+
+
+-- Refund approval uses the existing employee security settings and permission grants.
+create or replace function public.mme_employee_authorize_order_refund_action(
+  p_actor_user_id uuid,
+  p_permission_key text,
+  p_submitter_user_id uuid default null
+) returns boolean
+language plpgsql security definer set search_path=pg_catalog,public
+as $$
+declare v_ceo uuid; v_frozen boolean; v_status text;
+begin
+  if p_actor_user_id is null or p_permission_key not in ('orders.refunds.view','orders.refunds.approve') then return false; end if;
+  select ceo_user_id,employee_access_frozen into v_ceo,v_frozen
+  from public.employee_security_settings where singleton=true;
+  if not found or v_frozen is distinct from false or v_ceo is null then return false; end if;
+  select employment_status into v_status from public.employee_relationships where user_id=p_actor_user_id;
+  if v_status is distinct from 'active' then return false; end if;
+  if p_permission_key='orders.refunds.approve' and p_submitter_user_id=p_actor_user_id then return false; end if;
+  if p_actor_user_id=v_ceo then return true; end if;
+  return exists (
+    select 1 from public.employee_permission_grants g
+    where g.employee_user_id=p_actor_user_id and g.permission_key=p_permission_key
+      and g.revoked_at is null and (g.expires_at is null or g.expires_at>now())
+      and g.scope='{}'::jsonb
+  );
+end;
+$$;
+
+create or replace function public.mme_decide_order_refund_authorized(
+  p_refund_request_id uuid,
+  p_approver_user_id uuid,
+  p_approve boolean,
+  p_reason text
+) returns text
+language plpgsql security definer set search_path=''
+as $$
+declare v_request public.mme_order_refund_requests%rowtype;
+begin
+  select * into v_request from public.mme_order_refund_requests where id=p_refund_request_id for update;
+  if not found then raise exception 'Refund request not found' using errcode='P0002'; end if;
+  if not public.mme_employee_authorize_order_refund_action(p_approver_user_id,'orders.refunds.approve',v_request.requested_by) then
+    raise exception 'Employee is not authorized to approve this refund' using errcode='42501';
+  end if;
+  return public.mme_decide_order_refund(p_refund_request_id,p_approver_user_id,p_approve,p_reason);
+end;
+$$;
+
+revoke all on function public.mme_employee_authorize_order_refund_action(uuid,text,uuid) from public,anon,authenticated;
+revoke all on function public.mme_decide_order_refund_authorized(uuid,uuid,boolean,text) from public,anon,authenticated;
+grant execute on function public.mme_employee_authorize_order_refund_action(uuid,text,uuid) to service_role;
+grant execute on function public.mme_decide_order_refund_authorized(uuid,uuid,boolean,text) to service_role;
