@@ -357,3 +357,37 @@ This creates a potential authorization-policy split. It is not proof of an explo
 ### Current decision
 
 **Do not merge PR #14 yet.** Its CI is green, but the authorization engines have not been unified and session/MFA parity is not proven. No production migration or deployment was performed.
+
+
+## 16. Authorization parity gate — contract tests added to PR #14
+
+Added a dedicated route-level contract suite to the PR #14 identity integration branch:
+- `tests/build004-authorization-parity.contract.test.mjs`
+- Package script: `npm run test:build004-authorization-parity`
+- GitHub Actions CI now runs this suite on the Build 004 identity branch.
+
+The suite checks that:
+- The shared helper validates bearer sessions through Supabase Auth.
+- Actor identity comes from the verified Auth response.
+- The Build 004 authorization RPC is called with service-role credentials and fails closed.
+- All four employee inspection routes use the shared authorization helper.
+- The legacy inventory authorization calls remain explicit and are not mistaken for the centralized identity gate.
+
+Commits on `integration/build004-identity-validation`:
+- Test suite: `f55baf7836f638b5f448c9d7d8298697405f8b20`
+- Package script: `4e2ae54df8c95d3da38210d01541a29132803ca8`
+- CI registration: `78dc930a1c2c5fc6aa08531677e0966bb8c3137e`
+
+**Important limitation:** These are contract tests for the current Build 004 route wiring. They do not make the Build 004 RPC enforce Build 011's active-session, AAL/MFA, recent-auth, or permission-template gates. The two engines remain an unresolved policy integration issue. No production code was changed to claim parity, no hosted database migration was applied, and PR #14 remains draft.
+
+### Updated gate
+
+| Item | Status |
+|---|---|
+| Build 004 route/helper contract suite | Added |
+| Package test command | Added |
+| CI workflow registration | Added |
+| New-head CI run | Not yet visible |
+| Build 011 session/MFA/recent-auth parity | Not implemented |
+| Authorization policy owner approval | Pending |
+| PR #14 merge | Blocked |
