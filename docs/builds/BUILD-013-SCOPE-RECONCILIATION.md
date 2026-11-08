@@ -277,3 +277,39 @@ Vercel deployment status checks for the PR head continue to fail with the previo
 | Vercel preview deployment | Blocked by Vercel build-rate limit |
 | PR approval/merge | Not performed |
 | Production deployment | Not performed |
+
+
+## 14. PR #15 database verification passed; next integration gate selected
+
+GitHub Actions run **42512882427** for corrective commit `e1c57c7b37e0869342f224b83a26e624fb63d87a` completed successfully.
+
+All three CI jobs passed:
+- TypeScript and production build.
+- Supabase Edge Function type-check.
+- Supabase migration replay against a fresh local database and the complete pgTAP database test suite.
+
+This confirms the earlier pgTAP privilege-contract failure is corrected in the isolated CI environment. It does **not** prove hosted Supabase has been migrated, Stripe live payments are configured, or production checkout is deployed.
+
+PR state at this inspection:
+- **PR #15** remains open and draft; GitHub reports mergeable; all three CI jobs pass.
+- **PR #14** (Build 004 identity foundation integration validation) remains open and draft; GitHub reports mergeable; its inspected CI run **41964831695** passed all three jobs.
+- **PR #13** (Build 001 catalog/inventory integration) remains open and draft; GitHub reports not mergeable; no PR-triggered workflow run was returned for its current head.
+
+### Recommended next gate
+
+Review PR #14's exact migration and identity-policy diff against the existing main-branch identity/security work. Verify no duplicate identity tables, conflicting RLS policies, duplicate migrations, or conflicting role/permission sources before considering it for merge. Keep PR #13 blocked until its merge conflict is resolved and its change set is decomposed; do not merge either PR simply because a CI run passed.
+
+### Updated status
+
+| Gate | Status |
+|---|---|
+| PR #15 application checks | Passed |
+| PR #15 Edge Function checks | Passed |
+| PR #15 fresh migration replay | Passed |
+| PR #15 pgTAP suite | Passed |
+| PR #15 approval/merge | Pending; still draft |
+| PR #14 CI | Passed; still draft |
+| PR #14 identity diff review | Next |
+| PR #13 mergeability/CI | Blocked |
+| Hosted Supabase / Stripe live checkout | Not verified |
+| Production deployment | Not performed |
