@@ -215,3 +215,39 @@ The repository's current open-PR search also returned the consecutive customer c
 | Canonical numbering crosswalk | Unresolved |
 | Build 013 functional scope/title | Not approved |
 | Build 013 application implementation | Not started |
+
+
+## 12. Checkout integration CI failure isolated and test contract corrected
+
+A focused review of PR #15 (Build 001 authenticated checkout + Stripe payment UI) found:
+- TypeScript/lint and production build job: passed.
+- Supabase Edge Function type-check job: passed.
+- Supabase migration + pgTAP job: failed 1 of 892 assertions.
+- The failing assertion was test 9 in `supabase/tests/build001_mixed_cart_order_creation.test.sql`: **"trusted server role can create mixed orders"**.
+
+Root cause from the inspected migration/test contract:
+- Migration `20261103006600_build001_atomic_pricing_quote_reservation.sql` adds a new 10-argument quote-bound RPC overload.
+- It intentionally revokes `service_role` execution from the legacy 9-argument overload so a trusted caller cannot bypass quote validation.
+- The existing pgTAP assertion still expected `service_role` to execute that legacy overload. The assertion therefore contradicted the new security design.
+
+Corrective change committed to PR #15 branch:
+- Updated the pgTAP test to assert the legacy overload is present but not executable by `service_role` or `authenticated`.
+- Added an explicit assertion that `service_role` can execute the new 10-argument quote-bound overload.
+- Retargeted the function-definition checks to the new overload.
+- Preserved the inventory locking, serialized-unit, idempotency, and order-line assertions.
+
+Commit: `e1c57c7b37e0869342f224b83a26e624fb63d87a`  
+Branch: `implementation/build001-authenticated-checkout-ui`  
+File: `supabase/tests/build001_mixed_cart_order_creation.test.sql`
+
+**Validation status:** correction is committed; a workflow run for the new head commit was not yet returned by the workflow-run lookup at inspection time. The earlier failing run is not considered repaired until CI reruns and passes. No merge, database migration to a hosted environment, or deployment was performed.
+
+### Updated work ledger
+
+| Work item | Status |
+|---|---|
+| PR #15 failure localized | Complete |
+| Contradictory pgTAP privilege expectation corrected | Committed to PR branch |
+| New-head CI rerun | Pending visibility/verification |
+| PR #15 merge | Not performed |
+| Production checkout/Stripe operation | Not verified |
