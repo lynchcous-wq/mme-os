@@ -37,23 +37,53 @@ export function clearSessionCookies(response: NextResponse) {
 export async function passwordSignIn(email: string, password: string): Promise<AuthSession> {
   const { url, anon } = supabaseConfig();
   const response = await fetch(`${url}/auth/v1/token?grant_type=password`, {
-    method: "POST",
-    headers: { apikey: anon, "Content-Type": "application/json" },
-    body: JSON.stringify({ email, password }),
-    cache: "no-store",
+    method: "POST", headers: { apikey: anon, "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password }), cache: "no-store",
   });
   if (!response.ok) throw new Error("Sign-in could not be verified.");
   const body = await response.json() as AuthSession;
   if (typeof body.access_token !== "string" || typeof body.refresh_token !== "string") throw new Error("Sign-in could not be verified.");
-  const userResponse = await fetch(`${url}/auth/v1/user`, {
-    headers: { apikey: anon, Authorization: `Bearer ${body.access_token}` },
-    cache: "no-store",
-  });
-  if (!userResponse.ok) throw new Error("Sign-in could not be verified.");
-  const user = await userResponse.json() as AuthUser;
-  if (typeof user.id !== "string" || !UUID.test(user.id)) throw new Error("Sign-in could not be verified.");
+  const user = await getAuthUser(body.access_token);
+  if (!user) throw new Error("Sign-in could not be verified.");
   body.user = user;
   return body;
+}
+
+export async function getAuthUser(accessToken: string): Promise<AuthUser | null> {
+  const { url, anon } = supabaseConfig();
+  const response = await fetch(`${url}/auth/v1/user`, {
+    headers: { apikey: anon, Authorization: `Bearer ${accessToken}` }, cache: "no-store",
+  });
+  if (!response.ok) return null;
+  const user = await response.json() as AuthUser;
+  return typeof user.id === "string" && UUID.test(user.id) ? user : null;
+}
+
+export async function refreshAuthSession(refreshToken: string): Promise<AuthSession | null> {
+  const { url, anon } = supabaseConfig();
+  const response = await fetch(`${url}/auth/v1/token?grant_type=refresh_token`, {
+    method: "POST", headers: { apikey: anon, "Content-Type": "application/json" },
+    body: JSON.stringify({ refresh_token: refreshToken }), cache: "no-store",
+  });
+  if (!response.ok) return null;
+  const session = await response.json() as AuthSession;
+  if (typeof session.access_token !== "string" || typeof session.refresh_token !== "string") return null;
+  const user = await getAuthUser(session.access_token);
+  if (!user) return null;
+  session.user = user;
+  return session;
+}
+
+export async function requireBrowserUser(request: NextRequest) {
+  const access = request.cookies.get(ACCESS_COOKIE)?.value;
+  const refresh = request.cookies.get(REFRESH_COOKIE)?.value;
+  if (access) {
+    const user = await getAuthUser(access);
+    if (user) return { user, refreshed: null as AuthSession | null };
+  }
+  if (!refresh) return { user: null, refreshed: null as AuthSession | null };
+  const refreshed = await refreshAuthSession(refresh);
+  return { user: refreshed?.user ?? null, refreshed };
 }
 
 /** Resolve the authenticated Supabase subject to an active MME employee relationship. */
@@ -64,15 +94,12 @@ export async function requireEmployeeIdentity(authUserId: string) {
   if (!serviceKey) throw new Error("Employee identity verification is not configured.");
   const headers = { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` };
   const identityResponse = await fetch(`${url}/rest/v1/rpc/mme_resolve_person_for_auth_subject`, {
-    method: "POST",
-    headers: { ...headers, "Content-Type": "application/json" },
-    body: JSON.stringify({ p_auth_user_id: authUserId }),
-    cache: "no-store",
+    method: "POST", headers: { ...headers, "Content-Type": "application/json" },
+    body: JSON.stringify({ p_auth_user_id: authUserId }), cache: "no-store",
   });
   if (!identityResponse.ok) throw new Error("Employee identity verification is unavailable.");
   const personId = await identityResponse.json() as unknown;
   if (typeof personId !== "string" || !UUID.test(personId)) return null;
-
   const employeeResponse = await fetch(
     `${url}/rest/v1/mme_employee_relationships?person_identity_id=eq.${encodeURIComponent(personId)}&status=eq.active&select=id&limit=1`,
     { headers, cache: "no-store" },
@@ -85,14 +112,8 @@ export async function requireEmployeeIdentity(authUserId: string) {
 export async function revokeProviderSession(request: NextRequest) {
   const access = request.cookies.get(ACCESS_COOKIE)?.value;
   if (!access) return;
-  try {
-    const { url, anon } = supabaseConfig();
-    await fetch(`${url}/auth/v1/logout`, {
-      method: "POST",
-      headers: { apikey: anon, Authorization: `Bearer ${access}` },
-      cache: "no-store",
-    });
-  } catch {
-    // Local cookies are still cleared even if provider revocation is unavailable.
-  }
+  const { url, anon } = supabaseConfig();
+  await fetch(`${url}/auth/v1/logout?scope=local`, {
+    method: "POST", headers: { apikey: anon, Authorization: `Bearer ${access}` }, cache: "no-store",
+  });
 }
