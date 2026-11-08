@@ -105,7 +105,8 @@ export default function CartPage() {
           <p>Taxes, shipping and discounts are not included. Final totals are calculated during secure checkout.</p>
           {error && <p className="cart-error" role="alert">{error}</p>}
           <button className="button" type="button" disabled={checking} onClick={validate}>{checking ? "Checking current prices…" : "Verify prices & availability"}</button>
-          <p className="cart-checkout-note">Checkout and payment are not enabled yet. Verification does not reserve inventory or charge you.</p>
+          {validated && <Link className="button" href="/checkout">Continue to secure checkout ↗</Link>}
+          <p className="cart-checkout-note">Verification does not reserve inventory or charge you. Final pricing, tax, discounts and fulfillment are recalculated by MME during checkout.</p>
         </div>
       </>}
     </section>

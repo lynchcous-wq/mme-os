@@ -30,3 +30,15 @@ site_url = "http://127.0.0.1:3000"
 additional_redirect_urls = ["http://localhost:3000"]
 jwt_expiry = 3600
 enable_signup = true
+
+[functions.checkout-pricing]
+# Internal server-to-server endpoint; authenticates using the dedicated MME pricing secret.
+verify_jwt = false
+
+[functions.checkout-recovery-worker]
+# Internal scheduled worker authenticates with its dedicated secret.
+verify_jwt = false
+
+[functions.customer-notification-worker]
+# Internal worker performs its own dedicated constant-time bearer authentication.
+verify_jwt = false
