@@ -93,12 +93,13 @@ export async function requireEmployeeIdentity(authUserId: string) {
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!serviceKey) throw new Error("Employee identity verification is not configured.");
   const headers = { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` };
-  const identityResponse = await fetch(`${url}/rest/v1/rpc/mme_resolve_person_for_auth_subject`, {
-    method: "POST", headers: { ...headers, "Content-Type": "application/json" },
-    body: JSON.stringify({ p_auth_user_id: authUserId }), cache: "no-store",
-  });
+  const identityResponse = await fetch(
+    `${url}/rest/v1/mme_person_identities?auth_user_id=eq.${encodeURIComponent(authUserId)}&security_status=eq.active&select=id&limit=1`,
+    { headers, cache: "no-store" },
+  );
   if (!identityResponse.ok) throw new Error("Employee identity verification is unavailable.");
-  const personId = await identityResponse.json() as unknown;
+  const identities = await identityResponse.json() as Array<{ id: string }>;
+  const personId = identities.length === 1 ? identities[0].id : null;
   if (typeof personId !== "string" || !UUID.test(personId)) return null;
   const employeeResponse = await fetch(
     `${url}/rest/v1/mme_employee_relationships?person_identity_id=eq.${encodeURIComponent(personId)}&status=eq.active&select=id&limit=1`,
