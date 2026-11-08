@@ -19,7 +19,8 @@
     "test:build004-inspection-submit-runtime": "node --test tests/build004-inspection-submit.runtime.test.mjs",
     "test:build004-inspection-history-runtime": "node --test tests/build004-inspection-history.runtime.test.mjs",
     "test:build004-inspection-photos-runtime": "node --test tests/build004-inspection-photos.runtime.test.mjs",
-    "test:build004-auth-live": "node --test tests/build004-identity-authorization.live-supabase.test.mjs"
+    "test:build004-auth-live": "node --test tests/build004-identity-authorization.live-supabase.test.mjs",
+    "test:build004-authorization-parity": "node --test tests/build004-authorization-parity.contract.test.mjs"
   },
   "dependencies": {
     "next": "^15.2.4",
