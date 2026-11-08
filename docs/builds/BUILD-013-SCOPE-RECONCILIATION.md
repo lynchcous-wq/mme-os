@@ -313,3 +313,47 @@ Review PR #14's exact migration and identity-policy diff against the existing ma
 | PR #13 mergeability/CI | Blocked |
 | Hosted Supabase / Stripe live checkout | Not verified |
 | Production deployment | Not performed |
+
+
+## 15. PR #14 identity/security diff review — integration blocked pending authorization alignment
+
+Reviewed all 44 changed paths in PR #14, including its four API routes, server authorization helper, identity foundation migrations, CEO/global-freeze parity migration, diagnostics, and pgTAP/runtime tests.
+
+### Confirmed design strengths
+
+- Auth user IDs are explicitly mapped to separate `mme_person_identities.id` values; inspection records no longer assume these UUIDs are interchangeable.
+- The helper validates the bearer token through Supabase Auth and obtains the actor ID from the verified response rather than request JSON.
+- The identity tables are RLS-enabled and direct client privileges are initially revoked.
+- The migrations add append-only identity audit behavior, whole-login lock state, and a centralized server-side permission decision.
+- CEO bypass is limited to existing resource families and depends on explicit CEO provisioning plus active employee/identity state; the global employee freeze denies access.
+- CI for PR #14's inspected head passed application build/type-check, Edge Function type-check, fresh migration replay, and pgTAP tests.
+
+### Integration blocker: two authorization engines
+
+The PR introduces and wires route checks through `public.mme_authorize_employee_action(...)` using a server-role RPC. The current `main` branch also contains Build 011.19's `public.mme_authorize(...)` evaluator and `private.mme_session_is_active()` helper.
+
+These are not equivalent contracts:
+- Build 004's helper validates the bearer with Auth and checks person/employee status, role assignment, grants, scopes, CEO parity and global employee freeze.
+- Build 011.19's evaluator additionally requires an active Auth session row, validates recent-auth `iat`, and enforces MFA/AAL requirements for approved permission templates.
+- PR #14's route helper does not call `mme_authorize` or `private.mme_session_is_active()`; therefore, a route protected only by the PR helper does not inherit Build 011.19's session/MFA/recent-auth gates.
+
+This creates a potential authorization-policy split. It is not proof of an exploitable bypass in the currently deployed application, but it is a material integration blocker: the same employee action could be accepted by one engine and denied by the other.
+
+### Additional review notes
+
+- PR #14 retains the legacy `mme_employee_authorize_inventory_action` checks after adding the Build 004 authorization check. This may be intentional defense in depth, but the two evaluators' scope semantics and failure behavior must be covered by a parity matrix.
+- The PR adds identity tables through its own foundation migrations. The current `main` migrations reference these tables but do not independently create the full identity schema. Fresh-chain CI passed on the PR head; hosted migration history and the live schema still need reconciliation before any hosted apply.
+- CEO permission templates in the current `main` migration are seeded as `pending_review`. They are metadata, not runtime grants; PR #14's CEO legacy bypass must not be confused with automatic grants for new resource families.
+- The PR remains draft; passing CI does not approve the authorization design.
+
+### Required remediation before merge
+
+1. Select one canonical server-side authorization entry point, or define an explicit, tested adapter that enforces the union of required controls without allowing a weaker path.
+2. Ensure protected employee routes enforce the intended active-session, MFA/AAL, recent-auth, whole-login lock, employee status, global freeze, role/grant and scope rules.
+3. Build a table-driven parity suite across Build 004 and Build 011 decisions, including CEO, global freeze, locked identity, terminated employee, missing role, expired assignment, scope mismatch, MFA absent, stale `iat`, and revoked/expired session.
+4. Keep the legacy inventory permission check only if the parity suite proves it is required and cannot produce contradictory authorization outcomes.
+5. Re-run full CI on the revised PR head and keep it draft until the policy owner approves the unified model.
+
+### Current decision
+
+**Do not merge PR #14 yet.** Its CI is green, but the authorization engines have not been unified and session/MFA parity is not proven. No production migration or deployment was performed.
