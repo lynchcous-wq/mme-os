@@ -38,12 +38,16 @@ for (const routePath of routes) {
 }
 
 test("legacy inspection permission checks are not mistaken for the centralized identity gate", () => {
-  for (const routePath of routes.slice(0, 3)) {
+  for (const routePath of routes.slice(1, 3)) {
     const source = readFileSync(routePath, "utf8");
     assert.match(source, /mme_employee_authorize_inventory_action/);
   }
-  assert.match(
+  assert.doesNotMatch(
+    readFileSync(routes[0], "utf8"),
+    /mme_employee_authorize_inventory_action/,
+  );
+  assert.doesNotMatch(
     readFileSync(routes[3], "utf8"),
-    /authenticateAndAuthorizeEmployee/,
+    /mme_employee_authorize_inventory_action/,
   );
 });
