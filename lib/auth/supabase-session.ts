@@ -112,8 +112,12 @@ export async function requireEmployeeIdentity(authUserId: string) {
 export async function revokeProviderSession(request: NextRequest) {
   const access = request.cookies.get(ACCESS_COOKIE)?.value;
   if (!access) return;
-  const { url, anon } = supabaseConfig();
-  await fetch(`${url}/auth/v1/logout?scope=local`, {
-    method: "POST", headers: { apikey: anon, Authorization: `Bearer ${access}` }, cache: "no-store",
-  });
+  try {
+    const { url, anon } = supabaseConfig();
+    await fetch(`${url}/auth/v1/logout?scope=local`, {
+      method: "POST", headers: { apikey: anon, Authorization: `Bearer ${access}` }, cache: "no-store",
+    });
+  } catch {
+    // Clear browser cookies even if provider-side revocation is temporarily unavailable.
+  }
 }
