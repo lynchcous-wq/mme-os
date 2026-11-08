@@ -85,7 +85,7 @@ using (
     from public.mme_role_assignments ra
     join public.mme_employee_relationships e on e.id = ra.employee_relationship_id
     join public.mme_person_identities p on p.id = e.person_identity_id
-    where ra.role_id = id
+    where ra.role_id = mme_roles.id
       and ra.status = 'active'
       and ra.effective_from <= now()
       and (ra.effective_until is null or ra.effective_until > now())
