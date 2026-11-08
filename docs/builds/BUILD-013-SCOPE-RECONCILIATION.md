@@ -391,3 +391,30 @@ Commits on `integration/build004-identity-validation`:
 | Build 011 session/MFA/recent-auth parity | Not implemented |
 | Authorization policy owner approval | Pending |
 | PR #14 merge | Blocked |
+
+
+## 17. Authorization parity CI failure diagnosed and test corrected
+
+The new PR #14 CI run **42513580780** executed the added authorization parity suite. Seven assertions passed and one assertion failed because the test incorrectly expected the root inspection submit route to call the legacy inventory authorization RPC. Source inspection confirmed:
+- The root submit route uses the shared Build 004 identity helper and does not call the legacy inventory RPC.
+- The history and photos routes retain the legacy inventory permission check after the shared identity gate.
+- The resolve route uses the shared identity helper and does not call the legacy inventory RPC.
+
+Corrected the contract test to assert the actual route-specific behavior instead of treating the four routes as identical.
+
+Commit: `4d64110878a8853ed6b1bb9a66aafc38535f3189`  
+File: `tests/build004-authorization-parity.contract.test.mjs`  
+Branch: `integration/build004-identity-validation`
+
+New-head CI run **42513719963** was created and was pending at the time of this record update. No pass is claimed until that run completes.
+
+### Current gate
+
+| Item | Status |
+|---|---|
+| Initial parity contract suite | 7 passed / 1 failed |
+| Route-specific test expectation corrected | Committed |
+| New-head CI | Pending |
+| Build 004 / Build 011 authorization unification | Not implemented |
+| PR #14 merge | Blocked |
+| Hosted migration or production deployment | Not performed |
