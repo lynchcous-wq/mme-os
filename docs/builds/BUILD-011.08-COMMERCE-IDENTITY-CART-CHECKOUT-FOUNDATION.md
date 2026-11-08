@@ -132,3 +132,18 @@ Build 011.08 is **not complete** until all of the following are evidenced:
 ## Current disposition
 
 This commit establishes the workstream and its guardrails only. It does **not** implement authentication, cart persistence, Stripe checkout, payment webhooks, or production live payments. The next implementation action is a targeted audit of the existing identity migrations, auth routes and Supabase policies, followed by the smallest compatible code change.
+
+
+## Supplemental audit — identity and existing Stripe surfaces
+
+A follow-up source-tree inspection confirmed:
+
+- `docs/BUILD-004-IDENTITY-MATRIX.md` already defines the one-person identity model, separate customer and employee relationships, independently revocable employee access, server-side least-privilege authorization, and CEO-governed audited controls. Build 011.08 must implement against that design rather than redefine it.
+- `lib/pos/authenticated-server.ts` contains a POS-specific bearer-token validation path that calls Supabase Auth and resolves an auth subject through `mme_resolve_person_for_auth_subject`. It returns a person ID for POS handlers; it is not a complete customer/employee storefront session system and does not itself prove role/permission enforcement for all routes.
+- `app/api/webhooks/stripe/refunds/route.ts` verifies Stripe refund webhook signatures and calls a Supabase reconciliation RPC. This is a POS refund-specific integration, not a storefront checkout/payment webhook.
+- `app/api/pos/refunds/stripe/dispatch/route.ts` dispatches POS refunds to Stripe using server-side credentials and idempotency keys. It must be preserved and not repurposed as a customer checkout endpoint.
+- The recursive source-tree inspection on this branch surfaced one committed Supabase migration file in the checked-out migration directory. Existing SQL authority may also live in earlier branch history or a separately managed Supabase project; the live database and all relevant branches still require verification before new identity migrations are authored.
+
+### Implementation consequence
+
+Reuse and extend the Build 004 identity contract and existing Supabase subject-to-person resolution where compatible. Keep the POS refund endpoints intact. Before storefront auth implementation, map the actual Supabase Auth setup, canonical person/role tables, grants/RLS and existing account-freeze controls across the repository history and live project. Before checkout implementation, identify the canonical order, tender, inventory reservation and ledger authorities; do not create a second payment or order ledger.
