@@ -162,3 +162,56 @@ The next implementation action is a **read-only crosswalk**: compare branch ance
 | Canonical build-number crosswalk | Still unresolved |
 | Build 013 functional title and scope | Awaiting owner approval |
 | Build 013 application implementation | Not started; do not invent scope |
+
+
+## 10. Branch ancestry and pull-request crosswalk — follow-up
+
+Compared selected implementation branches against `main` using GitHub's commit comparison. The inspected default branch was current at the time of this pass; results are relative to the repository's then-current `main`.
+
+| Branch | Relationship to main | Files returned | Interpretation |
+|---|---:|---:|---|
+| `implementation-foundation-001-009` | 0 ahead / 33 behind | 0 | No unique branch commits to integrate; branch is behind main |
+| `integration/build001-catalog-inventory` | 473 ahead / 33 behind | 298 (comparison response) | Large divergence; not safe for a blind merge |
+| `integration/build004-identity-validation` | 616 ahead / 33 behind | 300 (response cap) | Large divergence; not safe for a blind merge |
+| `implementation/build001-authenticated-checkout-ui` | 532 ahead / 33 behind | 300 (response cap) | Large divergence; not safe for a blind merge |
+| `implementation/build-011-20-employee-sign-in-route` | 40 ahead / 1 behind | 34 | Narrower change set, but still requires dependency and CI review |
+| `build/010.89-inventory-automation-event-orchestration` | 15 ahead / 1 behind | 15 | Compact implementation stream; compare and validate before integration |
+
+A compare response capped at 300 files is incomplete for detailed review. The 001/004 integration branches must be split into reviewed dependency slices; do not treat the reported ahead count as a proposed merge size.
+
+### Pull-request state sampled
+
+The following PR metadata was fetched directly:
+
+| PR | Scope | State | Draft | Mergeable at inspection | Changed files |
+|---|---|---|---|---|---:|
+| #13 | Build 001 catalog/inventory integration | Open | Yes | No | 298 |
+| #14 | Build 004 identity validation | Open | Yes | Yes | 44 |
+| #15 | Authenticated checkout + Stripe UI | Open | Yes | Yes | 25 |
+| #186 | Build 010.89 customer cart foundation | Open | Yes | Yes | 3 |
+| #187 | Build 010.90 order payment finalization | Open | Yes | Yes | 3 |
+| #196 | Build 010.99 refund request portal/order tracking | Open | Yes | Yes | 4 |
+
+The repository's current open-PR search also returned the consecutive customer commerce PRs **#176–#196**, covering Build 010.79–010.99 (with a gap at 010.?? where the search result omitted PR #??). This is an open review queue, not a merged release. PR #186/#187/#196 remain drafts and are not production evidence. The exact dependencies and head/base relationships for each PR still require individual inspection.
+
+### Immediate integration conclusion
+
+1. **Do not merge** the large Build 001/004 integration branches as a whole. Their 473/616-commit divergence and response-capped file lists require decomposition and ancestry review.
+2. Keep PRs #13–#15 in draft until the integration dependency chain, migration ordering, CI and pricing/tax/shipping dependencies are resolved.
+3. The employee sign-in branch is much narrower than the large foundation branches, but it still has 40 commits ahead and one behind; verify its current PR/merge status and CI before integrating.
+4. The 010.89 branch contains 15 documentation changes for the inventory stream and is only one commit behind main. Its PR/review state must be checked before treating it as accepted.
+5. Keep the 010.90–010.99 commerce PR series separate from the canonical master roadmap until the owner-approved numbering crosswalk exists.
+
+## 11. Updated evidence ledger
+
+| Work item | Status |
+|---|---|
+| Selected branch ancestry comparisons | Complete for six branches listed above |
+| Large integration divergence identified | Confirmed |
+| Selected PR draft/mergeability metadata | Inspected for six PRs |
+| Full file-level crosswalk of 001/004 integration branches | Not complete; compare output capped |
+| Individual migrations/routes/RPC dependency graph | Not complete |
+| All 010.90–010.99 PR dependencies and CI | Not complete |
+| Canonical numbering crosswalk | Unresolved |
+| Build 013 functional scope/title | Not approved |
+| Build 013 application implementation | Not started |
