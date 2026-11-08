@@ -1,6 +1,6 @@
 # Build 011.20 — Employee Sign-In Route Restoration
 
-Status: implementation committed to an isolated preview branch; deployment and live Auth verification pending.
+Status: implementation committed to an isolated preview branch; the current Vercel preview build is blocked/queued and live Auth verification is pending.
 
 ## Defect
 The public homepage linked to `/employee-sign-in`, but the active Build 011.19 application tree did not contain that App Router page. This produced a Next.js route-level 404 before authentication could run.
@@ -31,4 +31,4 @@ The public homepage linked to `/employee-sign-in`, but the active Build 011.19 a
 5. Do not promote to production until live employee test fixtures exist and these checks pass.
 
 ## Deployment disposition
-A preview deployment is the intended next verification step. Production deployment is not authorized by this build record.
+A Vercel preview deployment was observed for an earlier branch commit (not the final implementation commit); its state remained QUEUED and no build logs were available. A manual deployment request was rejected by Vercel's daily deployment API limit (retry after 24 hours). The final implementation commit is therefore not yet confirmed deployed. The project also has no Auth users at the time of the live read-only check, and the Supabase environment variables currently visible for production are not available to this new preview branch. Do not expose production credentials to a preview deployment merely to test the route. Production deployment is not authorized by this build record.
