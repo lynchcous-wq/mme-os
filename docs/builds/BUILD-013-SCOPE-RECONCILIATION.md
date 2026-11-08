@@ -251,3 +251,29 @@ File: `supabase/tests/build001_mixed_cart_order_creation.test.sql`
 | New-head CI rerun | Pending visibility/verification |
 | PR #15 merge | Not performed |
 | Production checkout/Stripe operation | Not verified |
+
+
+## 13. PR #15 corrective-commit CI verification — in progress
+
+The corrected test commit `e1c57c7b37e0869342f224b83a26e624fb63d87a` triggered GitHub Actions run **42512882427** (`MME OS CI`).
+
+At the latest inspection:
+- **TypeScript and production build:** passed.
+- **Supabase Edge Function type-check:** passed.
+- **Supabase migration and pgTAP tests:** still in progress; the local Supabase startup step had not completed. The migration chain and pgTAP assertions had not yet run, so the prior test failure is not yet confirmed fixed.
+
+PR #15 remains open and draft. GitHub reports it mergeable, but mergeability is not an approval or a passing test suite.
+
+Vercel deployment status checks for the PR head continue to fail with the previously observed Vercel build-rate-limit upgrade URL. These checks are separate from GitHub Actions and do not establish that the code has been deployed.
+
+### Current gate
+
+| Gate | Status |
+|---|---|
+| Application type-check/build | Passed |
+| Edge Function type-check | Passed |
+| Fresh local migration-chain replay | Pending CI |
+| pgTAP regression suite | Pending CI |
+| Vercel preview deployment | Blocked by Vercel build-rate limit |
+| PR approval/merge | Not performed |
+| Production deployment | Not performed |
