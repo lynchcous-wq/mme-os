@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireBrowserUser, supabaseConfig, setSessionCookies } from "@/lib/auth/supabase-session";
+import { hasSameOrigin, requireBrowserUser, supabaseConfig, setSessionCookies } from "@/lib/auth/supabase-session";
 
 export const dynamic = "force-dynamic";
 
@@ -7,15 +7,23 @@ export async function POST(request: NextRequest) {
   const { user, refreshed } = await requireBrowserUser(request);
   if (!user) return NextResponse.json({ error: "Sign in is required before requesting customer account linking." }, { status: 401 });
   if (!user.email || !user.email_confirmed_at) return NextResponse.json({ error: "Verify your email before requesting customer account linking." }, { status: 403 });
-  if (!request.headers.get("origin") || new URL(request.headers.get("origin")!).host !== request.nextUrl.host) {
+  if (!hasSameOrigin(request)) {
     return NextResponse.json({ error: "Request origin could not be verified." }, { status: 403 });
   }
   if (!request.headers.get("content-type")?.toLowerCase().startsWith("application/json")) {
     return NextResponse.json({ error: "A JSON request is required." }, { status: 415 });
   }
 
+  const contentLength = Number(request.headers.get("content-length") ?? 0);
+  if (contentLength > 4096) return NextResponse.json({ error: "Request body is too large." }, { status: 413 });
   let input: { customerReference?: unknown; phoneLast4?: unknown; note?: unknown };
-  try { input = await request.json(); } catch { return NextResponse.json({ error: "Invalid request body." }, { status: 400 }); }
+  try {
+    const rawBody = await request.text();
+    if (new TextEncoder().encode(rawBody).byteLength > 4096) {
+      return NextResponse.json({ error: "Request body is too large." }, { status: 413 });
+    }
+    input = JSON.parse(rawBody);
+  } catch { return NextResponse.json({ error: "Invalid request body." }, { status: 400 }); }
   const customerReference = typeof input.customerReference === "string" ? input.customerReference.trim() : "";
   const phoneLast4 = typeof input.phoneLast4 === "string" ? input.phoneLast4.trim() : "";
   const note = typeof input.note === "string" ? input.note.trim() : "";
@@ -52,7 +60,11 @@ export async function POST(request: NextRequest) {
     });
     if (!inserted.ok) {
       // A concurrent duplicate pending request is treated as already accepted.
-      if (inserted.status === 409) return NextResponse.json({ accepted: true, message: "Your request is already being reviewed." }, { status: 202, headers: { "Cache-Control": "no-store" } });
+      if (inserted.status === 409) {
+        const response = NextResponse.json({ accepted: true, message: "Your request is already being reviewed." }, { status: 202, headers: { "Cache-Control": "no-store" } });
+        if (refreshed) setSessionCookies(response, refreshed);
+        return response;
+      }
       return NextResponse.json({ error: "We couldn't submit your request. Please try again later." }, { status: 503, headers: { "Cache-Control": "no-store" } });
     }
     const response = NextResponse.json({ accepted: true, message: "Your request has been submitted for MME identity review. Submission does not grant customer account access." }, { status: 202, headers: { "Cache-Control": "no-store" } });
