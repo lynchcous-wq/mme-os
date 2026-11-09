@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
-const migration = await readFile(new URL("../supabase/migrations/20261106004000_build010_customer_identity_link_requests.sql", import.meta.url), "utf8");
+const migration = await readFile(new URL("../supabase/migrations/20261109110000_build010_customer_identity_link_requests.sql", import.meta.url), "utf8");
 const route = await readFile(new URL("../app/api/auth/customer/link-request/route.ts", import.meta.url), "utf8");
 const page = await readFile(new URL("../app/account/link-request/page.tsx", import.meta.url), "utf8");
 const customerAccess = await readFile(new URL("../app/api/auth/customer/route.ts", import.meta.url), "utf8");
