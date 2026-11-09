@@ -19,6 +19,9 @@ test("link requests are separate from customer identity links and service-role o
 test("request API requires authenticated user with verified email and server-side service credentials", () => {
   assert.match(route, /requireBrowserUser/);
   assert.match(route, /user\.email_confirmed_at/);
+  assert.match(route, /hasSameOrigin\(request\)/);
+  assert.match(route, /content-length/);
+  assert.match(route, /byteLength\(\) > 4096/);
   assert.match(route, /SUPABASE_SERVICE_ROLE_KEY/);
   assert.match(route, /mme_customer_identity_link_requests/);
   assert.doesNotMatch(route, /mme_customer_portal_provision_account_link/);
