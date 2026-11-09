@@ -36,6 +36,7 @@ test("customer and employee relationship checks are separate", () => {
   assert.match(customer, /mme_person_identities/);
   assert.match(employee, /requireEmployeeIdentity/);
   assert.doesNotMatch(customer, /employee_relationships/);
+  assert.doesNotMatch(customer, /personId:\\s*links\\[0\\]\\.person_id/);
 });
 
 test("session refresh rotates both HttpOnly cookies and sign-out clears them", () => {
