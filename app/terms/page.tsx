@@ -1,0 +1,2 @@
+import SiteInfoPage from "@/components/site-info-page";
+export default function TermsPage() { return <SiteInfoPage eyebrow="Legal information" title="Terms of use." description="This route is reserved for MME's approved website, sales and service terms. The governing terms must be reviewed and published before the site relies on them." details={["Product-specific terms, financing disclosures and promotional conditions must be presented where applicable.","This placeholder is not a binding final terms document."]} primaryHref="/" primaryLabel="Back to MME" />; }
