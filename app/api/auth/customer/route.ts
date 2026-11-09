@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
     if (!identityResponse.ok) return NextResponse.json({ error: "Customer identity could not be verified." }, { status: 503 });
     const identities = await identityResponse.json() as Array<{ person_id: string }>;
     if (identities.length !== 1) return NextResponse.json({ error: "This MME identity is not active." }, { status: 403 });
-    const result = NextResponse.json({ customerAccess: true, personId: links[0].person_id }, { headers: { "Cache-Control": "no-store" } });
+    const result = NextResponse.json({ customerAccess: true }, { headers: { "Cache-Control": "no-store" } });
     if (session.refreshed) setSessionCookies(result, session.refreshed);
     return result;
   } catch {
