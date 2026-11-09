@@ -1,0 +1,2 @@
+import SiteInfoPage from "@/components/site-info-page";
+export default function SupportPage() { return <SiteInfoPage eyebrow="MME customer care" title="How can we help?" description="The customer-support destination is now in place. Account-specific support tools and ticket submission will be connected in a later verified release." details={["For product information, browse the current catalog.","Do not submit passwords or payment-card details through general support messages."]} primaryHref="/products" primaryLabel="Browse products" />; }

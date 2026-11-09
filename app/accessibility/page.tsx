@@ -1,0 +1,2 @@
+import SiteInfoPage from "@/components/site-info-page";
+export default function AccessibilityPage() { return <SiteInfoPage eyebrow="Access for everyone" title="Accessibility at MME." description="MME is preparing an accessibility statement and a clear way to report barriers encountered while using the website." details={["The storefront should support keyboard navigation, clear focus states, readable contrast and meaningful labels.","A verified accessibility contact method will be published when available."]} primaryHref="/" primaryLabel="Back to MME" />; }

@@ -1,0 +1,2 @@
+import SiteInfoPage from "@/components/site-info-page";
+export default function ShippingPage() { return <SiteInfoPage eyebrow="Delivery & pickup" title="Shipping and local pickup." description="This page is reserved for MME delivery and local-pickup options. Rates, service areas and estimated delivery dates must be confirmed at checkout before they are published." details={["Shipping options and charges will be shown before payment.","Local pickup availability will depend on verified store inventory and order readiness."]} />; }

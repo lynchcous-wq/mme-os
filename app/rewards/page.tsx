@@ -1,0 +1,2 @@
+import SiteInfoPage from "@/components/site-info-page";
+export default function RewardsPage() { return <SiteInfoPage eyebrow="MME rewards" title="More value. More rewards." description="This is the entry point for MME Rewards and the MME Rewards Credit Card information experience. Card applications, credit decisions and reward balances are not processed here." details={["Rewards terms and eligibility will be published after program approval.","Do not enter payment or personal identity information on this placeholder page."]} />; }

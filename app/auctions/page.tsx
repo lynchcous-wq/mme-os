@@ -1,0 +1,2 @@
+import SiteInfoPage from "@/components/site-info-page";
+export default function AuctionsPage() { return <SiteInfoPage eyebrow="MME marketplace" title="Live auctions are coming." description="The auctions destination is available while bidding, reserve handling, winner verification and payment settlement are prepared." details={["No live auction or bid submission is active on this placeholder page.","Auction rules, closing times and reserve status will be displayed with each verified listing."]} />; }
