@@ -418,3 +418,20 @@ New-head CI run **42513719963** was created and was pending at the time of this 
 | Build 004 / Build 011 authorization unification | Not implemented |
 | PR #14 merge | Blocked |
 | Hosted migration or production deployment | Not performed |
+
+
+## 18. Authorization parity test follow-up — second route expectation corrected
+
+The new-head CI run **42513719963** completed with:
+- Supabase migration replay, pgTAP and live Auth/Build 004 authorization integration test: passed.
+- Supabase Edge Function type-check: passed.
+- TypeScript/production-build job: failed in the authorization parity contract suite.
+
+The failing assertion was another route expectation: the resolve route retains the legacy `mme_employee_authorize_inventory_action` RPC, while the root inspection submit route does not. The test had incorrectly excluded both routes.
+
+Corrected the suite to expect the legacy permission RPC on history, photos and resolve routes, and not on the root submit route.
+
+Commit: `cc8519fd83e8916e1441c0a9e42a71a3c73ba971`  
+New CI run: **42568541298** (queued at time of this record update).
+
+No production code or authorization policy was weakened. This remains a test-only correction. Build 004/Build 011 authorization-engine unification is still outstanding; PR #14 remains draft and blocked from merge pending policy reconciliation and passing CI.
