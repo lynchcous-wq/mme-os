@@ -1,0 +1,2 @@
+import SiteInfoPage from "@/components/site-info-page";
+export default function ContactPage() { return <SiteInfoPage eyebrow="We're here to help" title="Contact Much More Electronics." description="This is the MME contact destination. Customer contact channels will be published here after they are verified and connected." details={["For now, browse the catalog or return to the homepage.","We will not display an unverified phone number, email address or response-time promise."]} primaryHref="/" primaryLabel="Back to home" />; }
