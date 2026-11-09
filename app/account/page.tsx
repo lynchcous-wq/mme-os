@@ -26,6 +26,7 @@ export default function AccountPage() {
       const access = await fetch("/api/auth/customer", { credentials: "same-origin", cache: "no-store" });
       const accessResult = await access.json() as { error?: string; customerAccess?: boolean };
       if (!access.ok) {
+        await fetch("/api/auth/sign-out", { method: "POST", credentials: "same-origin" });
         setMessage(accessResult.error || "Your login is valid, but a customer account link has not been provisioned yet. Contact MME support.");
       } else {
         setSignedIn(true);
