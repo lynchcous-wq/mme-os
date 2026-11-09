@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { authenticateAndAuthorizeEmployee } from "@/lib/server/identity-authorization";
 
 export const dynamic = "force-dynamic";
 
@@ -112,8 +113,8 @@ export async function POST(request: Request) {
 
   try {
     const lookup = async (column: "serial_number" | "imei") => {
-      const query = new URLSearchParams({ select: "id", [column]: `eq.${reference}`, limit: "2" });
-      return supabaseRequest<Array<{ id: string }>>(
+      const query = new URLSearchParams({ select: "id,product_id,location_id", [column]: `eq.${reference}`, limit: "2" });
+      return supabaseRequest<Array<{ id: string; product_id: string; location_id: string }>>(
         `${baseUrl}/rest/v1/mme_serialized_units?${query.toString()}`,
         serviceKey, "GET",
       );
@@ -134,17 +135,49 @@ export async function POST(request: Request) {
       );
     }
 
-    // In the current Build 001 schema, employee_relationships.user_id is the
-    // auth.users primary key and inspection identity columns have no separate
-    // identity table/mapping. The validated Auth subject is therefore the
-    // canonical employee identity UUID for these inspection records.
+    const unit = units[0];
+    if (!unit.product_id || !unit.location_id) {
+      return NextResponse.json({ error: "Device inventory scope could not be verified." }, { status: 409 });
+    }
+
+    // Resolve the Build 004 person identity from the validated Auth subject.
+    // Never assume the Auth user UUID is the person-identity primary key.
+    const identityQuery = new URLSearchParams({
+      select: "id",
+      auth_user_id: `eq.${actorUserId}`,
+      limit: "2",
+    });
+    const identityResult = await supabaseRequest<Array<{ id: string }>>(
+      `${baseUrl}/rest/v1/mme_person_identities?${identityQuery.toString()}`,
+      serviceKey, "GET",
+    );
+    if (!identityResult.ok) {
+      return NextResponse.json({ error: "Employee identity service is temporarily unavailable." }, { status: 503 });
+    }
+    if (identityResult.data?.length !== 1) {
+      return NextResponse.json({ error: "Employee identity mapping could not be verified." }, { status: 403 });
+    }
+
+    const authorization = await authenticateAndAuthorizeEmployee(
+      match[1],
+      "inventory.inspection",
+      "submit",
+      { product_id: unit.product_id, location_id: unit.location_id },
+    );
+    if (!authorization.ok) {
+      return NextResponse.json({ error: authorization.error }, { status: authorization.status });
+    }
+    if (authorization.actorUserId !== actorUserId) {
+      return NextResponse.json({ error: "Employee session changed during authorization." }, { status: 401 });
+    }
+
     const rpc = await supabaseRequest<string>(
       `${baseUrl}/rest/v1/rpc/mme_submit_serialized_inspection`,
       serviceKey,
       "POST",
       {
         p_reference: reference,
-        p_unit_id: units[0].id,
+        p_unit_id: unit.id,
         p_inspection_type: inspectionType,
         p_reason: reason,
         p_findings: body.findings,
@@ -159,7 +192,7 @@ export async function POST(request: Request) {
         p_activation_lock_status: body.activation_lock_status,
         p_notes: body.notes,
         p_actor_user_id: actorUserId,
-        p_actor_identity_id: actorUserId,
+        p_actor_identity_id: identityResult.data[0].id,
       },
     );
 
