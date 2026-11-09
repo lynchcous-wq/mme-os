@@ -39,3 +39,13 @@ test("customer authorization remains gated on an active pre-existing account lin
   assert.match(customerAccess, /mme_person_identities/);
   assert.match(customerAccess, /lifecycle_status=eq\.active/);
 });
+
+test("customer access denial clears the session and exposes the identity-link request path", async () => {
+  const signInPage = await readFile(new URL("../app/account/page.tsx", import.meta.url), "utf8");
+  assert.match(signInPage, /if \(!access\.ok\)[\s\S]*fetch\("\/api\/auth\/sign-out"/);
+  assert.match(signInPage, /account\/link-request/);
+});
+
+test("customer access response does not expose internal person identifiers", () => {
+  assert.doesNotMatch(customerAccess, /personId:\s*links\[0\]\.person_id/);
+});
