@@ -139,7 +139,7 @@ export async function requireCustomerIdentity(user: AuthUser) {
     const createResponse = await fetch(`${url}/rest/v1/mme_customer_relationships`, {
       method: "POST",
       headers: { ...headers, Prefer: "resolution=ignore-duplicates,return=minimal" },
-      body: JSON.stringify({ person_identity_id: personId, status: "active" }),
+      body: JSON.stringify({ person_identity_id: personId, status: "pending" }),
       cache: "no-store",
     });
     if (!createResponse.ok) throw new Error("Customer account activation is unavailable.");
@@ -148,7 +148,7 @@ export async function requireCustomerIdentity(user: AuthUser) {
     relationships = await verifyResponse.json() as Array<{ id: string; status: string }>;
   }
 
-  return relationships.length === 1 && relationships[0].status === "active" ? { personId } : null;
+  return relationships.length === 1 ? { personId, status: relationships[0].status } : null;
 }
 
 export async function revokeProviderSession(request: NextRequest) {
