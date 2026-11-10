@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
       body: JSON.stringify({
         email: body.email.trim().toLowerCase(),
         password: body.password,
-        options: { emailRedirectTo: new URL("/account", request.nextUrl.origin).toString() },
+        options: { emailRedirectTo: new URL("/auth/customer-callback", request.nextUrl.origin).toString() },
       }),
       cache: "no-store",
     });
