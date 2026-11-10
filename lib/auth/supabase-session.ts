@@ -4,7 +4,7 @@ const ACCESS_COOKIE = "mme_access_token";
 const REFRESH_COOKIE = "mme_refresh_token";
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-export type AuthUser = { id: string; email?: string };
+export type AuthUser = { id: string; email?: string; email_confirmed_at?: string | null };
 export type AuthSession = { access_token: string; refresh_token: string; expires_in?: number; user?: AuthUser };
 
 export function supabaseConfig() {
@@ -86,7 +86,7 @@ export async function requireBrowserUser(request: NextRequest) {
   return { user: refreshed?.user ?? null, refreshed };
 }
 
-/** Resolve the authenticated Supabase subject to an active MME employee relationship. */
+/** Resolve an authenticated Supabase subject to an active MME employee relationship. */
 export async function requireEmployeeIdentity(authUserId: string) {
   if (!UUID.test(authUserId)) return null;
   const { url } = supabaseConfig();
@@ -108,6 +108,47 @@ export async function requireEmployeeIdentity(authUserId: string) {
   if (!employeeResponse.ok) throw new Error("Employee identity verification is unavailable.");
   const rows = await employeeResponse.json() as Array<{ id: string }>;
   return rows.length === 1 ? { personId } : null;
+}
+
+/** Provision customer access only after Supabase has confirmed the user's email. */
+export async function requireCustomerIdentity(user: AuthUser) {
+  if (!UUID.test(user.id) || !user.email_confirmed_at) return null;
+  const { url } = supabaseConfig();
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!serviceKey) throw new Error("Customer identity verification is not configured.");
+  const headers = {
+    apikey: serviceKey,
+    Authorization: `Bearer ${serviceKey}`,
+    "Content-Type": "application/json",
+  };
+  const identityResponse = await fetch(
+    `${url}/rest/v1/mme_person_identities?auth_user_id=eq.${encodeURIComponent(user.id)}&security_status=eq.active&select=id&limit=1`,
+    { headers, cache: "no-store" },
+  );
+  if (!identityResponse.ok) throw new Error("Customer identity verification is unavailable.");
+  const identities = await identityResponse.json() as Array<{ id: string }>;
+  const personId = identities.length === 1 ? identities[0].id : null;
+  if (typeof personId !== "string" || !UUID.test(personId)) return null;
+
+  const relationshipUrl = `${url}/rest/v1/mme_customer_relationships?person_identity_id=eq.${encodeURIComponent(personId)}&select=id,status&limit=1`;
+  const existingResponse = await fetch(relationshipUrl, { headers, cache: "no-store" });
+  if (!existingResponse.ok) throw new Error("Customer relationship verification is unavailable.");
+  let relationships = await existingResponse.json() as Array<{ id: string; status: string }>;
+
+  if (relationships.length === 0) {
+    const createResponse = await fetch(`${url}/rest/v1/mme_customer_relationships`, {
+      method: "POST",
+      headers: { ...headers, Prefer: "resolution=ignore-duplicates,return=minimal" },
+      body: JSON.stringify({ person_identity_id: personId, status: "pending" }),
+      cache: "no-store",
+    });
+    if (!createResponse.ok) throw new Error("Customer account activation is unavailable.");
+    const verifyResponse = await fetch(relationshipUrl, { headers, cache: "no-store" });
+    if (!verifyResponse.ok) throw new Error("Customer account activation is unavailable.");
+    relationships = await verifyResponse.json() as Array<{ id: string; status: string }>;
+  }
+
+  return relationships.length === 1 ? { personId, status: relationships[0].status } : null;
 }
 
 export async function revokeProviderSession(request: NextRequest) {
