@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { AuthSession, getAuthUser, hasSameOrigin, requireCustomerIdentity, setSessionCookies } from "@/lib/auth/supabase-session";
+import { getAuthUser, hasSameOrigin, refreshAuthSession, requireCustomerIdentity, setSessionCookies } from "@/lib/auth/supabase-session";
 
 export const dynamic = "force-dynamic";
 
@@ -18,14 +18,12 @@ export async function POST(request: NextRequest) {
     if (!user?.email_confirmed_at) {
       return NextResponse.json({ error: "Email confirmation could not be verified. Please sign in after confirming your email." }, { status: 401 });
     }
+    const refreshedSession = await refreshAuthSession(body.refresh_token);
+    if (!refreshedSession || refreshedSession.user?.id !== user.id) {
+      return NextResponse.json({ error: "The confirmation session is invalid or expired. Please sign in." }, { status: 401 });
+    }
     const customer = await requireCustomerIdentity(user);
     if (!customer) return NextResponse.json({ error: "Customer identity could not be verified." }, { status: 403 });
-    const session: AuthSession = {
-      access_token: body.access_token,
-      refresh_token: body.refresh_token,
-      expires_in: typeof body.expires_in === "number" ? body.expires_in : 3600,
-      user,
-    };
     const response = NextResponse.json({
       authenticated: false,
       customerStatus: customer.status,
@@ -33,7 +31,7 @@ export async function POST(request: NextRequest) {
         ? "Your email is confirmed and customer access is active."
         : "Your email is confirmed. Your MME customer account is awaiting activation.",
     }, { headers: { "Cache-Control": "no-store" } });
-    setSessionCookies(response, session);
+    setSessionCookies(response, refreshedSession);
     return response;
   } catch {
     return NextResponse.json({ error: "Email confirmation could not be completed right now." }, {
