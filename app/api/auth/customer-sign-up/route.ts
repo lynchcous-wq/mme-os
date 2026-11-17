@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
+import { enforceAuthRateLimit } from "@/lib/security/auth-rate-limit";
 import { hasSameOrigin, supabaseConfig } from "@/lib/auth/supabase-session";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(request: NextRequest) {
   if (!hasSameOrigin(request)) return NextResponse.json({ error: "Request origin could not be verified." }, { status: 403 });
+  const limited = await enforceAuthRateLimit(request, "customer-sign-up", 5, 3600);
+  if (limited) return limited;
   if (!request.headers.get("content-type")?.toLowerCase().includes("application/json")) {
     return NextResponse.json({ error: "JSON request required." }, { status: 415 });
   }
