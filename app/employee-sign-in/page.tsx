@@ -68,7 +68,7 @@ export default function EmployeeSignInPage() {
         ) : (
           <button type="button" disabled={busy} onClick={signOut} style={{ marginTop: 24, padding: 12, border: "1px solid #cbd4dc", borderRadius: 8, background: "#fff", color: "#173f58", fontWeight: 700 }}>Sign out</button>
         )}
-        {message && <p role="status" aria-live="polite" style={{ marginTop: 18, padding: 12, background: "#f3f6f8", borderRadius: 8, lineHeight: 1.5 }}>{message}</p>}
+        {message && <p role="status" aria-live="polite" style={{ marginTop: 18, padding: 12, background: "#f3f6f8", borderRadius: 8, lineHeight: 1.5 }}>{message}{signedIn && <span style={{ display: "block", marginTop: 12 }}><Link href="/employee/financing/providers" style={{ color: "#1b7181", fontWeight: 700 }}>Open Financing Provider Center →</Link></span>}</p>}
         <p style={{ marginTop: 24, fontSize: 13 }}><Link href="/account" style={{ color: "#1b7181" }}>Customer account</Link> · <Link href="/" style={{ color: "#1b7181" }}>Back to store</Link></p>
       </section>
     </main>
