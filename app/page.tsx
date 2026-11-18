@@ -1,5 +1,3 @@
-"use client";
-
 const categories = [
   { name: "Televisions", detail: "Big-screen entertainment" },
   { name: "Computers", detail: "Laptops and everyday computing" },
