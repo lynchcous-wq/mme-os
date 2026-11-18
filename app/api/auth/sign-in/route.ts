@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
+import { enforceAuthRateLimit } from "@/lib/security/auth-rate-limit";
 import { hasSameOrigin, passwordSignIn, requireEmployeeIdentity, setSessionCookies } from "@/lib/auth/supabase-session";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(request: NextRequest) {
   if (!hasSameOrigin(request)) return NextResponse.json({ error: "Request origin could not be verified." }, { status: 403 });
+  const limited = await enforceAuthRateLimit(request, "employee-sign-in", 10, 900);
+  if (limited) return limited;
   if (!request.headers.get("content-type")?.toLowerCase().includes("application/json")) {
     return NextResponse.json({ error: "JSON request required." }, { status: 415 });
   }
@@ -16,7 +19,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Enter a valid work email and password." }, { status: 400 });
     }
 
-    const session = await passwordSignIn(body.email.trim(), body.password);
+    const session = await passwordSignIn(body.email.trim().toLowerCase(), body.password);
     const employee = await requireEmployeeIdentity(session.user!.id);
     if (!employee) {
       return NextResponse.json({ error: "This account is not linked to an active MME employee profile. Contact your manager." }, {
