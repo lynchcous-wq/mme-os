@@ -61,13 +61,13 @@ export default function AccountPage() {
     <main className="simple-page">
       <header className="header">
         <Link className="brand" href="/"><span className="brand-mark">MM</span><span>MUCH MORE<br /><b>ELECTRONICS</b></span></Link>
-        <nav><Link href="/products">Shop all</Link></nav>
-        <div className="actions"><Link href="/cart">Bag <span className="count">0</span></Link></div>
+        <nav aria-label="Main navigation"><Link href="/products">Shop all</Link><Link href="/">Home</Link></nav>
+        <div className="actions"><Link href="/cart">Shopping bag</Link></div>
       </header>
       <section className="simple-content" style={{ width: "min(100%, 620px)", margin: "0 auto" }}>
         <div className="eyebrow">Your MME</div>
         <h1>Customer <em>account.</em></h1>
-        <p>Sign in to your MME customer account or create one to get started. Email confirmation is required before customer access can be activated.</p>
+        <p>Sign in to your MME customer account or create one to get started. Email confirmation is required before customer access can be activated. Customer account access is separate from employee access.</p>
         {!signedIn ? <>
           <div role="group" aria-label="Account action" style={{ display: "flex", gap: 10, margin: "28px 0 20px" }}>
             <button type="button" onClick={() => { setMode("signin"); setMessage(""); }} aria-pressed={mode === "signin"} style={{ padding: "11px 18px", border: "1px solid #164b3c", background: mode === "signin" ? "#164b3c" : "transparent", color: mode === "signin" ? "white" : "#164b3c", borderRadius: 3, cursor: "pointer" }}>Sign in</button>
