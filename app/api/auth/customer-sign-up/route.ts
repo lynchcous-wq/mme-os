@@ -16,8 +16,8 @@ export async function POST(request: NextRequest) {
     const body = await request.json() as { email?: unknown; password?: unknown };
     if (typeof body.email !== "string" || typeof body.password !== "string" ||
         body.email.trim().length < 3 || body.email.length > 320 ||
-        body.password.length < 10 || body.password.length > 1024) {
-      return NextResponse.json({ error: "Enter a valid email and a password of at least 10 characters." }, { status: 400 });
+        body.password.length < 12 || body.password.length > 1024) {
+      return NextResponse.json({ error: "Enter a valid email and a password of at least 12 characters." }, { status: 400 });
     }
     const { url, anon } = supabaseConfig();
     const response = await fetch(`${url}/auth/v1/signup`, {
