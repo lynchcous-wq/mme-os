@@ -78,9 +78,9 @@ export default function AccountPage() {
               <input type="email" autoComplete="email" required maxLength={320} value={email} onChange={event => setEmail(event.target.value)} style={{ padding: 13, border: "1px solid #cbd4dc", borderRadius: 4, background: "white" }} />
             </label>
             <label style={{ display: "grid", gap: 7, fontSize: 12, fontWeight: 600 }}>Password
-              <input type="password" autoComplete={mode === "register" ? "new-password" : "current-password"} required minLength={mode === "register" ? 10 : 1} maxLength={1024} value={password} onChange={event => setPassword(event.target.value)} style={{ padding: 13, border: "1px solid #cbd4dc", borderRadius: 4, background: "white" }} />
+              <input type="password" autoComplete={mode === "register" ? "new-password" : "current-password"} required minLength={mode === "register" ? 12 : 1} maxLength={1024} value={password} onChange={event => setPassword(event.target.value)} style={{ padding: 13, border: "1px solid #cbd4dc", borderRadius: 4, background: "white" }} />
             </label>
-            {mode === "register" && <small style={{ color: "#6b7470", lineHeight: 1.6 }}>Use at least 10 characters. We will email a confirmation link to verify your address.</small>}
+            {mode === "register" && <small style={{ color: "#6b7470", lineHeight: 1.6 }}>Use at least 12 characters. We will email a confirmation link to verify your address.</small>}
             <button className="button" type="submit" disabled={busy} style={{ border: 0, cursor: busy ? "wait" : "pointer" }}>{busy ? "Please wait…" : mode === "register" ? "Create customer account" : "Sign in securely"}</button>
           </form>
         </> : <button className="button" type="button" disabled={busy} onClick={signOut}>Sign out</button>}
