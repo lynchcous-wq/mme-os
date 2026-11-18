@@ -14,7 +14,7 @@ export default function HomePage() {
       <header className="header">
         <a className="brand" href="/" aria-label="Much More Electronics home"><span className="brand-mark">MM</span><span>MUCH MORE<br /><b>ELECTRONICS</b></span></a>
         <nav aria-label="Main navigation">
-          <a href="/products?condition=new">New</a><a href="/products?condition=used">Pre-loved</a><a href="/products?condition=refurbished">Refurbished</a><a href="/products">Shop all</a><a href="#why">Why MME</a>
+          <a href="/products?condition=new">New</a><a href="/products?condition=used">Pre-loved</a><a href="/products?condition=refurbished">Refurbished</a><a href="/products">Shop all</a><a href="/financing">Financing options</a><a href="#why">Why MME</a>
         </nav>
         <div className="actions"><a href="/account">Account</a><a href="/employee-sign-in">Employee sign-in</a></div>
       </header>
@@ -70,7 +70,7 @@ export default function HomePage() {
         <div className="footer-grid">
           <div><a className="brand inverse" href="/" aria-label="Much More Electronics home"><span className="brand-mark">MM</span><span>MUCH MORE<br /><b>ELECTRONICS</b></span></a><p>More tech. More value.<br />A better way to explore electronics.</p></div>
           <div><b>Explore</b><a href="/products">Shop all</a><a href="/products?condition=new">New electronics</a><a href="/products?condition=used">Pre-loved</a><a href="/products?condition=refurbished">Refurbished</a></div>
-          <div><b>Your account</b><a href="/account">Customer account</a><a href="/employee-sign-in">Employee sign-in</a></div>
+          <div><b>Your account</b><a href="/account">Customer account</a><a href="/financing">Financing inquiry</a><a href="/employee-sign-in">Employee sign-in</a></div>
           <div><b>Discover MME</b><a href="#why">Why MME</a><a href="#explore">What we offer</a><a href="/products">Explore catalog</a></div>
         </div>
         <div className="footer-bottom"><span>© {new Date().getFullYear()} Much More Electronics</span><span>Product availability and services may vary.</span><span>Made for more.</span></div>
