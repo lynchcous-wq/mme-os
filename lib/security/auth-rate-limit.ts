@@ -72,11 +72,6 @@ export async function enforceAuthRateLimit(
   maximum: number,
   windowSeconds: number,
 ): Promise<NextResponse | null> {
-  // Preview requests are rate-limited at Vercel's edge WAF before reaching this function.
-  // Production/development retain the existing fail-closed Redis requirement until their
-  // own edge policy is configured and verified.
-  if (process.env.VERCEL_ENV === "preview") return null;
-
   try {
     const result = await checkRateLimit(request, bucket, maximum, windowSeconds);
     if (result.allowed) return null;
